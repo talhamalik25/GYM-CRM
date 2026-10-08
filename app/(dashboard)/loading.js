@@ -1,0 +1,1 @@
+export default function DashboardLoading(){return <div aria-label="Loading dashboard" className="loading-page"><div className="skeleton skeleton-title"/><div className="skeleton skeleton-subtitle"/><div className="skeleton-stats">{[1,2,3,4].map((item)=><div className="skeleton skeleton-card" key={item}/>)}</div><div className="skeleton skeleton-content"/></div>}
