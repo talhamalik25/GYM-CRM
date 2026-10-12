@@ -1,2 +1,5 @@
-import MembershipWorkspace from '../../../components/memberships/membership-workspace';
-export default function MembershipsPage() { return <MembershipWorkspace/>; }
+import PlansManager from '../../../components/plans/plans-manager';
+
+export default function MembershipsPage() {
+  return <PlansManager />;
+}

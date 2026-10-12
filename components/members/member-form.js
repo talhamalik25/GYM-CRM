@@ -1,60 +1,248 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import PageHeading from '../ui/page-heading';
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CalendarDays, UserRound } from "lucide-react";
+import Button from "../ui/button";
+import Card from "../ui/card";
+import EmptyState from "../ui/empty-state";
+import Input from "../ui/input";
+import PageHeader from "../ui/page-header";
+import Select from "../ui/select";
+import { getInitialMemberPlans, getMemberById, getMemberPlans, getMembershipExpiryDate, saveMember } from "../../lib/membersService";
 
-function Field({ label, required = false, wide = false, hint, children }) {
-  return <label className={`member-form-field${wide ? ' wide' : ''}`}><span>{label}{required && <i aria-hidden="true">*</i>}</span>{children}{hint && <small>{hint}</small>}</label>;
+const blankValues = {
+  name: "",
+  phone: "",
+  email: "",
+  gender: "",
+  dateOfBirth: "",
+  planId: "",
+  startDate: "",
+  notes: "",
+};
+
+function validate(values) {
+  const errors = {};
+  if (!values.name.trim()) errors.name = "Enter the member's full name.";
+  if (!values.phone.trim()) {
+    errors.phone = "Enter a phone number.";
+  } else {
+    const digits = values.phone.replace(/\D/g, "");
+    if (!/^\+?[0-9\s().-]+$/.test(values.phone.trim()) || digits.length < 7 || digits.length > 15) {
+      errors.phone = "Enter a valid phone number with 7 to 15 digits.";
+    }
+  }
+  if (values.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+    errors.email = "Enter a valid email address or leave this field blank.";
+  }
+  if (!values.gender) errors.gender = "Choose a gender option.";
+  if (!values.planId) errors.planId = "Choose a membership plan.";
+  if (!values.startDate) errors.startDate = "Choose a membership start date.";
+  return errors;
 }
 
-function FormSection({ title, description, children }) {
-  return <section className="member-form-section"><div className="member-form-section-heading"><span className="member-form-section-mark" aria-hidden="true">✳</span><div><h2>{title}</h2><p>{description}</p></div></div><div className="member-form-grid">{children}</div></section>;
+function toValues(member) {
+  if (!member) return blankValues;
+  return {
+    name: member.name || "",
+    phone: member.phone || "",
+    email: member.email || "",
+    gender: member.gender || "",
+    dateOfBirth: member.dateOfBirth || "",
+    planId: member.planId || "",
+    startDate: member.startDate || "",
+    notes: member.notes || "",
+  };
 }
 
-export default function MemberForm({ member = null }) {
-  const editing = Boolean(member);
-  const [saved, setSaved] = useState(false);
-  const [attempted, setAttempted] = useState(false);
-  const [imagePreview, setImagePreview] = useState(member?.profileImageUrl || '');
+export default function MemberForm({ memberId = null }) {
+  const router = useRouter();
+  const editing = Boolean(memberId);
+  const [values, setValues] = useState(blankValues);
+  const [errors, setErrors] = useState({});
+  const [ready, setReady] = useState(!editing);
+  const [memberMissing, setMemberMissing] = useState(false);
+  const [plans, setPlans] = useState(getInitialMemberPlans);
 
-  useEffect(() => () => {
-    if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-  }, [imagePreview]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPlans(getMemberPlans()), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!memberId) return;
+    const timer = window.setTimeout(() => {
+      const existing = getMemberById(memberId);
+      if (existing) {
+        setValues(toValues(existing));
+      } else {
+        setMemberMissing(true);
+      }
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [memberId]);
+
+  const selectedPlan = plans.find((plan) => plan.id === values.planId);
+  const expiryDate = useMemo(
+    () => getMembershipExpiryDate(values.startDate, selectedPlan?.durationDays),
+    [values.startDate, selectedPlan]
+  );
+
+  function updateValue(field, value) {
+    setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  }
 
   function handleSubmit(event) {
     event.preventDefault();
-    setAttempted(true);
-    const form = event.currentTarget;
-    if (!form.reportValidity()) return;
-    setSaved(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    window.setTimeout(() => setSaved(false), 5000);
+    const nextErrors = validate(values);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    const saved = saveMember(values, memberId);
+    router.push("/members/" + saved.id);
+    router.refresh();
   }
 
-  const personal = member?.personalInformation || {};
-  const emergency = member?.emergencyContact || {};
-  const fitness = member?.fitnessInformation || {};
-  const membership = member?.membership || {};
+  if (!ready) {
+    return <Card className="p-6"><p className="text-sm text-ink-muted">Loading member details…</p></Card>;
+  }
 
-  return <div className="member-form-page"><PageHeading eyebrow={editing ? 'MEMBER MANAGEMENT · EDIT PROFILE' : 'MEMBER MANAGEMENT · REGISTRATION'} title={editing ? `Edit ${member.name}` : 'Add a member'} description={editing ? 'Keep their information and membership details up to date.' : 'Create a complete member profile to get them started.'} action={<Link className="button button-secondary" href={editing ? `/members/${member.id}` : '/members'}>← Back to {editing ? 'profile' : 'members'}</Link>}/>
-    {saved && <div className="member-form-success" role="status"><span>✓</span><div><strong>{editing ? 'Changes saved' : 'Member registered'}</strong><small>{editing ? 'The updated profile is ready in this demo.' : 'The new member profile is ready in this demo.'} No data was sent to a server.</small></div><button type="button" onClick={() => setSaved(false)} aria-label="Dismiss success message">×</button></div>}
-    <form className="member-registration-form" onSubmit={handleSubmit} noValidate data-validation={attempted ? 'attempted' : 'idle'}>
-      <FormSection title="Personal information" description="A few details to identify your member.">
-        <div className="member-field-wide member-image-upload"><span className="member-upload-avatar">{imagePreview ? <img src={imagePreview} alt="Selected member profile"/> : <span aria-hidden="true">{member?.initials || '＋'}</span>}</span><div className="member-upload-copy"><strong>Profile image</strong><small>Choose a clear headshot. PNG or JPG, up to 5 MB.</small><label className="button button-secondary member-upload-button">Browse image<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { event.target.setCustomValidity(file.size > 5 * 1024 * 1024 ? 'Choose a profile image under 5 MB.' : ''); if (file.size <= 5 * 1024 * 1024) setImagePreview(URL.createObjectURL(file)); event.target.reportValidity(); } }} /></label></div></div>
-        <Field label="First name" required><input name="firstName" defaultValue={personal.firstName || ''} autoComplete="given-name" placeholder="e.g. Aisha" required maxLength={60}/></Field>
-        <Field label="Last name" required><input name="lastName" defaultValue={personal.lastName || ''} autoComplete="family-name" placeholder="e.g. Rahman" required maxLength={60}/></Field>
-        <Field label="Date of birth"><input type="date" name="dateOfBirth" defaultValue={personal.dateOfBirth || ''}/></Field>
-        <Field label="Gender"><select name="gender" defaultValue={personal.gender || ''}><option value="">Select gender</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select></Field>
-        <Field label="Phone" required><input type="tel" name="phone" defaultValue={personal.phone || ''} autoComplete="tel" placeholder="+1 (555) 000-0000" required minLength={7}/></Field>
-        <Field label="Email address"><input type="email" name="email" defaultValue={personal.email || ''} autoComplete="email" placeholder="member@email.com"/></Field>
-      </FormSection>
-      <FormSection title="Address" description="Where can the team reach your member?"><Field label="Street address"><input name="address" defaultValue={personal.address || ''} autoComplete="street-address" placeholder="Street and number"/></Field><Field label="City"><input name="city" defaultValue={personal.city || ''} autoComplete="address-level2" placeholder="City, state"/></Field></FormSection>
-      <FormSection title="Emergency contact" description="Someone to contact if your member needs assistance."><Field label="Contact name"><input name="emergencyName" defaultValue={emergency.name || ''} placeholder="Full name"/></Field><Field label="Contact phone"><input type="tel" name="emergencyPhone" defaultValue={emergency.phone || ''} placeholder="+1 (555) 000-0000"/></Field><Field label="Relationship"><select name="emergencyRelationship" defaultValue={emergency.relationship || ''}><option value="">Select relationship</option><option>Parent</option><option>Spouse</option><option>Sibling</option><option>Friend</option><option>Other</option></select></Field></FormSection>
-      <FormSection title="Fitness information" description="A starting point for a more personal training experience."><Field label="Height"><div className="member-input-unit"><input type="number" name="heightCm" defaultValue={fitness.heightCm || ''} min="80" max="250" placeholder="170"/><span>cm</span></div></Field><Field label="Weight"><div className="member-input-unit"><input type="number" name="weightKg" defaultValue={fitness.weightKg || ''} min="25" max="350" placeholder="65"/><span>kg</span></div></Field><Field label="Fitness goal" wide><input name="fitnessGoal" defaultValue={fitness.goal || ''} placeholder="e.g. Build strength and improve endurance" maxLength={160}/></Field><Field label="Medical notes" wide hint="Share only details the coaching team needs to support safe training."><textarea name="medicalNotes" rows="3" defaultValue={fitness.medicalNotes || ''} placeholder="Injuries, restrictions or other relevant notes" maxLength={1000}/></Field></FormSection>
-      <FormSection title="Membership" description="Select a plan and set the membership period."><Field label="Membership plan" required><select name="membershipPlan" defaultValue={membership.plan || ''} required><option value="">Choose a plan</option><option>Unlimited</option><option>Strength</option><option>Off-peak</option></select></Field><Field label="Start date" required><input type="date" name="startDate" defaultValue={membership.startDate || '2026-10-06'} required/></Field><Field label="Membership duration" required><select name="durationMonths" defaultValue={membership.durationMonths || ''} required><option value="">Choose duration</option><option value="1">1 month</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="24">24 months</option></select></Field><Field label="Initial payment status"><select name="paymentStatus" defaultValue={membership.paymentStatus || 'Pending'}><option>Pending</option><option>Paid</option></select></Field></FormSection>
-      <div className="member-form-footer"><p><i aria-hidden="true">*</i> Required fields</p><div><Link className="button button-secondary" href={editing ? `/members/${member.id}` : '/members'}>Cancel</Link><button className="button button-primary" type="submit">{editing ? 'Save changes' : 'Save member'} <span aria-hidden="true">→</span></button></div></div>
-    </form>
-  </div>;
+  if (memberMissing) {
+    return (
+      <Card className="p-5 md:p-6">
+        <EmptyState
+          icon={<UserRound size={25} strokeWidth={1.7} />}
+          title="Member not found"
+          description="This member is not available in the current mock data."
+          action={<Button href="/members" variant="secondary">Back to members</Button>}
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={editing ? "Edit Member" : "Add Member"}
+        description={editing ? "Update this member's contact and membership details." : "Add a member to your gym roster."}
+        actions={<Button href={editing ? "/members/" + memberId : "/members"} variant="secondary">Cancel</Button>}
+      />
+      <Card className="p-5 md:p-7">
+        <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+          <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
+            <Input
+              id="member-name"
+              name="name"
+              label="Full name"
+              autoComplete="name"
+              required
+              value={values.name}
+              onChange={(event) => updateValue("name", event.target.value)}
+              error={errors.name}
+            />
+            <Input
+              id="member-phone"
+              name="phone"
+              label="Phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+92 300 1234567"
+              required
+              value={values.phone}
+              onChange={(event) => updateValue("phone", event.target.value)}
+              error={errors.phone}
+            />
+            <Input
+              id="member-email"
+              name="email"
+              label="Email (optional)"
+              type="email"
+              autoComplete="email"
+              value={values.email}
+              onChange={(event) => updateValue("email", event.target.value)}
+              error={errors.email}
+            />
+            <Select
+              id="member-gender"
+              name="gender"
+              label="Gender"
+              required
+              value={values.gender}
+              onChange={(event) => updateValue("gender", event.target.value)}
+              error={errors.gender}
+            >
+              <option value="">Choose an option</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Other">Other</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </Select>
+            <Input
+              id="member-date-of-birth"
+              name="dateOfBirth"
+              label="Date of birth (optional)"
+              type="date"
+              autoComplete="bday"
+              value={values.dateOfBirth}
+              onChange={(event) => updateValue("dateOfBirth", event.target.value)}
+            />
+            <Select
+              id="member-plan"
+              name="planId"
+              label="Membership plan"
+              required
+              value={values.planId}
+              onChange={(event) => updateValue("planId", event.target.value)}
+              error={errors.planId}
+            >
+              <option value="">Choose a plan</option>
+              {plans.map((plan) => {
+                const months = plan.durationDays % 30 === 0;
+                const duration = months ? plan.durationDays / 30 : plan.durationDays;
+                const unit = months ? "month" : "day";
+                return <option key={plan.id} value={plan.id}>{plan.name} · {duration} {duration === 1 ? unit : `${unit}s`}</option>;
+              })}
+            </Select>
+            <Input
+              id="member-start-date"
+              name="startDate"
+              label="Membership start date"
+              type="date"
+              required
+              value={values.startDate}
+              onChange={(event) => updateValue("startDate", event.target.value)}
+              error={errors.startDate}
+            />
+            <Input
+              id="member-expiry-date"
+              name="expiryDate"
+              label="Expiry date"
+              type="date"
+              value={expiryDate}
+              readOnly
+              hint={selectedPlan ? "Calculated from the selected plan duration." : "Choose a plan and start date to calculate expiry."}
+            />
+            <label className="ui-field md:col-span-2">
+              <span className="ui-label">Notes (optional)</span>
+              <textarea
+                id="member-notes"
+                name="notes"
+                rows={4}
+                className="ui-input"
+                value={values.notes}
+                onChange={(event) => updateValue("notes", event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <Button href={editing ? "/members/" + memberId : "/members"} variant="secondary">Cancel</Button>
+            <Button type="submit"><CalendarDays size={16} aria-hidden="true" />{editing ? "Save Changes" : "Add Member"}</Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  );
 }
-

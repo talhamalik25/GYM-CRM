@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Activity, CalendarCheck2, ChevronDown, CreditCard, Dumbbell, Menu, Users, X } from 'lucide-react';
+import { authStorageKey } from '../../lib/authService';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity },
@@ -25,9 +26,8 @@ function getPageTitle(pathname) {
 
 function SidebarContent({ pathname, onNavigate }) {
   return <>
-    <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="AKTech Gym CRM home">
-      <span className="brand-mark" aria-hidden="true"><Activity size={20} strokeWidth={2.6} /></span>
-      <span className="brand-copy"><strong>AKTECH</strong><small>DIGITAL SOLUTIONS</small></span>
+    <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="Fitivo home">
+      <span className="fitivo-wordmark">Fitivo</span>
     </Link>
     <div className="workspace-switcher"><span className="workspace-mark">G</span><span><small>WORKSPACE</small><strong>Gym workspace</strong></span><ChevronDown className="workspace-chevron" size={15} aria-hidden="true" /></div>
     <p className="nav-label">MANAGEMENT</p>
@@ -40,7 +40,7 @@ function SidebarContent({ pathname, onNavigate }) {
       })}
     </nav>
     <div className="sidebar-bottom">
-      <div className="sidebar-note"><span className="sidebar-note-mark">A</span><div><strong>AKTech Digital Solutions</strong><p>Gym management workspace</p></div></div>
+      <div className="sidebar-note"><span className="sidebar-note-mark">F</span><div><strong>Fitivo</strong><p>Gym management workspace</p></div></div>
       <Link className="profile-button" href="/settings" onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>Account</strong><small>Administrator</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
     </div>
   </>;
@@ -48,7 +48,9 @@ function SidebarContent({ pathname, onNavigate }) {
 
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const current = getPageTitle(pathname);
   useEffect(() => {
     if (!menuOpen) return;
@@ -56,6 +58,21 @@ export default function DashboardShell({ children }) {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [menuOpen]);
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setAccountMenuOpen(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [accountMenuOpen]);
+  function handleLogout() {
+    try {
+      window.localStorage.removeItem(authStorageKey);
+    } catch {
+      // Continue to the sign-in screen even if browser storage is unavailable.
+    }
+    setAccountMenuOpen(false);
+    router.replace('/login');
+  }
   return <div className="app-shell">
     <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} /></aside>
     {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} />}
@@ -65,11 +82,17 @@ export default function DashboardShell({ children }) {
     </aside>
     <div className="main-column">
       <header className="topbar">
-        <div className="topbar-left"><button className="menu-toggle" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={21} /></button><div className="topbar-title"><span>Gym CRM</span><strong>{current}</strong></div></div>
-        <div className="topbar-actions"><span className="topbar-context">AKTech Digital Solutions</span><span className="topbar-divider" /><Link className="top-account" href="/settings" aria-label="Open account settings"><span className="avatar avatar-user top-avatar">A</span><span className="top-account-label">Account</span><ChevronDown size={15} aria-hidden="true" /></Link></div>
+        <div className="topbar-left"><button className="menu-toggle" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={21} /></button><div className="topbar-title"><span>Fitivo</span><strong>{current}</strong></div></div>
+        <div className="topbar-actions"><span className="topbar-context">Fitivo</span><span className="topbar-divider" /><div className="relative">
+          <button type="button" className="top-account border-0 bg-transparent p-0" aria-label="Open account menu" aria-haspopup="menu" aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen((open) => !open)}><span className="avatar avatar-user top-avatar">A</span><span className="top-account-label">Account</span><ChevronDown size={15} aria-hidden="true" /></button>
+          {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" role="menu" aria-label="Account menu">
+            <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
+            <button type="button" className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-canvas" role="menuitem" onClick={handleLogout}>Log out</button>
+          </div>}
+        </div></div>
       </header>
       <main className="main-content">{children}</main>
-      <footer className="app-footer"><span>AKTech Digital Solutions</span><span>Gym management</span></footer>
+      <footer className="app-footer"><span>Fitivo</span><span>Gym management</span></footer>
     </div>
   </div>;
 }
