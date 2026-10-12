@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, UsersRound } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
@@ -10,7 +10,7 @@ import Input from "../ui/input";
 import Modal from "../ui/modal";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
-import { getInitialPlans, getPlanMemberCounts, getPlans, savePlan, togglePlanStatus } from "../../lib/plansService";
+import { getPlanMemberCounts, listPlans, createPlan, updatePlan, setPlanActive } from "../../lib/plansService";
 
 const blankValues = { name: "", price: "", duration: "1", unit: "months", description: "" };
 
@@ -38,20 +38,34 @@ function valuesFor(plan) {
 }
 
 export default function PlansManager() {
-  const [plans, setPlans] = useState(getInitialPlans);
+  const [plans, setPlans] = useState([]);
   const [memberCounts, setMemberCounts] = useState(getPlanMemberCounts);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(blankValues);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setPlans(getPlans());
+  const loadPlans = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      setPlans(await listPlans());
       setMemberCounts(getPlanMemberCounts());
-    }, 0);
-    return () => window.clearTimeout(timer);
+    } catch (error) {
+      setLoadError(error.message || "Could not load plans.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadPlans, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadPlans]);
 
   const days = useMemo(() => Number(values.duration) * (values.unit === "months" ? 30 : 1), [values.duration, values.unit]);
 
@@ -89,19 +103,41 @@ export default function PlansManager() {
     return next;
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    savePlan({ name: values.name, price: values.price, durationDays: days, description: values.description }, editingPlan?.id);
-    setPlans(getPlans());
-    setOpen(false);
+    setSaving(true);
+    setErrors({});
+    setActionError("");
+    try {
+      const saved = editingPlan
+        ? await updatePlan(editingPlan.id, { name: values.name, price: values.price, durationDays: days, description: values.description })
+        : await createPlan({ name: values.name, price: values.price, durationDays: days, description: values.description });
+      setPlans((current) => editingPlan ? current.map((plan) => plan.id === saved.id ? saved : plan) : [saved, ...current]);
+      setOpen(false);
+    } catch (error) {
+      const fieldErrors = { ...error.fields };
+      if (fieldErrors.durationDays) {
+        fieldErrors.duration = fieldErrors.durationDays;
+        delete fieldErrors.durationDays;
+      }
+      setErrors(fieldErrors);
+      setActionError(Object.keys(fieldErrors).length ? "" : error.message || "Could not save this plan.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleToggle(plan) {
-    togglePlanStatus(plan.id);
-    setPlans(getPlans());
+  async function handleToggle(plan) {
+    setActionError("");
+    try {
+      const updated = await setPlanActive(plan.id, plan.status !== "Active");
+      setPlans((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (error) {
+      setActionError(error.message || "Could not update this plan.");
+    }
   }
 
   return (
@@ -112,7 +148,13 @@ export default function PlansManager() {
         actions={<Button onClick={openNewPlan}><Plus size={16} aria-hidden="true" />Add Plan</Button>}
       />
 
-      {plans.length === 0 ? (
+      {actionError && <Card className="p-4 text-sm text-error" role="alert">{actionError}</Card>}
+
+      {loading ? (
+        <Card className="p-6" aria-live="polite"><p className="text-sm text-ink-muted">Loading plans…</p></Card>
+      ) : loadError ? (
+        <Card className="space-y-3 p-6" role="alert"><p className="text-sm text-error">{loadError}</p><Button variant="secondary" onClick={loadPlans}>Try again</Button></Card>
+      ) : plans.length === 0 ? (
         <Card className="p-5 md:p-6">
           <EmptyState
             icon={<UsersRound size={25} strokeWidth={1.7} />}
@@ -167,7 +209,8 @@ export default function PlansManager() {
           </label>
           <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit">{editingPlan ? "Save Changes" : "Add Plan"}</Button>
+            {actionError && <p className="text-sm text-error" role="alert">{actionError}</p>}
+            <Button type="submit" disabled={saving}>{saving ? "Saving…" : editingPlan ? "Save Changes" : "Add Plan"}</Button>
           </div>
         </form>
       </Modal>

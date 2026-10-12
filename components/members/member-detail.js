@@ -12,7 +12,7 @@ import Tabs from "../ui/tabs";
 import PaymentReceiptModal from "../payments/payment-receipt-modal";
 import RecordPaymentModal from "../payments/record-payment-modal";
 import { formatDuration, getAttendanceByMember } from "../../lib/attendanceService";
-import { getMemberById, getMembershipDaysRemaining } from "../../lib/membersService";
+import { getMemberApi, getMembershipDaysRemaining } from "../../lib/membersService";
 import { getPaymentSummaryByMember, getPaymentsByMember } from "../../lib/paymentsService";
 
 function formatDate(date) {
@@ -59,24 +59,38 @@ export default function MemberDetail({ memberId }) {
   const [paymentSummary, setPaymentSummary] = useState({ totalPaid: 0, currentDues: 0 });
   const [attendance, setAttendance] = useState([]);
   const [ready, setReady] = useState(false);
+  const [loadedMemberId, setLoadedMemberId] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [loadVersion, setLoadVersion] = useState(0);
   const [activeTab, setActiveTab] = useState("payments");
   const [visibleAttendance, setVisibleAttendance] = useState(20);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
-    setReady(false);
-    const timer = window.setTimeout(() => {
-      const currentMember = getMemberById(memberId);
+    let cancelled = false;
+    getMemberApi(memberId).then((currentMember) => {
+      if (cancelled) return;
       setMember(currentMember);
-      setPayments(currentMember ? getPaymentsByMember(currentMember.id) : []);
-      setPaymentSummary(currentMember ? getPaymentSummaryByMember(currentMember.id) : { totalPaid: 0, currentDues: 0 });
-      setAttendance(currentMember ? getAttendanceByMember(currentMember.id) : []);
+      setLoadedMemberId(memberId);
+      setPayments(getPaymentsByMember(currentMember.id));
+      setPaymentSummary(getPaymentSummaryByMember(currentMember.id));
+      setAttendance(getAttendanceByMember(currentMember.id));
       setVisibleAttendance(20);
+      setLoadError("");
       setReady(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [memberId]);
+    }).catch((error) => {
+      if (cancelled) return;
+      setLoadedMemberId(memberId);
+      if (error.status === 404 || error.status === 400) {
+        setMember(null);
+        setLoadError("");
+      }
+      else setLoadError(error.message || "Could not load this member.");
+      setReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [memberId, loadVersion]);
 
   const today = new Date();
   const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -110,14 +124,15 @@ export default function MemberDetail({ memberId }) {
     { key: "duration", label: "Duration", render: (record) => record.checkOutAt ? formatDuration(record.durationMinutes) : <span className="text-ink-muted">In progress</span> },
   ];
 
-  if (!ready) return <Card className="p-6"><p className="text-sm text-ink-muted">Loading member details…</p></Card>;
+  if (!ready || loadedMemberId !== memberId) return <Card className="p-6"><p className="text-sm text-ink-muted">Loading member details…</p></Card>;
+  if (loadError) return <Card className="space-y-3 p-6" role="alert"><p className="text-sm text-error">{loadError}</p><Button variant="secondary" onClick={() => { setReady(false); setLoadVersion((version) => version + 1); }}>Try again</Button></Card>;
   if (!member) {
     return (
       <Card className="p-5 md:p-6">
         <EmptyState
           icon={<UserRound size={25} strokeWidth={1.7} />}
           title="Member not found"
-          description="No member with this ID exists in the current records."
+          description="No member with this ID exists in the database."
           action={<Button href="/members" variant="secondary">Back to members</Button>}
         />
       </Card>

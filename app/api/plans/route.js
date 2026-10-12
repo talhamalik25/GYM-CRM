@@ -1,0 +1,35 @@
+import connectToDatabase from "../../../lib/db";
+import Plan from "../../../models/Plan";
+import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../lib/planApiResponse";
+
+export async function GET(request) {
+  try {
+    await connectToDatabase();
+    const onlyActive = new URL(request.url).searchParams.get("isActive") === "true";
+    const plans = await Plan.find(onlyActive ? { isActive: true } : {}).sort({ createdAt: -1 }).lean();
+    return successResponse(plans);
+  } catch (error) {
+    return handlePlanError(error);
+  }
+}
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const validation = validatePlanBody(body);
+    if (validation) return errorResponse(validation.message, 400, validation.fields);
+
+    await connectToDatabase();
+    const plan = await Plan.create({
+      name: body.name.trim(),
+      price: body.price,
+      durationDays: body.durationDays,
+      description: body.description?.trim() || "",
+      ...(Object.hasOwn(body, "isActive") ? { isActive: body.isActive } : {}),
+    });
+    return successResponse(plan.toObject(), 201);
+  } catch (error) {
+    if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
+    return handlePlanError(error);
+  }
+}
