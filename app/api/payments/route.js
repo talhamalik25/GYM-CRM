@@ -70,7 +70,7 @@ export async function GET(request) {
     }
     if (search) {
       const members = await Member.find({ fullName: new RegExp(escapeRegex(search), "i") }).distinct("_id");
-      filter.memberId = { ...(memberId ? { $eq: memberId } : {}), $in: members };
+      filter.memberId = { $in: memberId ? members.filter((id) => String(id) === memberId) : members };
     }
     const limit = Math.min(requestedLimit, 50);
     const [records, total] = await Promise.all([

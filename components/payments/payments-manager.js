@@ -116,7 +116,7 @@ export default function PaymentsManager() {
 
       <Card className="p-4 md:p-5">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(13rem,1fr)_10rem_13rem_12rem] md:items-end">
-          <Input id="payment-search" label="Search members" type="search" placeholder="Search by member name" value={query} onChange={(event) => setQuery(event.target.value)} autoComplete="off" />
+          <Input id="payment-search" label="Search members" type="search" placeholder="Search by member name" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} autoComplete="off" />
           <Select id="payment-status-filter" label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
             <option value="All">All statuses</option><option value="Paid">Paid</option><option value="Partial">Partial</option><option value="Pending">Pending</option>
           </Select>
@@ -129,7 +129,7 @@ export default function PaymentsManager() {
 
       {loadError && <p role="alert" className="text-sm text-error">{loadError}</p>}
 
-      {payments.length === 0 ? (
+      {total === 0 ? (
         <Card className="p-5 md:p-6">
           <EmptyState
             icon={<CreditCard size={25} strokeWidth={1.7} />}
