@@ -13,7 +13,7 @@ import PaymentReceiptModal from "../payments/payment-receipt-modal";
 import RecordPaymentModal from "../payments/record-payment-modal";
 import { formatDuration, getAttendanceByMember } from "../../lib/attendanceService";
 import { getMemberApi, getMembershipDaysRemaining } from "../../lib/membersService";
-import { getPaymentSummaryByMember, getPaymentsByMember } from "../../lib/paymentsService";
+import { getPaymentSummaryByMember, getPaymentsByMember, getPaymentById } from "../../lib/paymentsService";
 
 function formatDate(date) {
   if (!date) return "Not provided";
@@ -69,12 +69,16 @@ export default function MemberDetail({ memberId }) {
 
   useEffect(() => {
     let cancelled = false;
-    getMemberApi(memberId).then((currentMember) => {
+    getMemberApi(memberId).then(async (currentMember) => {
+      if (cancelled) return;
+      const [memberPayments, memberSummary] = await Promise.all([
+        getPaymentsByMember(currentMember.id), getPaymentSummaryByMember(currentMember.id),
+      ]);
       if (cancelled) return;
       setMember(currentMember);
       setLoadedMemberId(memberId);
-      setPayments(getPaymentsByMember(currentMember.id));
-      setPaymentSummary(getPaymentSummaryByMember(currentMember.id));
+      setPayments(memberPayments);
+      setPaymentSummary(memberSummary);
       setAttendance(getAttendanceByMember(currentMember.id));
       setVisibleAttendance(20);
       setLoadError("");
@@ -102,11 +106,16 @@ export default function MemberDetail({ memberId }) {
   const visibleVisits = attendance.slice(0, visibleAttendance);
   const daysRemaining = member ? getMembershipDaysRemaining(member.expiryDate) : null;
 
-  function handlePaymentSaved(saved) {
+  async function handlePaymentSaved(saved) {
     if (!member) return;
-    setPayments(getPaymentsByMember(member.id));
-    setPaymentSummary(getPaymentSummaryByMember(member.id));
+    const [memberPayments, memberSummary] = await Promise.all([getPaymentsByMember(member.id), getPaymentSummaryByMember(member.id)]);
+    setPayments(memberPayments);
+    setPaymentSummary(memberSummary);
     setReceipt(saved);
+  }
+
+  async function showReceipt(payment) {
+    try { setReceipt(await getPaymentById(payment.id)); } catch { setReceipt(payment); }
   }
 
   const paymentColumns = [
@@ -114,7 +123,7 @@ export default function MemberDetail({ memberId }) {
     { key: "amountPaid", label: "Amount", render: (payment) => <span className="font-medium text-ink">{formatCurrency(payment.amountPaid)}</span> },
     { key: "method", label: "Method" },
     { key: "status", label: "Status", render: (payment) => <PaymentStatus status={payment.status} /> },
-    { key: "receipt", label: "Receipt", render: (payment) => <Button type="button" variant="ghost" size="sm" onClick={() => setReceipt(payment)}><ReceiptText size={15} aria-hidden="true" />View receipt</Button> },
+    { key: "receipt", label: "Receipt", render: (payment) => <Button type="button" variant="ghost" size="sm" onClick={() => showReceipt(payment)}><ReceiptText size={15} aria-hidden="true" />View receipt</Button> },
   ];
 
   const attendanceColumns = [

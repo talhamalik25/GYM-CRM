@@ -49,17 +49,27 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
 
   useEffect(() => {
     if (!open) return;
-    const currentMembers = getPaymentMembers();
-    const selected = currentMembers.find((member) => member.id === initialMemberId);
-    setMembers(currentMembers);
     setValues({
       ...blankValues,
       date: localDateValue(),
-      memberId: selected?.id || "",
-      memberName: selected?.name || "",
+      memberId: initialMemberId || "",
+      memberName: "",
     });
+    getPaymentMembers().then((currentMembers) => {
+      setMembers(currentMembers);
+      const selected = currentMembers.find((member) => member.id === initialMemberId);
+      if (selected) setValues((current) => ({ ...current, memberName: selected.name }));
+    }).catch((error) => setErrors({ memberId: error.message }));
     setErrors({});
   }, [open, initialMemberId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      getPaymentMembers(values.memberName).then(setMembers).catch(() => {});
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [open, values.memberName]);
 
   function updateValue(field, value) {
     if (field === "memberName") {
@@ -72,17 +82,17 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
     setErrors((current) => ({ ...current, [field]: undefined }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const nextErrors = validate(values, members);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     try {
-      const saved = savePayment(values);
+      const saved = await savePayment(values);
       onClose();
       onSaved?.(saved);
     } catch (error) {
-      setErrors((current) => ({ ...current, memberId: error.message }));
+      setErrors((current) => ({ ...current, ...(error.fields || { memberId: error.message }) }));
     }
   }
 
