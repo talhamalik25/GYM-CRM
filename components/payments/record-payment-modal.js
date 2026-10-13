@@ -24,6 +24,8 @@ function validate(values, members) {
   if (!member || member.name !== values.memberName) errors.memberId = "Choose a member from the list.";
   if (values.amountPaid.trim() === "" || !Number.isFinite(Number(values.amountPaid)) || Number(values.amountPaid) < 0) {
     errors.amountPaid = "Enter an amount of zero or more.";
+  } else if (!Number.isSafeInteger(Number(values.amountPaid))) {
+    errors.amountPaid = "Enter a whole number of rupees.";
   } else if (member && Number(values.amountPaid) > member.amountDue) {
     errors.amountPaid = "Amount paid cannot be greater than the amount due.";
   }
@@ -55,7 +57,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
       memberId: initialMemberId || "",
       memberName: "",
     });
-    getPaymentMembers().then((currentMembers) => {
+    getPaymentMembers("", initialMemberId).then((currentMembers) => {
       setMembers(currentMembers);
       const selected = currentMembers.find((member) => member.id === initialMemberId);
       if (selected) setValues((current) => ({ ...current, memberName: selected.name }));
@@ -66,7 +68,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   useEffect(() => {
     if (!open) return;
     const timer = window.setTimeout(() => {
-      getPaymentMembers(values.memberName).then(setMembers).catch(() => {});
+      getPaymentMembers(values.memberName, initialMemberId).then((foundMembers) => setMembers((current) => [...new Map([...current, ...foundMembers].map((member) => [member.id, member])).values()])).catch(() => {});
     }, 300);
     return () => window.clearTimeout(timer);
   }, [open, values.memberName]);
@@ -118,7 +120,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
         </div>
         <Input id="payment-plan" label="Plan" value={selectedMember?.planName || ""} readOnly hint="Filled from the selected member's plan." />
         <Input id="payment-amount-due" label="Amount due (PKR)" value={selectedMember ? formatCurrency(selectedMember.amountDue) : ""} readOnly />
-        <Input id="payment-amount-paid" label="Amount paid (PKR)" type="number" min="0" step="any" inputMode="decimal" value={values.amountPaid} onChange={(event) => updateValue("amountPaid", event.target.value)} error={errors.amountPaid} />
+        <Input id="payment-amount-paid" label="Amount paid (PKR)" type="number" min="0" step="1" inputMode="numeric" value={values.amountPaid} onChange={(event) => updateValue("amountPaid", event.target.value)} error={errors.amountPaid} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select id="payment-method" label="Payment method" value={values.method} onChange={(event) => updateValue("method", event.target.value)} error={errors.method}>
             {paymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
