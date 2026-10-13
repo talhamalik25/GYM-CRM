@@ -21,6 +21,7 @@ export async function GET() {
     ]);
     return successResponse({
       date: today,
+      timeZone: process.env.GYM_TIMEZONE || "Asia/Karachi",
       checkedInToday: result?.checkedInToday || 0,
       currentlyInside: result?.currentlyInside || 0,
       averageCheckInsThisWeek: Math.round(((result?.checkInsThisWeek || 0) / 7) * 10) / 10,

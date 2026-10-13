@@ -26,9 +26,9 @@ function formatDate(value) {
     .format(new Date(`${value}T12:00:00Z`));
 }
 
-function formatTime(value) {
+function formatTime(value, timeZone = "Asia/Karachi") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-PK", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
 function membershipTone(status) {
@@ -157,8 +157,8 @@ export default function AttendanceManager() {
   const todayColumns = [
     { key: "memberName", label: "Member", render: (record) => <span className="font-medium text-ink">{record.memberName}</span> },
     { key: "planName", label: "Plan" },
-    { key: "checkInAt", label: "Check-in", render: (record) => formatTime(record.checkInAt) },
-    { key: "checkOutAt", label: "Check-out", render: (record) => formatTime(record.checkOutAt) },
+    { key: "checkInAt", label: "Check-in", render: (record) => formatTime(record.checkInAt, summary.timeZone) },
+    { key: "checkOutAt", label: "Check-out", render: (record) => formatTime(record.checkOutAt, summary.timeZone) },
     { key: "duration", label: "Duration", render: (record) => record.checkOutAt ? formatDuration(record.durationMinutes) : <span className="text-ink-muted">In progress</span> },
     { key: "action", label: "Action", render: (record) => record.checkOutAt ? <span className="text-ink-muted">Complete</span> : <Button type="button" variant="secondary" size="sm" onClick={() => handleCheckOut(record)}><LogOut size={14} aria-hidden="true" />Check out</Button> },
   ];
@@ -167,8 +167,8 @@ export default function AttendanceManager() {
     { key: "date", label: "Date", render: (record) => formatDate(record.date) },
     { key: "memberName", label: "Member", render: (record) => <span className="font-medium text-ink">{record.memberName}</span> },
     { key: "planName", label: "Plan" },
-    { key: "checkInAt", label: "Check-in", render: (record) => formatTime(record.checkInAt) },
-    { key: "checkOutAt", label: "Check-out", render: (record) => formatTime(record.checkOutAt) },
+    { key: "checkInAt", label: "Check-in", render: (record) => formatTime(record.checkInAt, summary.timeZone) },
+    { key: "checkOutAt", label: "Check-out", render: (record) => formatTime(record.checkOutAt, summary.timeZone) },
     { key: "duration", label: "Duration", render: (record) => record.checkOutAt ? formatDuration(record.durationMinutes) : <span className="text-ink-muted">In progress</span> },
   ];
 
@@ -207,7 +207,7 @@ export default function AttendanceManager() {
                     {confirming && member.status === "Expired" && <div className="mt-3 flex items-center gap-2 rounded-lg bg-warning-soft p-3 text-sm text-warning"><AlertTriangle size={17} className="shrink-0" aria-hidden="true" /><span>Confirm that you want to check in this member with an expired membership.</span></div>}
                   </div>
                   {checkedRecord ? (
-                    <Button type="button" variant="secondary" disabled className="min-h-11 shrink-0">Checked in at {formatTime(checkedRecord.checkInAt)}</Button>
+              <Button type="button" variant="secondary" disabled className="min-h-11 shrink-0">Checked in at {formatTime(checkedRecord.checkInAt, summary.timeZone)}</Button>
                   ) : confirming ? (
                     <div className="flex shrink-0 gap-2">
                       <Button type="button" variant="secondary" className="min-h-11" onClick={() => setConfirmMemberId(null)}>Cancel</Button>

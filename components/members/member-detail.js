@@ -66,7 +66,6 @@ export default function MemberDetail({ memberId }) {
   const [loadError, setLoadError] = useState("");
   const [loadVersion, setLoadVersion] = useState(0);
   const [activeTab, setActiveTab] = useState("payments");
-  const [visibleAttendance, setVisibleAttendance] = useState(20);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
 
@@ -87,7 +86,6 @@ export default function MemberDetail({ memberId }) {
       setAttendanceTotal(memberAttendance.total);
       setAttendancePage(1);
       setGymDate(attendanceSummary.date);
-      setVisibleAttendance(20);
       setLoadError("");
       setReady(true);
     }).catch((error) => {
@@ -233,7 +231,7 @@ export default function MemberDetail({ memberId }) {
             {attendance.length ? (
               <>
                 <Table columns={attendanceColumns} rows={visibleVisits} getRowKey={(record) => record.id} className="min-w-[560px]" />
-                {visibleAttendance < attendanceTotal && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={loadMoreAttendance}>Load more</Button></div>}
+                {attendance.length < attendanceTotal && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={loadMoreAttendance}>Load more</Button></div>}
               </>
             ) : <EmptyState icon={<CalendarCheck2 size={24} strokeWidth={1.7} />} title="No attendance history" description="Check-ins recorded for this member will appear here." />}
           </section>
