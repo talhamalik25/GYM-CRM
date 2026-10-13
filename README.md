@@ -20,6 +20,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 After MongoDB is configured and at least three members have plans priced at two or more whole rupees, run `node scripts/seed-payments.js`. This command is manual and creates one Paid, one Partial, and one Pending sample payment. It skips if its sample records already exist.
 
+## Seed sample attendance
+
+After MongoDB is configured and at least three real members exist, run `node scripts/seed-attendance.js`. This command is manual. It creates records for real members across recent gym days, including two open check-ins today, and skips member/day combinations that already exist.
+
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

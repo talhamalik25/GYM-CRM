@@ -31,7 +31,7 @@ export async function GET(request) {
     const filter = {};
     if (date) filter.date = date;
     else if (from && to) filter.date = { $gte: from, $lte: to };
-    else filter.date = getGymDate();
+    else if (!memberId) filter.date = getGymDate();
     if (memberId) filter.memberId = memberId;
     if (search) {
       const matchingMembers = await Member.find({ fullName: new RegExp(escapeRegex(search), "i") }).distinct("_id");

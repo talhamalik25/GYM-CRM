@@ -67,6 +67,7 @@ export default function AttendanceManager() {
   const [loadError, setLoadError] = useState("");
   const [refreshVersion, setRefreshVersion] = useState(0);
   const today = summary.date;
+  const todayRecords = records;
 
   useEffect(() => {
     if (window.matchMedia("(min-width: 768px)").matches) document.getElementById("attendance-member-search")?.focus();
