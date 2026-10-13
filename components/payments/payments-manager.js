@@ -38,7 +38,7 @@ function statusTone(status) {
 
 export default function PaymentsManager() {
   const [payments, setPayments] = useState([]);
-  const [summary, setSummary] = useState({ collectedThisMonth: 0, pendingDues: 0, paymentsThisMonth: 0 });
+  const [summary, setSummary] = useState({ collected: 0, pendingDues: 0, paymentCount: 0 });
   const [dues, setDues] = useState([]);
   const [open, setOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
@@ -64,7 +64,7 @@ export default function PaymentsManager() {
       getPaymentSummary(), getMembersWithDues(),
     ]).then(([result, nextSummary, nextDues]) => {
       if (cancelled) return;
-      setPayments(result.items); setTotal(result.total); setSummary(nextSummary); setDues(nextDues); setLoadError("");
+      setPayments(result); setTotal(result.total); setSummary(nextSummary); setDues(nextDues); setLoadError("");
     }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
   }, [debouncedQuery, statusFilter, methodFilter, monthFilter, page, refreshKey]);
@@ -102,7 +102,7 @@ export default function PaymentsManager() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-5">
           <p className="text-sm text-ink-muted">Collected This Month</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{formatCurrency(summary.collectedThisMonth)}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{formatCurrency(summary.collected)}</p>
         </Card>
         <Card className="p-5">
           <p className="text-sm text-ink-muted">Pending Dues</p>
@@ -110,7 +110,7 @@ export default function PaymentsManager() {
         </Card>
         <Card className="p-5">
           <p className="text-sm text-ink-muted">Payments This Month</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{summary.paymentsThisMonth.toLocaleString("en-PK")}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{summary.paymentCount.toLocaleString("en-PK")}</p>
         </Card>
       </div>
 

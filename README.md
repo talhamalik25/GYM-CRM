@@ -16,6 +16,10 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Seed sample payments
+
+After MongoDB is configured and at least three members have plans priced at two or more whole rupees, run `node scripts/seed-payments.js`. This command is manual and creates one Paid, one Partial, and one Pending sample payment. It skips if its sample records already exist.
+
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

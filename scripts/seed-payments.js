@@ -6,7 +6,7 @@ import Payment from "../models/Payment.js";
 
 try {
   await connectToDatabase();
-  const members = await Member.find().populate("planId", "name price").sort({ createdAt: 1 }).limit(3);
+  const members = (await Member.find().populate("planId", "name price").sort({ createdAt: 1 })).filter((member) => Number.isSafeInteger(member.planId?.price) && member.planId.price >= 2).slice(0, 3);
   if (members.length < 3 || members.some((member) => !member.planId)) {
     throw new Error("At least three members with assigned plans are required. Seed plans and members first.");
   }
