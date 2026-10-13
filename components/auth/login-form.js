@@ -8,15 +8,25 @@ import Card from "../ui/card";
 import Input from "../ui/input";
 import { signIn } from "../../lib/authService";
 
+
 function validate(values) {
   const errors = {};
-  const email = values.email.trim();
-  if (!email) errors.email = "Enter your email address.";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
-  if (!values.password) errors.password = "Enter your password.";
-  else if (values.password.length < 6) errors.password = "Password must be at least 6 characters.";
+
+  if (values.email.trim() === "") {
+    errors.email = "Enter your email address.";
+  } else if (!values.email.includes("@") || !values.email.includes(".")) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (values.password === "") {
+    errors.password = "Enter your password.";
+  } else if (values.password.length < 6) {
+    errors.password = "Password must be at least 6 characters.";
+  }
+
   return errors;
 }
+
 
 export default function LoginForm() {
   const router = useRouter();
