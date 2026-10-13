@@ -30,16 +30,16 @@ export async function POST(request) {
     if (Object.keys(fields).length) return attendanceError("Please correct the highlighted fields.", 400, fields);
 
     await connectToDatabase();
+    await Attendance.init();
     const member = await Member.findById(body.memberId).populate("planId", "name").lean();
     if (!member) return attendanceError("The selected member was not found.", 404, { memberId: "Choose an existing member." });
     const now = new Date();
     const date = getGymDate(now);
+    if (await Attendance.exists({ memberId: member._id, date })) return alreadyCheckedIn(member._id, date);
     const status = getMembershipStatus(member.expiryDate, date);
     if (status === "Expired" && body.confirmExpired !== true) {
       return attendanceError("This member's membership has expired. Confirm to check them in anyway.", 409, undefined, "MEMBERSHIP_EXPIRED");
     }
-    if (await Attendance.exists({ memberId: member._id, date })) return alreadyCheckedIn(member._id, date);
-
     try {
       const created = await Attendance.create({
         memberId: member._id,

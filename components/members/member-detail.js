@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarCheck2, CreditCard, ReceiptText, UserRound } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
@@ -11,7 +11,7 @@ import Table from "../ui/table";
 import Tabs from "../ui/tabs";
 import PaymentReceiptModal from "../payments/payment-receipt-modal";
 import RecordPaymentModal from "../payments/record-payment-modal";
-import { formatDuration, getAttendanceByMember, getAttendanceSummary } from "../../lib/attendanceService";
+import { formatDuration, getAttendance, getAttendanceByMember, getAttendanceSummary } from "../../lib/attendanceService";
 import { getMemberApi, getMembershipDaysRemaining } from "../../lib/membersService";
 import { getPaymentSummaryByMember, getPaymentsByMember, getPaymentById } from "../../lib/paymentsService";
 
@@ -25,9 +25,9 @@ function formatDate(date) {
   }).format(new Date(date + "T12:00:00Z"));
 }
 
-function formatTime(value) {
+function formatTime(value, timeZone = "Asia/Karachi") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-PK", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
 function formatCurrency(amount) {
@@ -60,7 +60,8 @@ export default function MemberDetail({ memberId }) {
   const [attendance, setAttendance] = useState([]);
   const [attendanceTotal, setAttendanceTotal] = useState(0);
   const [attendancePage, setAttendancePage] = useState(1);
-  const [gymDate, setGymDate] = useState("");
+  const [attendanceMonthVisits, setAttendanceMonthVisits] = useState(0);
+  const [gymTimezone, setGymTimezone] = useState("Asia/Karachi");
   const [ready, setReady] = useState(false);
   const [loadedMemberId, setLoadedMemberId] = useState(null);
   const [loadError, setLoadError] = useState("");
@@ -77,6 +78,12 @@ export default function MemberDetail({ memberId }) {
         getPaymentsByMember(currentMember.id), getPaymentSummaryByMember(currentMember.id),
         getAttendanceByMember(currentMember.id, 1, 20), getAttendanceSummary(),
       ]);
+      const monthAttendance = await getAttendance({
+        memberId: currentMember.id,
+        from: `${attendanceSummary.date.slice(0, 7)}-01`,
+        to: attendanceSummary.date,
+        limit: 1,
+      });
       if (cancelled) return;
       setMember(currentMember);
       setLoadedMemberId(memberId);
@@ -85,7 +92,8 @@ export default function MemberDetail({ memberId }) {
       setAttendance(memberAttendance);
       setAttendanceTotal(memberAttendance.total);
       setAttendancePage(1);
-      setGymDate(attendanceSummary.date);
+      setGymTimezone(attendanceSummary.timeZone);
+      setAttendanceMonthVisits(monthAttendance.total);
       setLoadError("");
       setReady(true);
     }).catch((error) => {
@@ -101,11 +109,6 @@ export default function MemberDetail({ memberId }) {
     return () => { cancelled = true; };
   }, [memberId, loadVersion]);
 
-  const currentMonth = gymDate.slice(0, 7);
-  const attendanceThisMonth = useMemo(
-    () => attendance.filter((record) => record.date.startsWith(currentMonth)).length,
-    [attendance, currentMonth]
-  );
   const lastVisit = attendance[0] || null;
   const visibleVisits = attendance;
   const daysRemaining = member ? getMembershipDaysRemaining(member.expiryDate) : null;
@@ -141,8 +144,8 @@ export default function MemberDetail({ memberId }) {
 
   const attendanceColumns = [
     { key: "date", label: "Date", render: (record) => formatDate(record.date) },
-    { key: "checkInAt", label: "Check-in", render: (record) => formatTime(record.checkInAt) },
-    { key: "checkOutAt", label: "Check-out", render: (record) => formatTime(record.checkOutAt) },
+    { key: "checkInAt", label: "Check-in", render: (record) => formatTime(record.checkInAt, gymTimezone) },
+    { key: "checkOutAt", label: "Check-out", render: (record) => formatTime(record.checkOutAt, gymTimezone) },
     { key: "duration", label: "Duration", render: (record) => record.checkOutAt ? formatDuration(record.durationMinutes) : <span className="text-ink-muted">In progress</span> },
   ];
 
@@ -225,7 +228,7 @@ export default function MemberDetail({ memberId }) {
         ) : (
           <section id="member-history-attendance-panel" role="tabpanel" aria-labelledby="member-history-attendance-tab" className="pt-5">
             <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-canvas p-4"><p className="text-xs text-ink-muted">Visits this month</p><p className="mt-1 text-lg font-semibold text-ink">{attendanceThisMonth.toLocaleString("en-PK")}</p></div>
+              <div className="rounded-lg bg-canvas p-4"><p className="text-xs text-ink-muted">Visits this month</p><p className="mt-1 text-lg font-semibold text-ink">{attendanceMonthVisits.toLocaleString("en-PK")}</p></div>
               <div className="rounded-lg bg-canvas p-4"><p className="text-xs text-ink-muted">Last visit</p><p className="mt-1 text-lg font-semibold text-ink">{lastVisit ? formatDate(lastVisit.date) : "—"}</p></div>
             </div>
             {attendance.length ? (
