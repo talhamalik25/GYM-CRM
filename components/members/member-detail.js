@@ -11,7 +11,7 @@ import Table from "../ui/table";
 import Tabs from "../ui/tabs";
 import PaymentReceiptModal from "../payments/payment-receipt-modal";
 import RecordPaymentModal from "../payments/record-payment-modal";
-import { formatDuration, getAttendanceByMember } from "../../lib/attendanceService";
+import { formatDuration, getAttendanceByMember, getAttendanceSummary } from "../../lib/attendanceService";
 import { getMemberApi, getMembershipDaysRemaining } from "../../lib/membersService";
 import { getPaymentSummaryByMember, getPaymentsByMember, getPaymentById } from "../../lib/paymentsService";
 
@@ -58,6 +58,9 @@ export default function MemberDetail({ memberId }) {
   const [payments, setPayments] = useState([]);
   const [paymentSummary, setPaymentSummary] = useState({ totalPaid: 0, currentDues: 0 });
   const [attendance, setAttendance] = useState([]);
+  const [attendanceTotal, setAttendanceTotal] = useState(0);
+  const [attendancePage, setAttendancePage] = useState(1);
+  const [gymDate, setGymDate] = useState("");
   const [ready, setReady] = useState(false);
   const [loadedMemberId, setLoadedMemberId] = useState(null);
   const [loadError, setLoadError] = useState("");
@@ -71,15 +74,19 @@ export default function MemberDetail({ memberId }) {
     let cancelled = false;
     getMemberApi(memberId).then(async (currentMember) => {
       if (cancelled) return;
-      const [memberPayments, memberSummary] = await Promise.all([
+      const [memberPayments, memberSummary, memberAttendance, attendanceSummary] = await Promise.all([
         getPaymentsByMember(currentMember.id), getPaymentSummaryByMember(currentMember.id),
+        getAttendanceByMember(currentMember.id, 1, 20), getAttendanceSummary(),
       ]);
       if (cancelled) return;
       setMember(currentMember);
       setLoadedMemberId(memberId);
       setPayments(memberPayments);
       setPaymentSummary(memberSummary);
-      setAttendance(getAttendanceByMember(currentMember.id));
+      setAttendance(memberAttendance);
+      setAttendanceTotal(memberAttendance.total);
+      setAttendancePage(1);
+      setGymDate(attendanceSummary.date);
       setVisibleAttendance(20);
       setLoadError("");
       setReady(true);
@@ -96,14 +103,13 @@ export default function MemberDetail({ memberId }) {
     return () => { cancelled = true; };
   }, [memberId, loadVersion]);
 
-  const today = new Date();
-  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonth = gymDate.slice(0, 7);
   const attendanceThisMonth = useMemo(
     () => attendance.filter((record) => record.date.startsWith(currentMonth)).length,
     [attendance, currentMonth]
   );
   const lastVisit = attendance[0] || null;
-  const visibleVisits = attendance.slice(0, visibleAttendance);
+  const visibleVisits = attendance;
   const daysRemaining = member ? getMembershipDaysRemaining(member.expiryDate) : null;
 
   async function handlePaymentSaved(saved) {
@@ -112,6 +118,15 @@ export default function MemberDetail({ memberId }) {
     setPayments(memberPayments);
     setPaymentSummary(memberSummary);
     setReceipt(saved);
+  }
+
+  async function loadMoreAttendance() {
+    const nextPage = attendancePage + 1;
+    try {
+      const nextRecords = await getAttendanceByMember(member.id, nextPage, 20);
+      setAttendance((current) => [...current, ...nextRecords]);
+      setAttendancePage(nextPage);
+    } catch (error) { setLoadError(error.message || "Could not load attendance history."); }
   }
 
   async function showReceipt(payment) {
@@ -218,7 +233,7 @@ export default function MemberDetail({ memberId }) {
             {attendance.length ? (
               <>
                 <Table columns={attendanceColumns} rows={visibleVisits} getRowKey={(record) => record.id} className="min-w-[560px]" />
-                {visibleAttendance < attendance.length && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={() => setVisibleAttendance((count) => count + 20)}>Load more</Button></div>}
+                {visibleAttendance < attendanceTotal && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={loadMoreAttendance}>Load more</Button></div>}
               </>
             ) : <EmptyState icon={<CalendarCheck2 size={24} strokeWidth={1.7} />} title="No attendance history" description="Check-ins recorded for this member will appear here." />}
           </section>

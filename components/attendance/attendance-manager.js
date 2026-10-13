@@ -14,7 +14,6 @@ import {
   checkOutMember,
   formatDuration,
   getAttendance,
-  getAttendanceForDate,
   getAttendanceMembers,
   getAttendanceSummary,
   getInitialAttendance,
