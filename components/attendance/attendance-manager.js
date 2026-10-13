@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarCheck2, Clock3, LogIn, LogOut, Search, UsersRound } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
@@ -20,10 +20,6 @@ import {
   getInitialAttendance,
   getInitialAttendanceMembers,
 } from "../../lib/attendanceService";
-
-function localDateValue(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 
 function formatDate(value) {
   if (!value) return "—";
@@ -57,61 +53,101 @@ function StatCard({ label, value, icon: Icon, highlight = false }) {
 export default function AttendanceManager() {
   const [records, setRecords] = useState(getInitialAttendance);
   const [members, setMembers] = useState(getInitialAttendanceMembers);
+  const [summary, setSummary] = useState({ date: "", checkedInToday: 0, currentlyInside: 0, averageThisWeek: 0 });
   const [search, setSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
-  const [historyDate, setHistoryDate] = useState(localDateValue);
+  const [historyFrom, setHistoryFrom] = useState("");
+  const [historyTo, setHistoryTo] = useState("");
+  const [historyRecords, setHistoryRecords] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedHistorySearch, setDebouncedHistorySearch] = useState("");
   const [confirmMemberId, setConfirmMemberId] = useState(null);
   const [actionError, setActionError] = useState("");
-  const today = localDateValue();
+  const [loadError, setLoadError] = useState("");
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const today = summary.date;
 
   useEffect(() => {
     if (window.matchMedia("(min-width: 768px)").matches) document.getElementById("attendance-member-search")?.focus();
-    const timer = window.setTimeout(() => {
-      setRecords(getAttendance());
-      setMembers(getAttendanceMembers());
-    }, 0);
-    return () => window.clearTimeout(timer);
   }, []);
 
-  const todayRecords = useMemo(() => records.filter((record) => record.date === today), [records, today]);
-  const summary = useMemo(() => getAttendanceSummary(records, today), [records, today]);
-  const normalizedSearch = search.trim().toLowerCase();
-  const normalizedPhoneSearch = normalizedSearch.replace(/\D/g, "");
-  const searchResults = useMemo(() => {
-    if (!normalizedSearch) return [];
-    return members.filter((member) => member.name.toLowerCase().includes(normalizedSearch) || (normalizedPhoneSearch && member.phone.replace(/\D/g, "").includes(normalizedPhoneSearch)));
-  }, [members, normalizedSearch, normalizedPhoneSearch]);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getAttendance({ limit: 50 }), getAttendanceSummary()]).then(([todayList, nextSummary]) => {
+      if (cancelled) return;
+      setRecords(todayList);
+      setSummary(nextSummary);
+      setLoadError("");
+    }).catch((error) => { if (!cancelled) setLoadError(error.message); });
+    return () => { cancelled = true; };
+  }, [refreshVersion]);
 
-  const historyRecords = useMemo(() => {
-    const normalized = historySearch.trim().toLowerCase();
-    return getAttendanceForDate(records, historyDate).filter((record) => !normalized || record.memberName.toLowerCase().includes(normalized));
-  }, [records, historyDate, historySearch]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  function refreshRecords() {
-    setRecords(getAttendance());
-    setMembers(getAttendanceMembers());
-  }
+  useEffect(() => {
+    if (!debouncedSearch.trim()) { setMembers([]); return undefined; }
+    let cancelled = false;
+    getAttendanceMembers(debouncedSearch).then((result) => { if (!cancelled) setMembers(result); })
+      .catch((error) => { if (!cancelled) setActionError(error.message); });
+    return () => { cancelled = true; };
+  }, [debouncedSearch]);
 
-  function handleCheckIn(member) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedHistorySearch(historySearch);
+      setHistoryPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [historySearch, historyFrom, historyTo]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const query = {
+      date: historyTo ? "" : historyFrom || today,
+      from: historyTo ? historyFrom : "",
+      to: historyTo,
+      search: debouncedHistorySearch,
+      page: historyPage,
+      limit: 20,
+    };
+    if (historyTo && !historyFrom) return undefined;
+    getAttendance(query).then((result) => {
+      if (cancelled) return;
+      setHistoryRecords((current) => historyPage === 1 ? result : [...current, ...result]);
+      setHistoryTotal(result.total);
+      setLoadError("");
+    }).catch((error) => { if (!cancelled) setLoadError(error.message); });
+    return () => { cancelled = true; };
+  }, [historyFrom, historyTo, debouncedHistorySearch, historyPage, today, refreshVersion]);
+
+  function refreshRecords() { setRefreshVersion((version) => version + 1); }
+
+  async function handleCheckIn(member) {
     if (member.status === "Expired" && confirmMemberId !== member.id) {
       setConfirmMemberId(member.id);
       setActionError("");
       return;
     }
     try {
-      checkInMember(member.id, today);
+      await checkInMember(member.id, { confirmExpired: member.status === "Expired" && confirmMemberId === member.id });
       refreshRecords();
       setConfirmMemberId(null);
       setActionError("");
     } catch (error) {
+      if (error.code === "MEMBERSHIP_EXPIRED") setConfirmMemberId(member.id);
       setActionError(error.message);
       refreshRecords();
     }
   }
 
-  function handleCheckOut(record) {
+  async function handleCheckOut(record) {
     try {
-      checkOutMember(record.id);
+      await checkOutMember(record.id);
       refreshRecords();
       setActionError("");
     } catch (error) {
@@ -157,9 +193,10 @@ export default function AttendanceManager() {
           className="h-12 text-base"
         />
         {actionError && <p className="mt-3 text-sm text-error" role="alert">{actionError}</p>}
-        {normalizedSearch && (
+        {loadError && <p className="mt-3 text-sm text-error" role="alert">{loadError}</p>}
+        {search.trim() && (
           <div className="mt-4 divide-y divide-line overflow-hidden rounded-xl border border-line">
-            {searchResults.length ? searchResults.map((member) => {
+            {members.length ? members.map((member) => {
               const checkedRecord = todayRecords.find((record) => record.memberId === member.id);
               const confirming = confirmMemberId === member.id;
               return (
@@ -203,14 +240,16 @@ export default function AttendanceManager() {
       <Card className="min-w-0 p-4 md:p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div><h2 className="text-base font-semibold text-ink">Attendance history</h2><p className="mt-1 text-sm text-ink-muted">Review check-ins for a selected day.</p></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end">
-            <Input id="attendance-history-date" label="Date" type="date" value={historyDate} onChange={(event) => setHistoryDate(event.target.value)} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+            <Input id="attendance-history-date" label={historyTo ? "From" : "Date / from"} type="date" value={historyFrom || (historyTo ? "" : today)} onChange={(event) => { setHistoryFrom(event.target.value); setHistoryPage(1); }} />
+            <Input id="attendance-history-to" label="To (optional)" type="date" value={historyTo} onChange={(event) => { setHistoryTo(event.target.value); setHistoryPage(1); }} />
             <Input id="attendance-history-search" label="Search member" type="search" placeholder="Name" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} />
           </div>
         </div>
         {historyRecords.length ? <Table columns={historyColumns} rows={historyRecords} getRowKey={(record) => record.id} className="min-w-[700px]" /> : (
           <EmptyState icon={<Search size={25} strokeWidth={1.7} />} title={historySearch ? "No matching history" : "No attendance for this date"} description={historySearch ? "Try another member name." : "Choose another date to review attendance."} />
         )}
+        {historyRecords.length < historyTotal && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={() => setHistoryPage((page) => page + 1)}>Load more</Button></div>}
       </Card>
     </div>
   );
