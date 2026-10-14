@@ -2,8 +2,11 @@ import connectToDatabase from "../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
 import { handlePaymentError } from "../../../../lib/paymentApiHelpers";
 import Payment from "../../../../models/Payment";
+import { requireApiUser } from "../../../../lib/auth";
 
-export async function GET() {
+export async function GET(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     await connectToDatabase();
     const now = new Date();

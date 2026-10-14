@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Button from "../ui/button";
 import Card from "../ui/card";
 import Input from "../ui/input";
-import { signIn } from "../../lib/authService";
 
 
 function validate(values) {
@@ -50,14 +49,20 @@ export default function LoginForm() {
     if (Object.keys(nextErrors).length) return;
 
     setLoading(true);
-    await new Promise((resolve) => window.setTimeout(resolve, 250));
-    const result = signIn(values.email, values.password);
-    if (!result.success) {
-      setFormError(result.message);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error?.message || "Sign-in failed. Please try again.");
+      router.replace(result.data?.redirectTo || "/dashboard");
+      router.refresh();
+    } catch (error) {
+      setFormError(error.message || "Sign-in is temporarily unavailable. Please try again.");
       setLoading(false);
-      return;
     }
-    router.replace("/dashboard");
   }
 
   return (
@@ -116,7 +121,7 @@ export default function LoginForm() {
               <Button type="submit" size="lg" className="w-full" disabled={loading} aria-busy={loading}>
                 {loading ? <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />Signing in…</> : <><LockKeyhole size={16} aria-hidden="true" />Sign in</>}
               </Button>
-              <p className="text-center text-xs text-ink-muted">Demo sign-in is temporary while Fitivo authentication is being built.</p>
+              <p className="text-center text-xs text-ink-muted">Sign in with your Fitivo account.</p>
             </form>
           </Card>
           <p className="mt-6 text-center text-xs text-ink-muted">Fitivo · Gym management workspace</p>

@@ -5,6 +5,7 @@ import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handleMemberError, normalizeMemberPhone, serializeMember, validateMemberBody } from "../../../lib/memberApiHelpers";
 import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
+import { requireApiUser } from "../../../lib/auth";
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -15,6 +16,8 @@ function memberDate(value) {
 }
 
 export async function GET(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const params = new URL(request.url).searchParams;
     const search = (params.get("search") || "").trim();
@@ -56,6 +59,8 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const body = await request.json();
     // expiryDate is deliberately ignored: the selected plan and start date are authoritative.

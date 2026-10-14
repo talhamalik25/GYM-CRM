@@ -3,12 +3,15 @@ import connectToDatabase from "../../../../../lib/db";
 import { attendanceError, handleAttendanceError, serializeAttendance } from "../../../../../lib/attendanceApiHelpers";
 import { getGymDate } from "../../../../../lib/gymDate";
 import Attendance from "../../../../../models/Attendance";
+import { requireApiUser } from "../../../../../lib/auth";
 
 async function populatedAttendance(id) {
   return Attendance.findById(id).populate({ path: "memberId", select: "fullName planId", populate: { path: "planId", select: "name" } }).lean();
 }
 
 export async function POST(_request, { params }) {
+  const authResponse = await requireApiUser(_request);
+  if (authResponse) return authResponse;
   try {
     const { id } = await params;
     if (!mongoose.isObjectIdOrHexString(id)) return attendanceError("Attendance id is invalid.", 400, { id: "Enter a valid attendance id." });

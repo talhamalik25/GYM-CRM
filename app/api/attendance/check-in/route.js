@@ -5,6 +5,7 @@ import { getGymDate } from "../../../../lib/gymDate";
 import { getMembershipStatus } from "../../../../lib/membersService";
 import Attendance from "../../../../models/Attendance";
 import Member from "../../../../models/Member";
+import { requireApiUser } from "../../../../lib/auth";
 
 async function populatedAttendance(id) {
   return Attendance.findById(id).populate({ path: "memberId", select: "fullName planId", populate: { path: "planId", select: "name" } }).lean();
@@ -21,6 +22,8 @@ async function alreadyCheckedIn(memberId, date) {
 }
 
 export async function POST(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const body = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return attendanceError("Request body must be a JSON object.", 400, {});

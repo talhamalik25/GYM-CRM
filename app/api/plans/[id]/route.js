@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db";
 import Plan from "../../../../models/Plan";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../../lib/planApiResponse";
+import { requireApiUser } from "../../../../lib/auth";
 
 async function readId(context) {
   const { id } = await context.params;
@@ -9,6 +10,8 @@ async function readId(context) {
 }
 
 export async function GET(_request, context) {
+  const authResponse = await requireApiUser(_request);
+  if (authResponse) return authResponse;
   try {
     const id = await readId(context);
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Plan id is invalid.", 400);
@@ -22,6 +25,8 @@ export async function GET(_request, context) {
 }
 
 export async function PATCH(request, context) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const id = await readId(context);
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Plan id is invalid.", 400);

@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Activity, CalendarCheck2, ChevronDown, CreditCard, Dumbbell, Menu, Users, X } from 'lucide-react';
-import { authStorageKey } from '../../lib/authService';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity },
@@ -41,7 +40,7 @@ function SidebarContent({ pathname, onNavigate }) {
     </nav>
     <div className="sidebar-bottom">
       <div className="sidebar-note"><span className="sidebar-note-mark">F</span><div><strong>Fitivo</strong><p>Gym management workspace</p></div></div>
-      <Link className="profile-button" href="/settings" onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>Account</strong><small>Administrator</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
+      <Link className="profile-button" href="/settings" onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>Account</strong><small>Signed in</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
     </div>
   </>;
 }
@@ -51,6 +50,7 @@ export default function DashboardShell({ children }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const current = getPageTitle(pathname);
   useEffect(() => {
     if (!menuOpen) return;
@@ -64,14 +64,16 @@ export default function DashboardShell({ children }) {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [accountMenuOpen]);
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      window.localStorage.removeItem(authStorageKey);
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error();
+      setAccountMenuOpen(false);
+      router.replace('/login');
+      router.refresh();
     } catch {
-      // Continue to the sign-in screen even if browser storage is unavailable.
+      setLogoutError('Could not log out. Check your connection and try again.');
     }
-    setAccountMenuOpen(false);
-    router.replace('/login');
   }
   return <div className="app-shell">
     <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} /></aside>
@@ -86,6 +88,7 @@ export default function DashboardShell({ children }) {
         <div className="topbar-actions"><span className="topbar-context">Fitivo</span><span className="topbar-divider" /><div className="relative">
           <button type="button" className="top-account border-0 bg-transparent p-0" aria-label="Open account menu" aria-haspopup="menu" aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen((open) => !open)}><span className="avatar avatar-user top-avatar">A</span><span className="top-account-label">Account</span><ChevronDown size={15} aria-hidden="true" /></button>
           {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" role="menu" aria-label="Account menu">
+            {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
             <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
             <button type="button" className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-canvas" role="menuitem" onClick={handleLogout}>Log out</button>
           </div>}

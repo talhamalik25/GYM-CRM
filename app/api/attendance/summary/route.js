@@ -3,8 +3,11 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse"
 import { handleAttendanceError } from "../../../../lib/attendanceApiHelpers";
 import { getGymDate } from "../../../../lib/gymDate";
 import Attendance from "../../../../models/Attendance";
+import { requireApiUser } from "../../../../lib/auth";
 
-export async function GET() {
+export async function GET(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     await connectToDatabase();
     const today = getGymDate();

@@ -5,6 +5,7 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse"
 import { handleMemberError, normalizeMemberPhone, serializeMember, validateMemberBody } from "../../../../lib/memberApiHelpers";
 import Member from "../../../../models/Member";
 import Plan from "../../../../models/Plan";
+import { requireApiUser } from "../../../../lib/auth";
 
 function memberDate(value) {
   return new Date(`${value}T00:00:00.000Z`);
@@ -15,6 +16,8 @@ function dateString(value) {
 }
 
 export async function GET(_request, context) {
+  const authResponse = await requireApiUser(_request);
+  if (authResponse) return authResponse;
   try {
     const { id } = await context.params;
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Member id is invalid.", 400);
@@ -28,6 +31,8 @@ export async function GET(_request, context) {
 }
 
 export async function PATCH(request, context) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const { id } = await context.params;
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Member id is invalid.", 400);

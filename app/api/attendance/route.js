@@ -5,10 +5,13 @@ import { getGymDate } from "../../../lib/gymDate";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import Attendance from "../../../models/Attendance";
 import Member from "../../../models/Member";
+import { requireApiUser } from "../../../lib/auth";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export async function GET(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const params = new URL(request.url).searchParams;
     const date = params.get("date") || "";

@@ -1,8 +1,11 @@
 import connectToDatabase from "../../../lib/db";
 import Plan from "../../../models/Plan";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../lib/planApiResponse";
+import { requireApiUser } from "../../../lib/auth";
 
 export async function GET(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     await connectToDatabase();
     const onlyActive = new URL(request.url).searchParams.get("isActive") === "true";
@@ -14,6 +17,8 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const body = await request.json();
     const validation = validatePlanBody(body);

@@ -26,6 +26,18 @@ After MongoDB is configured and at least three real members exist, run `node scr
 
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
 
+## Authentication setup
+
+Set `MONGODB_URI` and `AUTH_SESSION_SECRET` in `.env.local` for local development and in Vercel Project Settings for each deployment environment. Generate a unique session secret with `openssl rand -base64 48`; use a different value in Production, Preview, and Development. `GYM_TIMEZONE` remains optional and defaults to `Asia/Karachi`.
+
+Create a login account from an interactive terminal after configuring the database:
+
+```bash
+npm run user:create -- --email you@example.com
+```
+
+The password is entered without terminal echo and is stored as a scrypt hash. There is no public sign-up route. All authenticated accounts currently have the same access; roles and account management are not implemented.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

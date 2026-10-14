@@ -6,11 +6,14 @@ import { handlePaymentError, isDateOnly, paymentStatusMatch, serializePayment } 
 import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
 import Plan from "../../../models/Plan";
+import { requireApiUser } from "../../../lib/auth";
 
 const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export async function POST(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const body = await request.json();
     const fields = {};
@@ -45,6 +48,8 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
+  const authResponse = await requireApiUser(request);
+  if (authResponse) return authResponse;
   try {
     const params = new URL(request.url).searchParams;
     const status = (params.get("status") || "all").toLowerCase();
