@@ -78,6 +78,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   }, [open, values.memberName]);
 
   function updateValue(field, value) {
+    requestKey.current = null;
     if (field === "memberName") {
       const selected = members.find((member) => member.name === value);
       setValues((current) => ({ ...current, memberName: value, memberId: selected?.id || "" }));

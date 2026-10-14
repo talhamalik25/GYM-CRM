@@ -3,15 +3,14 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse"
 import { handlePaymentError } from "../../../../lib/paymentApiHelpers";
 import Payment from "../../../../models/Payment";
 import { requireApiUser } from "../../../../lib/auth";
+import { currentGymPaymentMonthRange } from "../../../../lib/paymentRules";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
   if (authResponse) return authResponse;
   try {
     await connectToDatabase();
-    const now = new Date();
-    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const { start, end } = currentGymPaymentMonthRange();
     const [month, dues] = await Promise.all([
       Payment.aggregate([{ $match: { paymentDate: { $gte: start, $lt: end } } }, { $group: { _id: null, collectedThisMonth: { $sum: "$amountPaid" }, paymentsThisMonth: { $sum: 1 } } }]),
       Payment.aggregate([{ $match: { $expr: { $lt: ["$amountPaid", "$amountDue"] } } }, { $group: { _id: null, pendingDues: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } } } }]),
