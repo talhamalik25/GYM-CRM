@@ -5,7 +5,7 @@ const planSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: true,
-    validate: { validator: (value) => Number.isFinite(value) && value > 0, message: "Price must be greater than zero." },
+    validate: { validator: (value) => Number.isSafeInteger(value) && value > 0, message: "Price must be a whole number of rupees greater than zero." },
   },
   durationDays: {
     type: Number,

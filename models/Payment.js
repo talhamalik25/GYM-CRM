@@ -14,10 +14,14 @@ const paymentSchema = new mongoose.Schema({
   method: { type: String, required: true, enum: ["cash", "bank_transfer", "easypaisa", "jazzcash"] },
   paymentDate: { type: Date, required: true },
   receiptNumber: { type: String, required: true, unique: true },
+  // Optional to preserve all historical rows; newly created rows receive a unique request key.
+  idempotencyKey: { type: String, select: false },
+  requestFingerprint: { type: String, select: false },
   notes: { type: String, default: "", trim: true },
 }, { timestamps: true });
 
 paymentSchema.index({ memberId: 1, paymentDate: -1 });
 paymentSchema.index({ paymentDate: -1 });
+paymentSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.Payment || mongoose.model("Payment", paymentSchema);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Input from "../ui/input";
@@ -44,6 +44,8 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   const [members, setMembers] = useState(getInitialPaymentMembers);
   const [values, setValues] = useState(blankValues);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const requestKey = useRef(null);
   const selectedMember = members.find((member) => member.id === values.memberId);
   const previewStatus = selectedMember && values.amountPaid !== ""
     ? derivePaymentStatus(values.amountPaid, selectedMember.amountDue)
@@ -57,6 +59,8 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
       memberId: initialMemberId || "",
       memberName: "",
     });
+    requestKey.current = null;
+    setSubmitting(false);
     getPaymentMembers("", initialMemberId).then((currentMembers) => {
       setMembers(currentMembers);
       const selected = currentMembers.find((member) => member.id === initialMemberId);
@@ -90,11 +94,16 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     try {
-      const saved = await savePayment(values);
+      setSubmitting(true);
+      requestKey.current ||= window.crypto.randomUUID();
+      const saved = await savePayment(values, requestKey.current);
+      requestKey.current = null;
       onClose();
       onSaved?.(saved);
     } catch (error) {
       setErrors((current) => ({ ...current, ...(error.fields || { memberId: error.message }) }));
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -134,7 +143,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
         {previewStatus && <p className="text-sm text-ink-muted" aria-live="polite">Status: <Badge tone={statusTone(previewStatus)}>{previewStatus}</Badge></p>}
         <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit">Record Payment</Button>
+          <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : "Record Payment"}</Button>
         </div>
       </form>
     </Modal>

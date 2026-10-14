@@ -124,7 +124,7 @@ export default function LoginForm() {
               <p className="text-center text-xs text-ink-muted">Sign in with your Fitivo account.</p>
             </form>
           </Card>
-          <p className="mt-6 text-center text-xs text-ink-muted">Fitivo · Gym management workspace</p>
+          <p className="mt-6 text-center text-xs text-ink-muted">Fitivo Gym management workspace</p>
         </div>
       </section>
 
