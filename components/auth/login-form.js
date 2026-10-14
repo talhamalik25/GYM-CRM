@@ -137,7 +137,7 @@ export default function LoginForm() {
           <p className="text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">Your gym, in sync.</p>
           <p className="mt-4 max-w-md text-base leading-7 text-white/65">Manage members, plans, payments and attendance in one place.</p>
         </div>
-        <p className="relative text-xs text-white/45">Fitivo gym management</p>
+        <p className="relative text-xs text-white/45">Fitivo gym managemet</p>
       </aside>
     </main>
   );
