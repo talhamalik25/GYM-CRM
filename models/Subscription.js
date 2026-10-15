@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const termSchema = new mongoose.Schema({
   renewalKey: { type: String, required: true },
+  requestFingerprint: { type: String, required: true },
   planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
   planSnapshot: { name: { type: String, required: true }, durationDays: { type: Number, required: true }, originalPrice: { type: Number, required: true }, agreedPrice: { type: Number, required: true } },
   startDate: { type: Date, required: true }, expiryDate: { type: Date, required: true },
@@ -16,6 +17,7 @@ const subscriptionSchema = new mongoose.Schema({
   planSnapshot: { name: { type: String, required: true }, durationDays: { type: Number, required: true }, originalPrice: { type: Number, required: true }, agreedPrice: { type: Number, required: true } },
   status: { type: String, enum: ["pending", "active", "expired", "cancelled"], default: "pending", index: true },
   createKey: { type: String, required: true, unique: true },
+  createFingerprint: { type: String, required: true },
   renewalHistory: { type: [termSchema], default: [] },
 }, { timestamps: true });
 

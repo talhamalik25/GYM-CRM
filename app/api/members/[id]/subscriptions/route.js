@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
-import connectToDatabase from "../../../../lib/db";
-import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
-import { requireApiUser } from "../../../../lib/auth";
-import Member from "../../../../models/Member";
-import Subscription from "../../../../models/Subscription";
-import Payment from "../../../../models/Payment";
-import Plan from "../../../../models/Plan";
-import { deriveSubscriptionStatus } from "../../../../lib/subscriptionRules";
+import connectToDatabase from "../../../../../lib/db";
+import { errorResponse, successResponse } from "../../../../../lib/planApiResponse";
+import { requireApiUser } from "../../../../../lib/auth";
+import Member from "../../../../../models/Member";
+import Subscription from "../../../../../models/Subscription";
+import Payment from "../../../../../models/Payment";
+import Plan from "../../../../../models/Plan";
+import { deriveSubscriptionStatus } from "../../../../../lib/subscriptionRules";
 
 export async function GET(request, { params }) {
   const auth = await requireApiUser(request); if (auth) return auth;

@@ -1,5 +1,5 @@
-import PlansManager from '../../../components/plans/plans-manager';
+import MembershipManager from '../../../components/memberships/membership-manager';
 
 export default function MembershipsPage() {
-  return <PlansManager />;
+  return <MembershipManager />;
 }

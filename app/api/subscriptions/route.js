@@ -36,7 +36,13 @@ export async function GET(request) {
     await connectToDatabase();
     let filter = {};
     if (search) { const ids = await Member.find({ $or: [{ fullName: new RegExp(escapeRegex(search), "i") }, { phone: new RegExp(escapeRegex(search), "i") }] }).distinct("_id"); filter.memberId = { $in: ids }; }
-    if (status !== "all") filter.status = status;
+    if (status === "cancelled") filter.status = "cancelled";
+    if (status !== "all" && status !== "cancelled") {
+      const today = dateOnly(gymToday());
+      if (status === "pending") filter.startDate = { $gt: today };
+      if (status === "active") { filter.startDate = { $lte: today }; filter.expiryDate = { $gte: today }; filter.status = { $ne: "cancelled" }; }
+      if (status === "expired") { filter.expiryDate = { $lt: today }; filter.status = { $ne: "cancelled" }; }
+    }
     const limit = Math.min(requestedLimit, 50);
     const [items, total] = await Promise.all([Subscription.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(), Subscription.countDocuments(filter)]);
     return successResponse({ items: await Promise.all(items.map(serialize)), total, page, limit });
@@ -49,18 +55,21 @@ export async function POST(request) {
     const body = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
     const fields = {};
+    for (const field of Object.keys(body)) if (!["memberId", "planId", "startDate", "agreedPrice", "amountPaid", "method", "paymentDate"].includes(field)) fields[field] = "This field cannot be changed.";
     if (!mongoose.isObjectIdOrHexString(body.memberId)) fields.memberId = "Choose a valid member.";
     if (!mongoose.isObjectIdOrHexString(body.planId)) fields.planId = "Choose a valid plan.";
     if (!isDateOnly(body.startDate)) fields.startDate = "Enter a valid start date.";
     if (body.agreedPrice != null && (!Number.isSafeInteger(body.agreedPrice) || body.agreedPrice < 1)) fields.agreedPrice = "Price must be a positive whole number of rupees.";
     if (body.amountPaid != null && (!Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0)) fields.amountPaid = "Payment must be a whole number of rupees.";
     if (body.method != null && !methods.includes(body.method)) fields.method = "Choose a valid payment method.";
+    if (body.paymentDate != null && (!isDateOnly(body.paymentDate) || body.paymentDate > gymToday())) fields.paymentDate = "Choose a valid payment date no later than today.";
     const key = request.headers.get("Idempotency-Key");
     if (!key || !/^[A-Za-z0-9._:-]{16,128}$/.test(key)) fields.idempotencyKey = "A valid request key is required.";
     if (Object.keys(fields).length) return errorResponse("Please correct the highlighted fields.", 400, fields);
     await connectToDatabase(); await Subscription.init();
+    const fingerprint = JSON.stringify({ memberId: body.memberId.toLowerCase(), planId: body.planId.toLowerCase(), startDate: body.startDate, agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
     const prior = await Subscription.findOne({ createKey: key });
-    if (prior) return successResponse(await serialize(prior), 200);
+    if (prior) return prior.createFingerprint === fingerprint ? successResponse(await serialize(prior), 200) : errorResponse("This request key was already used for different subscription details.", 409);
     const [member, plan] = await Promise.all([Member.findById(body.memberId), Plan.findById(body.planId)]);
     if (!member) return errorResponse("The selected member was not found.", 404, { memberId: "Choose an existing member." });
     if (!plan || !plan.isActive) return errorResponse("Choose an available active plan.", 404, { planId: "Choose an active plan." });
@@ -70,7 +79,7 @@ export async function POST(request) {
     if (amountPaid > 0 && !body.method) return errorResponse("Choose a payment method.", 400, { method: "A payment method is required when recording a payment." });
     const startDate = body.startDate;
     const expiryDate = addDays(startDate, plan.durationDays - 1);
-    const subscription = await Subscription.create({ memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate), originalPrice: plan.price, agreedPrice, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, status: "pending", createKey: key, renewalHistory: [{ renewalKey: key, planId: plan._id, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate) }] });
+    const subscription = await Subscription.create({ memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate), originalPrice: plan.price, agreedPrice, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, status: "pending", createKey: key, createFingerprint: fingerprint, renewalHistory: [{ renewalKey: key, requestFingerprint: fingerprint, planId: plan._id, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate) }] });
     if (amountPaid > 0) {
       const payment = await Payment.create({ memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()), receiptNumber: await generateReceiptNumber(), idempotencyKey: key, requestFingerprint: `subscription:${subscription._id}:${amountPaid}:${body.method}` });
       subscription.renewalHistory[0].paymentId = payment._id; await subscription.save();
