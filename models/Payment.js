@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 const paymentSchema = new mongoose.Schema({
   memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true, index: true },
   planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
+  subscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: "Subscription", default: null, index: true },
+  renewalKey: { type: String, default: null },
   // Snapshot the plan price at payment time so later price edits do not rewrite history.
   amountDue: { type: Number, required: true, min: 1, validate: [{ validator: Number.isFinite, message: "Amount due must be a finite number." }, { validator: Number.isInteger, message: "Amount due must be a whole number of rupees." }] },
   amountPaid: {
