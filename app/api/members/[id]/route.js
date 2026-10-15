@@ -6,6 +6,7 @@ import { handleMemberError, normalizeMemberPhone, serializeMember, validateMembe
 import Member from "../../../../models/Member";
 import Plan from "../../../../models/Plan";
 import Trainer from "../../../../models/Trainer";
+import { isTrainerId, validateTrainerAssignment } from "../../../../lib/trainerApiHelpers";
 import { requireApiUser } from "../../../../lib/auth";
 
 function memberDate(value) {
@@ -57,12 +58,9 @@ export async function PATCH(request, context) {
     const update = { ...memberBody };
     if (Object.hasOwn(memberBody, "trainerId")) {
       const trainerId = memberBody.trainerId || null;
-      if (trainerId && !mongoose.isObjectIdOrHexString(trainerId)) return errorResponse("Trainer id is invalid.", 400, { trainerId: "Choose a valid trainer." });
-      if (trainerId && String(current.trainerId || "") !== trainerId) {
-        const trainer = await Trainer.findById(trainerId).select("status");
-        if (!trainer) return errorResponse("The selected trainer was not found.", 404, { trainerId: "Choose an existing trainer." });
-        if (trainer.status !== "active") return errorResponse("Only active trainers can be assigned to a member.", 400, { trainerId: "Choose an active trainer." });
-      }
+      const trainer = trainerId && isTrainerId(trainerId) ? await Trainer.findById(trainerId).select("status") : null;
+      const trainerError = validateTrainerAssignment(trainerId, trainer, current.trainerId);
+      if (trainerError) return errorResponse(trainerError.message, trainerError.status, { trainerId: trainerError.message });
       update.trainerId = trainerId;
     }
 

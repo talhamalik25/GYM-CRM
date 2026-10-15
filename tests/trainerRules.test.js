@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import Trainer from "../models/Trainer.js";
-import { isTrainerId, validateTrainerBody } from "../lib/trainerApiHelpers.js";
+import { isTrainerId, validateTrainerBody, validateTrainerAssignment } from "../lib/trainerApiHelpers.js";
 
 const valid = { fullName: "Ayesha Khan", email: "ayesha@example.com", phone: "+923001234567", specialization: "Strength training", joiningDate: "2025-04-12", status: "active", profileImage: "", notes: "" };
 
@@ -24,4 +24,13 @@ test("trainer ids and schema required fields are checked without a database", as
   assert.ok(errors.phone);
   assert.ok(errors.specialization);
   assert.ok(errors.status);
+});
+
+test("member assignment rejects missing, invalid, and inactive trainers but preserves an existing inactive link", () => {
+  assert.equal(validateTrainerAssignment(null, null), null);
+  assert.equal(validateTrainerAssignment("bad-id", null).status, 400);
+  assert.equal(validateTrainerAssignment("507f1f77bcf86cd799439011", null).status, 404);
+  assert.equal(validateTrainerAssignment("507f1f77bcf86cd799439011", { status: "inactive" }).status, 400);
+  assert.equal(validateTrainerAssignment("507f1f77bcf86cd799439011", { status: "inactive" }, "507f1f77bcf86cd799439011"), null);
+  assert.equal(validateTrainerAssignment("507f1f77bcf86cd799439011", { status: "active" }), null);
 });

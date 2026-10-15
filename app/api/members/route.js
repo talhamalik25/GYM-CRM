@@ -6,6 +6,7 @@ import { handleMemberError, normalizeMemberPhone, serializeMember, validateMembe
 import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
 import Trainer from "../../../models/Trainer";
+import { isTrainerId, validateTrainerAssignment } from "../../../lib/trainerApiHelpers";
 import { requireApiUser } from "../../../lib/auth";
 
 function escapeRegex(value) {
@@ -69,18 +70,15 @@ export async function POST(request) {
     const validation = validateMemberBody(memberBody);
     if (validation) return errorResponse(validation.message, 400, validation.fields);
     if (!mongoose.isObjectIdOrHexString(memberBody.planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
-    if (memberBody.trainerId && !mongoose.isObjectIdOrHexString(memberBody.trainerId)) return errorResponse("Trainer id is invalid.", 400, { trainerId: "Choose a valid trainer." });
 
     await connectToDatabase();
     const plan = await Plan.findById(memberBody.planId);
     if (!plan) return errorResponse("The selected plan was not found.", 400, { planId: "Choose an available plan." });
     if (!plan.isActive) return errorResponse("Only active plans can be assigned to a member.", 400, { planId: "Choose an active plan." });
     let trainer = null;
-    if (memberBody.trainerId) {
-      trainer = await Trainer.findById(memberBody.trainerId);
-      if (!trainer) return errorResponse("The selected trainer was not found.", 404, { trainerId: "Choose an existing trainer." });
-      if (trainer.status !== "active") return errorResponse("Only active trainers can be assigned to a member.", 400, { trainerId: "Choose an active trainer." });
-    }
+    if (memberBody.trainerId && isTrainerId(memberBody.trainerId)) trainer = await Trainer.findById(memberBody.trainerId);
+    const trainerError = validateTrainerAssignment(memberBody.trainerId, trainer);
+    if (trainerError) return errorResponse(trainerError.message, trainerError.status, { trainerId: trainerError.message });
 
     const startDate = memberDate(memberBody.startDate);
     const calculatedExpiry = getMembershipExpiryDate(memberBody.startDate, plan.durationDays);
