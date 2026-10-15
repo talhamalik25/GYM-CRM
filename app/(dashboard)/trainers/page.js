@@ -1,2 +1,2 @@
-import SectionPage from '../../../components/ui/section-page';import {trainers} from '../../../lib/mock-data';
-export default function TrainersPage(){return <SectionPage title="Trainers" description="Meet the people helping your members reach their goals." action={<button className="button button-primary" type="button">＋ Add trainer</button>} stats={[{label:'Total trainers',value:'8',note:'Across all specialties'},{label:'Active today',value:'6',note:'2 on scheduled leave'},{label:'Members coached',value:'96',note:'Across personal plans'},{label:'Sessions this week',value:'42',note:'12 scheduled today'}]} columns={[{key:'member',label:'TRAINER'},{key:'specialty',label:'SPECIALIZATION'},{key:'clients',label:'ASSIGNED MEMBERS'},{key:'schedule',label:'SCHEDULE'},{key:'status',label:'STATUS'}]} rows={trainers}/>}
+import TrainerManager from "../../../components/trainers/trainer-manager";
+export default function TrainersPage() { return <TrainerManager />; }

@@ -17,6 +17,7 @@ const memberSchema = new mongoose.Schema({
   gender: { type: String, required: true, enum: ["Female", "Male", "Other", "Prefer not to say"] },
   dateOfBirth: { type: Date, default: null },
   planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
+  trainerId: { type: mongoose.Schema.Types.ObjectId, ref: "Trainer", default: null, index: true },
   startDate: { type: Date, required: true },
   expiryDate: { type: Date, required: true },
   notes: { type: String, default: "", trim: true },

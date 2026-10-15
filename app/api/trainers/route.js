@@ -23,10 +23,10 @@ export async function GET(request) {
     if (specialization) filter.specialization = new RegExp(`^${escapeRegex(specialization)}$`, "i");
     if (search) { const expression = new RegExp(escapeRegex(search), "i"); filter.$or = [{ fullName: expression }, { email: expression }, { phone: expression }, { specialization: expression }]; }
     const limit = Math.min(requestedLimit, 50); const skip = (page - 1) * limit;
-    const [trainers, total] = await Promise.all([Trainer.find(filter).sort({ fullName: 1, _id: 1 }).skip(skip).limit(limit).lean(), Trainer.countDocuments(filter)]);
+    const [trainers, total, specializations] = await Promise.all([Trainer.find(filter).sort({ fullName: 1, _id: 1 }).skip(skip).limit(limit).lean(), Trainer.countDocuments(filter), Trainer.distinct("specialization")]);
     const counts = trainers.length ? await Member.aggregate([{ $match: { trainerId: { $in: trainers.map(item => item._id) } } }, { $group: { _id: "$trainerId", count: { $sum: 1 } } }]) : [];
     const countByTrainer = new Map(counts.map(item => [String(item._id), item.count]));
-    return successResponse({ items: trainers.map(item => serializeTrainer(item, countByTrainer.get(String(item._id)) || 0)), total, page, limit });
+    return successResponse({ items: trainers.map(item => serializeTrainer(item, countByTrainer.get(String(item._id)) || 0)), specializations: specializations.sort((a, b) => a.localeCompare(b)), total, page, limit });
   } catch (error) { return handleTrainerError(error); }
 }
 

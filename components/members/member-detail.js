@@ -188,6 +188,7 @@ export default function MemberDetail({ memberId }) {
               <DetailField label="Email" value={member.email} />
               <DetailField label="Gender" value={member.gender} />
               <DetailField label="Date of birth" value={formatDate(member.dateOfBirth)} />
+              <DetailField label="Trainer" value={member.trainer?.fullName || "Unassigned"} />
               <DetailField label="Notes" value={member.notes} />
             </dl>
           </section>

@@ -5,6 +5,7 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse"
 import { handleMemberError, normalizeMemberPhone, serializeMember, validateMemberBody } from "../../../../lib/memberApiHelpers";
 import Member from "../../../../models/Member";
 import Plan from "../../../../models/Plan";
+import Trainer from "../../../../models/Trainer";
 import { requireApiUser } from "../../../../lib/auth";
 
 function memberDate(value) {
@@ -22,7 +23,7 @@ export async function GET(_request, context) {
     const { id } = await context.params;
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Member id is invalid.", 400);
     await connectToDatabase();
-    const member = await Member.findById(id).populate("planId", "name price").lean();
+    const member = await Member.findById(id).populate("planId", "name price").populate("trainerId", "fullName status").lean();
     if (!member) return errorResponse("Member was not found.", 404);
     return successResponse(serializeMember(member));
   } catch (error) {
@@ -54,6 +55,16 @@ export async function PATCH(request, context) {
     const planChanged = nextPlanId !== currentPlanId;
     const startDateChanged = Boolean(memberBody.startDate && memberBody.startDate !== dateString(current.startDate));
     const update = { ...memberBody };
+    if (Object.hasOwn(memberBody, "trainerId")) {
+      const trainerId = memberBody.trainerId || null;
+      if (trainerId && !mongoose.isObjectIdOrHexString(trainerId)) return errorResponse("Trainer id is invalid.", 400, { trainerId: "Choose a valid trainer." });
+      if (trainerId && String(current.trainerId || "") !== trainerId) {
+        const trainer = await Trainer.findById(trainerId).select("status");
+        if (!trainer) return errorResponse("The selected trainer was not found.", 404, { trainerId: "Choose an existing trainer." });
+        if (trainer.status !== "active") return errorResponse("Only active trainers can be assigned to a member.", 400, { trainerId: "Choose an active trainer." });
+      }
+      update.trainerId = trainerId;
+    }
 
     if (memberBody.planId && planChanged || memberBody.startDate) {
       const plan = await Plan.findById(nextPlanId);
@@ -73,7 +84,7 @@ export async function PATCH(request, context) {
     if (memberBody.startDate) update.startDate = memberDate(memberBody.startDate);
     if (memberBody.dateOfBirth !== undefined) update.dateOfBirth = memberBody.dateOfBirth ? memberDate(memberBody.dateOfBirth) : null;
 
-    const updated = await Member.findByIdAndUpdate(id, update, { new: true, runValidators: true }).populate("planId", "name price").lean();
+    const updated = await Member.findByIdAndUpdate(id, update, { new: true, runValidators: true }).populate("planId", "name price").populate("trainerId", "fullName status").lean();
     return successResponse(serializeMember(updated));
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);

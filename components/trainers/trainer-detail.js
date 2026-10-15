@@ -1,0 +1,23 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { UserRound } from "lucide-react";
+import Badge from "../ui/badge";
+import Button from "../ui/button";
+import Card from "../ui/card";
+import EmptyState from "../ui/empty-state";
+import PageHeader from "../ui/page-header";
+import { getTrainer, saveTrainer } from "../../lib/trainersService";
+
+const formatDate = value => value ? new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`)) : "—";
+export default function TrainerDetail({ trainerId }) {
+  const [trainer, setTrainer] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState("");
+  useEffect(() => { let cancelled = false; getTrainer(trainerId).then(value => { if (!cancelled) setTrainer(value); }).catch(e => { if (!cancelled) setError(e.message); }).finally(() => { if (!cancelled) setLoading(false); }); return () => { cancelled = true; }; }, [trainerId]);
+  async function toggleStatus() { if (!trainer) return; setSaving(true); setError(""); setNotice(""); try { const updated = await saveTrainer({ status: trainer.status === "active" ? "inactive" : "active" }, trainer.id); setTrainer(current => ({ ...current, ...updated })); setNotice(`Trainer marked ${updated.status}.`); } catch (e) { setError(e.message); } finally { setSaving(false); } }
+  if (loading) return <Card className="p-6" role="status"><p className="text-sm text-ink-muted">Loading trainer…</p></Card>;
+  if (error && !trainer) return <Card className="p-5"><EmptyState icon={<UserRound size={24}/>} title="Could not load trainer" description={error} action={<Button href="/trainers" variant="secondary">Back to trainers</Button>}/></Card>;
+  if (!trainer) return null;
+  return <div className="space-y-6"><PageHeader title={trainer.fullName} description={<span className="flex flex-wrap items-center gap-2"><Badge tone={trainer.status === "active" ? "success" : "neutral"}>{trainer.status}</Badge><span>{trainer.specialization}</span></span>} actions={<><Button href={`/trainers/${trainer.id}/edit`} variant="secondary">Edit</Button><Button variant="secondary" disabled={saving} onClick={toggleStatus}>{saving ? "Saving…" : trainer.status === "active" ? "Deactivate" : "Activate"}</Button></>}/>{error && <Card className="p-3 text-sm text-error" role="alert">{error}</Card>}{notice && <Card className="p-3 text-sm text-green-800" role="status">{notice}</Card>}<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,.8fr)]"><Card className="p-5 md:p-6"><div className="flex items-center gap-4">{trainer.profileImage ? <Image src={trainer.profileImage} alt={`${trainer.fullName} profile`} width={64} height={64} unoptimized className="h-16 w-16 rounded-full object-cover"/> : <span aria-hidden="true" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-xl font-semibold text-brand">{trainer.fullName.split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase()}</span>}<div><h2 className="text-lg font-semibold">{trainer.fullName}</h2><p className="text-sm text-ink-muted">{trainer.specialization}</p></div></div><dl className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2"><div><dt className="text-xs text-ink-subtle">Email</dt><dd className="mt-1 break-all text-sm"><a href={`mailto:${trainer.email}`}>{trainer.email}</a></dd></div><div><dt className="text-xs text-ink-subtle">Phone</dt><dd className="mt-1 text-sm"><a href={`tel:${trainer.phone}`}>{trainer.phone}</a></dd></div><div><dt className="text-xs text-ink-subtle">Joining date</dt><dd className="mt-1 text-sm">{formatDate(trainer.joiningDate)}</dd></div><div><dt className="text-xs text-ink-subtle">Assigned members</dt><dd className="mt-1 text-sm">{trainer.assignedMemberCount}</dd></div><div className="sm:col-span-2"><dt className="text-xs text-ink-subtle">Notes</dt><dd className="mt-1 whitespace-pre-wrap text-sm">{trainer.notes || "No notes"}</dd></div></dl></Card><Card className="p-5 md:p-6"><h2 className="text-base font-semibold">Assigned members</h2>{trainer.assignedMembers?.length ? <ul className="mt-3 divide-y">{trainer.assignedMembers.map(member => <li className="py-3" key={member.id}><Link className="font-medium text-brand hover:underline" href={`/members/${member.id}`}>{member.fullName}</Link><span className="mt-1 block text-xs text-ink-muted">{member.email || member.phone}</span></li>)}</ul> : <p className="mt-3 text-sm text-ink-muted">No members are assigned to this trainer.</p>}</Card></div></div>;
+}

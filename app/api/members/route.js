@@ -5,6 +5,7 @@ import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handleMemberError, normalizeMemberPhone, serializeMember, validateMemberBody } from "../../../lib/memberApiHelpers";
 import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
+import Trainer from "../../../models/Trainer";
 import { requireApiUser } from "../../../lib/auth";
 
 function escapeRegex(value) {
@@ -49,7 +50,7 @@ export async function GET(request) {
 
     await connectToDatabase();
     const [members, total] = await Promise.all([
-      Member.find(filter).populate("planId", "name price").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Member.find(filter).populate("planId", "name price").populate("trainerId", "fullName status").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       Member.countDocuments(filter),
     ]);
     return successResponse({ items: members.map(serializeMember), total, page, limit });
@@ -68,11 +69,18 @@ export async function POST(request) {
     const validation = validateMemberBody(memberBody);
     if (validation) return errorResponse(validation.message, 400, validation.fields);
     if (!mongoose.isObjectIdOrHexString(memberBody.planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
+    if (memberBody.trainerId && !mongoose.isObjectIdOrHexString(memberBody.trainerId)) return errorResponse("Trainer id is invalid.", 400, { trainerId: "Choose a valid trainer." });
 
     await connectToDatabase();
     const plan = await Plan.findById(memberBody.planId);
     if (!plan) return errorResponse("The selected plan was not found.", 400, { planId: "Choose an available plan." });
     if (!plan.isActive) return errorResponse("Only active plans can be assigned to a member.", 400, { planId: "Choose an active plan." });
+    let trainer = null;
+    if (memberBody.trainerId) {
+      trainer = await Trainer.findById(memberBody.trainerId);
+      if (!trainer) return errorResponse("The selected trainer was not found.", 404, { trainerId: "Choose an existing trainer." });
+      if (trainer.status !== "active") return errorResponse("Only active trainers can be assigned to a member.", 400, { trainerId: "Choose an active trainer." });
+    }
 
     const startDate = memberDate(memberBody.startDate);
     const calculatedExpiry = getMembershipExpiryDate(memberBody.startDate, plan.durationDays);
@@ -83,11 +91,12 @@ export async function POST(request) {
       gender: memberBody.gender,
       dateOfBirth: memberBody.dateOfBirth ? memberDate(memberBody.dateOfBirth) : null,
       planId: plan._id,
+      trainerId: trainer?._id || null,
       startDate,
       expiryDate: memberDate(calculatedExpiry),
       notes: memberBody.notes?.trim() || "",
     });
-    await member.populate("planId", "name price");
+    await member.populate([{ path: "planId", select: "name price" }, { path: "trainerId", select: "fullName status" }]);
     return successResponse(serializeMember(member), 201);
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);

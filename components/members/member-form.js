@@ -11,6 +11,7 @@ import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 import { getMemberApi, getMembershipExpiryDate, saveMemberApi } from "../../lib/membersService";
 import { listPlans } from "../../lib/plansService";
+import { listTrainers } from "../../lib/trainersService";
 
 const blankValues = {
   name: "",
@@ -19,6 +20,7 @@ const blankValues = {
   gender: "",
   dateOfBirth: "",
   planId: "",
+  trainerId: "",
   startDate: "",
   notes: "",
 };
@@ -52,6 +54,7 @@ function toValues(member) {
     gender: member.gender || "",
     dateOfBirth: member.dateOfBirth || "",
     planId: member.planId || "",
+    trainerId: member.trainerId || "",
     startDate: member.startDate || "",
     notes: member.notes || "",
   };
@@ -66,6 +69,7 @@ export default function MemberForm({ memberId = null }) {
   const [memberMissing, setMemberMissing] = useState(false);
   const [loadedMemberId, setLoadedMemberId] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [trainers, setTrainers] = useState([]);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -74,10 +78,12 @@ export default function MemberForm({ memberId = null }) {
     let cancelled = false;
     Promise.all([
       listPlans({ activeOnly: !editing }),
+      listTrainers({ status: "all", limit: 50 }),
       editing ? getMemberApi(memberId) : Promise.resolve(null),
-    ]).then(([availablePlans, existing]) => {
+    ]).then(([availablePlans, trainerResult, existing]) => {
       if (cancelled) return;
       setPlans(availablePlans);
+      setTrainers(trainerResult.items);
       if (existing) setValues(toValues(existing));
       setMemberMissing(false);
       setLoadError("");
@@ -203,6 +209,19 @@ export default function MemberForm({ memberId = null }) {
               <option value="Male">Male</option>
               <option value="Other">Other</option>
               <option value="Prefer not to say">Prefer not to say</option>
+            </Select>
+            <Select
+              id="member-trainer"
+              name="trainerId"
+              label="Trainer (optional)"
+              value={values.trainerId}
+              onChange={(event) => updateValue("trainerId", event.target.value)}
+              error={errors.trainerId}
+            >
+              <option value="">Unassigned</option>
+              {trainers.filter((trainer) => trainer.status === "active" || trainer.id === values.trainerId).map((trainer) => (
+                <option key={trainer.id} value={trainer.id}>{trainer.fullName}{trainer.status === "inactive" ? " · Inactive (current assignment)" : ""}</option>
+              ))}
             </Select>
             <Input
               id="member-date-of-birth"
