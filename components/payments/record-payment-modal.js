@@ -8,7 +8,7 @@ import Modal from "../ui/modal";
 import Select from "../ui/select";
 import { derivePaymentStatus, getInitialPaymentMembers, getPaymentMembers, paymentMethods, savePayment } from "../../lib/paymentsService";
 
-const blankValues = { memberId: "", memberName: "", amountPaid: "", method: "Cash", date: "", notes: "" };
+const blankValues = { memberId: "", memberName: "", invoiceKey: "", amountPaid: "", method: "Cash", date: "", notes: "" };
 
 function localDateValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -22,12 +22,14 @@ function validate(values, members) {
   const errors = {};
   const member = members.find((item) => item.id === values.memberId);
   if (!member || member.name !== values.memberName) errors.memberId = "Choose a member from the list.";
-  if (values.amountPaid.trim() === "" || !Number.isFinite(Number(values.amountPaid)) || Number(values.amountPaid) < 0) {
-    errors.amountPaid = "Enter an amount of zero or more.";
+  const charge = member?.charges?.find((item) => `${item.subscriptionId}|${item.renewalKey}` === values.invoiceKey);
+  if (member?.charges?.length > 1 && !charge) errors.invoiceKey = "Choose the invoice this payment applies to.";
+  if (values.amountPaid.trim() === "" || !Number.isFinite(Number(values.amountPaid)) || Number(values.amountPaid) <= 0) {
+    errors.amountPaid = "Enter a positive amount.";
   } else if (!Number.isSafeInteger(Number(values.amountPaid))) {
     errors.amountPaid = "Enter a whole number of rupees.";
-  } else if (member && Number(values.amountPaid) > member.amountDue) {
-    errors.amountPaid = "Amount paid cannot be greater than the amount due.";
+  } else if (member && Number(values.amountPaid) > (charge?.balance ?? member.amountDue)) {
+    errors.amountPaid = "Amount paid cannot be greater than the outstanding balance.";
   }
   if (!values.date) errors.date = "Choose a payment date.";
   if (!values.method) errors.method = "Choose a payment method.";
@@ -47,8 +49,10 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   const [submitting, setSubmitting] = useState(false);
   const requestKey = useRef(null);
   const selectedMember = members.find((member) => member.id === values.memberId);
+  const selectedCharge = selectedMember?.charges?.find((item) => `${item.subscriptionId}|${item.renewalKey}` === values.invoiceKey);
+  const displayedBalance = selectedCharge?.balance ?? selectedMember?.amountDue;
   const previewStatus = selectedMember && values.amountPaid !== ""
-    ? derivePaymentStatus(values.amountPaid, selectedMember.amountDue)
+    ? derivePaymentStatus(values.amountPaid, displayedBalance)
     : null;
 
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
     getPaymentMembers("", initialMemberId).then((currentMembers) => {
       setMembers(currentMembers);
       const selected = currentMembers.find((member) => member.id === initialMemberId);
-      if (selected) setValues((current) => ({ ...current, memberName: selected.name }));
+      if (selected) setValues((current) => ({ ...current, memberName: selected.name, invoiceKey: selected.charges?.length === 1 ? `${selected.charges[0].subscriptionId}|${selected.charges[0].renewalKey}` : "" }));
     }).catch((error) => setErrors({ memberId: error.message }));
     setErrors({});
   }, [open, initialMemberId]);
@@ -81,8 +85,9 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
     requestKey.current = null;
     if (field === "memberName") {
       const selected = members.find((member) => member.name === value);
-      setValues((current) => ({ ...current, memberName: value, memberId: selected?.id || "" }));
-      setErrors((current) => ({ ...current, memberId: undefined, amountPaid: undefined }));
+      const initialCharge = selected?.charges?.length === 1 ? selected.charges[0] : null;
+      setValues((current) => ({ ...current, memberName: value, memberId: selected?.id || "", invoiceKey: initialCharge ? `${initialCharge.subscriptionId}|${initialCharge.renewalKey}` : "" }));
+      setErrors((current) => ({ ...current, memberId: undefined, invoiceKey: undefined, amountPaid: undefined }));
       return;
     }
     setValues((current) => ({ ...current, [field]: value }));
@@ -97,7 +102,8 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
     try {
       setSubmitting(true);
       requestKey.current ||= window.crypto.randomUUID();
-      const saved = await savePayment(values, requestKey.current);
+      const [subscriptionId, renewalKey] = values.invoiceKey.split("|");
+      const saved = await savePayment({ ...values, ...(subscriptionId ? { subscriptionId, renewalKey } : {}) }, requestKey.current);
       requestKey.current = null;
       onClose();
       onSaved?.(saved);
@@ -128,9 +134,14 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
           <datalist id="payment-member-options">{members.map((member) => <option key={member.id} value={member.name} />)}</datalist>
           {errors.memberId && <span className="ui-field-error" id="payment-member-error">{errors.memberId}</span>}
         </div>
-        <Input id="payment-plan" label="Plan" value={selectedMember?.planName || ""} readOnly hint="Filled from the selected member's plan." />
-        <Input id="payment-amount-due" label="Amount due (PKR)" value={selectedMember ? formatCurrency(selectedMember.amountDue) : ""} readOnly />
-        <Input id="payment-amount-paid" label="Amount paid (PKR)" type="number" min="0" step="1" inputMode="numeric" value={values.amountPaid} onChange={(event) => updateValue("amountPaid", event.target.value)} error={errors.amountPaid} />
+        {selectedMember?.charges?.length > 1 && <Select id="payment-invoice" label="Outstanding invoice" value={values.invoiceKey} onChange={(event) => updateValue("invoiceKey", event.target.value)} error={errors.invoiceKey}>
+          <option value="">Choose an invoice</option>
+          {selectedMember.charges.map((charge) => <option key={`${charge.subscriptionId}|${charge.renewalKey}`} value={`${charge.subscriptionId}|${charge.renewalKey}`}>{charge.planName} · {formatCurrency(charge.balance)} outstanding</option>)}
+        </Select>}
+        <Input id="payment-plan" label="Plan / invoice" value={selectedCharge?.planName || selectedMember?.planName || ""} readOnly hint="The original agreed invoice price is preserved." />
+        <Input id="payment-amount-due" label="Outstanding balance (PKR)" value={selectedMember ? formatCurrency(displayedBalance) : ""} readOnly />
+        {selectedMember?.hasUnallocatedLegacyBalance && <p className="text-sm text-warning" role="status">Older payment history for this member has not been allocated to an invoice. Reconcile it before recording another payment.</p>}
+        <Input id="payment-amount-paid" label="Amount paid (PKR)" type="number" min="1" step="1" inputMode="numeric" value={values.amountPaid} onChange={(event) => updateValue("amountPaid", event.target.value)} error={errors.amountPaid} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select id="payment-method" label="Payment method" value={values.method} onChange={(event) => updateValue("method", event.target.value)} error={errors.method}>
             {paymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}

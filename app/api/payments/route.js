@@ -1,13 +1,12 @@
 import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
-import generateReceiptNumber from "../../../lib/generateReceiptNumber";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handlePaymentError, isDateOnly, paymentStatusMatch, serializePayment } from "../../../lib/paymentApiHelpers";
 import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
-import Plan from "../../../models/Plan";
 import { requireApiUser } from "../../../lib/auth";
 import { isValidIdempotencyKey, makePaymentFingerprint, paymentMonthRange } from "../../../lib/paymentRules";
+import { paymentLedgerErrorResponse, recordMemberPayment, runLedgerTransaction } from "../../../lib/paymentLedger";
 
 const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -26,38 +25,30 @@ export async function POST(request) {
     const fields = {};
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400, {});
     if (typeof body.memberId !== "string" || !mongoose.isObjectIdOrHexString(body.memberId)) fields.memberId = "Choose a valid member.";
-    if (typeof body.amountPaid !== "number" || !Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0) fields.amountPaid = "Amount paid must be a whole number of rupees greater than or equal to zero.";
+    if (typeof body.amountPaid !== "number" || !Number.isSafeInteger(body.amountPaid) || body.amountPaid <= 0) fields.amountPaid = "Amount paid must be a positive whole number of rupees.";
     if (!methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (!isDateOnly(body.paymentDate ?? body.date)) fields.paymentDate = "Choose a valid payment date.";
     else if (new Date(`${body.paymentDate ?? body.date}T00:00:00.000Z`) > new Date()) fields.paymentDate = "Payment date cannot be in the future.";
     if (body.notes != null && typeof body.notes !== "string") fields.notes = "Notes must be text.";
+    if (typeof body.notes === "string" && body.notes.length > 1000) fields.notes = "Notes must be 1,000 characters or fewer.";
+    if (body.subscriptionId != null && (typeof body.subscriptionId !== "string" || !mongoose.isObjectIdOrHexString(body.subscriptionId))) fields.subscriptionId = "Choose a valid invoice.";
+    if (body.renewalKey != null && (typeof body.renewalKey !== "string" || body.renewalKey.length < 1 || body.renewalKey.length > 128)) fields.renewalKey = "Choose a valid invoice term.";
     if (Object.keys(fields).length) return errorResponse("Please correct the highlighted fields.", 400, fields);
 
     const paymentDate = body.paymentDate ?? body.date;
     const notes = body.notes?.trim() || "";
-    fingerprint = makePaymentFingerprint({ memberId: body.memberId, amountPaid: body.amountPaid, method: body.method, paymentDate, notes });
+    const paymentDateAt = new Date(`${paymentDate}T00:00:00.000Z`);
+    fingerprint = makePaymentFingerprint({ memberId: body.memberId, amountPaid: body.amountPaid, method: body.method, paymentDate: paymentDateAt, notes, subscriptionId: body.subscriptionId || "", renewalKey: body.renewalKey || "" });
     await connectToDatabase();
     await Payment.init();
-    const existing = await Payment.findOne({ idempotencyKey }).select("+requestFingerprint");
-    if (existing) {
-      if (existing.requestFingerprint !== fingerprint) return errorResponse("This payment request key was already used for different details.", 409);
-      await existing.populate([{ path: "memberId", select: "fullName" }, { path: "planId", select: "name" }]);
-      return successResponse(serializePayment(existing), 200);
-    }
-    const member = await Member.findById(body.memberId).select("planId").lean();
-    if (!member) return errorResponse("The selected member was not found.", 404, { memberId: "Choose an existing member." });
-    const plan = await Plan.findById(member.planId).select("price").lean();
-    if (!plan) return errorResponse("The member's plan was not found.", 404, { memberId: "This member has no available plan." });
-    if (!Number.isSafeInteger(plan.price) || plan.price <= 0) return errorResponse("The member's plan price is not a valid whole rupee amount.", 400, { amountPaid: "Contact an administrator to correct the plan price." });
-    if (body.amountPaid > plan.price) return errorResponse("Please correct the highlighted fields.", 400, { amountPaid: "Amount paid cannot be greater than the amount due." });
-    const receiptNumber = await generateReceiptNumber();
-    const payment = await Payment.create({
-      memberId: member._id, planId: member.planId, amountDue: plan.price, amountPaid: body.amountPaid,
-      method: body.method, paymentDate: new Date(`${paymentDate}T00:00:00.000Z`), receiptNumber,
-      notes, idempotencyKey, requestFingerprint: fingerprint,
-    });
+    const result = await runLedgerTransaction((session) => recordMemberPayment(session, {
+      memberId: body.memberId, subscriptionId: body.subscriptionId || "", renewalKey: body.renewalKey || "",
+      amountPaid: body.amountPaid, method: body.method, paymentDate: paymentDateAt,
+      paymentDateLabel: paymentDate, idempotencyKey, notes,
+    }));
+    const payment = result.payment;
     await payment.populate([{ path: "memberId", select: "fullName" }, { path: "planId", select: "name" }]);
-    return successResponse(serializePayment(payment), 201);
+    return successResponse(serializePayment(payment), result.duplicate ? 200 : 201);
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     if (error?.code === 11000 && (error?.keyPattern?.idempotencyKey || error?.keyValue?.idempotencyKey)) {
@@ -70,6 +61,8 @@ export async function POST(request) {
         if (existing) return errorResponse("This payment request key was already used for different details.", 409);
       } catch { /* Preserve the normal sanitized payment error response. */ }
     }
+    const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse);
+    if (ledgerResponse) return ledgerResponse;
     return handlePaymentError(error);
   }
 }

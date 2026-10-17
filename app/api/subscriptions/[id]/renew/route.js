@@ -4,61 +4,105 @@ import { errorResponse, successResponse } from "../../../../../lib/planApiRespon
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../../../lib/subscriptionRules";
 import { requireApiUser } from "../../../../../lib/auth";
 import Subscription from "../../../../../models/Subscription";
-import Member from "../../../../../models/Member";
 import Plan from "../../../../../models/Plan";
 import Payment from "../../../../../models/Payment";
 import generateReceiptNumber from "../../../../../lib/generateReceiptNumber";
+import { lockSubscriptionVersion, paymentLedgerErrorResponse, runLedgerTransaction } from "../../../../../lib/paymentLedger";
+import { isValidIdempotencyKey } from "../../../../../lib/paymentRules";
+
+const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
 
 export async function POST(request, { params }) {
-  const auth = await requireApiUser(request); if (auth) return auth;
+  const auth = await requireApiUser(request);
+  if (auth) return auth;
   const { id } = await params;
   if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Subscription id is invalid.", 400);
+  let requestFingerprint;
+  let requestKey;
   try {
-    const body = await request.json(); if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
-    const key = request.headers.get("Idempotency-Key"); const fields = {};
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
+    const key = request.headers.get("Idempotency-Key");
+    requestKey = key;
+    const fields = {};
     for (const field of Object.keys(body)) if (!["planId", "startDate", "agreedPrice", "amountPaid", "method", "paymentDate"].includes(field)) fields[field] = "This field cannot be changed.";
-    if (!key || !/^[A-Za-z0-9._:-]{16,128}$/.test(key)) fields.idempotencyKey = "A valid request key is required.";
+    if (!isValidIdempotencyKey(key)) fields.idempotencyKey = "A valid request key is required.";
+    if (body.planId != null && (typeof body.planId !== "string" || !mongoose.isObjectIdOrHexString(body.planId))) fields.planId = "Choose a valid plan.";
+    if (body.agreedPrice != null && (!Number.isSafeInteger(body.agreedPrice) || body.agreedPrice < 1)) fields.agreedPrice = "Price must be positive whole rupees.";
     if (body.amountPaid != null && (!Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0)) fields.amountPaid = "Payment must be a whole number of rupees.";
-    if (body.method != null && !["cash", "bank_transfer", "easypaisa", "jazzcash"].includes(body.method)) fields.method = "Choose a valid payment method.";
+    if (body.method != null && !methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (body.startDate != null && !isDateOnly(body.startDate)) fields.startDate = "Enter a valid date.";
     if (body.paymentDate != null && (!isDateOnly(body.paymentDate) || body.paymentDate > gymToday())) fields.paymentDate = "Choose a valid payment date no later than today.";
     if (Object.keys(fields).length) return errorResponse("Please correct the highlighted fields.", 400, fields);
+
     await connectToDatabase();
-    const subscription = await Subscription.findById(id);
-    if (!subscription) return errorResponse("Subscription was not found.", 404);
-    const priorTerm = subscription.renewalHistory.find((term) => term.renewalKey === key);
-    if (priorTerm) {
-      const requested = JSON.stringify({ planId: body.planId || String(priorTerm.planId), startDate: body.startDate || "", agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
-      return priorTerm.requestFingerprint === requested ? successResponse(subscription.toObject(), 200) : errorResponse("This renewal request key was used for different details.", 409);
-    }
-    if (subscription.status === "cancelled") return errorResponse("Cancelled subscriptions cannot be renewed.", 409);
-    const today = gymToday(); const currentStatus = deriveSubscriptionStatus(subscription, today);
-    if (currentStatus === "pending") return errorResponse("A future subscription cannot be renewed before its term starts.", 409);
-    const latest = subscription.renewalHistory.at(-1);
-    const startDate = currentStatus === "active" ? addDays(latest.expiryDate.toISOString().slice(0, 10), 1) : (body.startDate || today);
-    if (currentStatus !== "active" && startDate < today) return errorResponse("An expired subscription cannot be renewed from a past date.", 400, { startDate: "Choose today or a future date." });
-    const plan = await Plan.findById(body.planId || subscription.planId);
-    if (!plan || !plan.isActive) return errorResponse("Choose an available active plan.", 400, { planId: "Choose an active plan." });
-    const agreedPrice = body.agreedPrice ?? plan.price; const amountPaid = body.amountPaid ?? 0;
-    if (!Number.isSafeInteger(agreedPrice) || agreedPrice < 1 || amountPaid > agreedPrice) return errorResponse("Enter a valid agreed price and payment amount.", 400, { agreedPrice: "Price must be positive whole rupees.", amountPaid: "Payment cannot exceed price." });
-    if (amountPaid > 0 && !body.method) return errorResponse("Choose a payment method.", 400, { method: "A payment method is required with a payment." });
-    const expiryDate = addDays(startDate, plan.durationDays - 1);
-    let paymentId = null;
-    if (amountPaid > 0) {
-      const requestFingerprint = `renewal:${id}:${plan._id}:${agreedPrice}:${amountPaid}:${body.method}`;
-      const existing = await Payment.findOne({ idempotencyKey: key }).select("+requestFingerprint");
-      if (existing) {
-        if (existing.subscriptionId?.toString() !== id || existing.requestFingerprint !== requestFingerprint) return errorResponse("This request key was used for different details.", 409);
-        paymentId = existing._id;
-      } else {
-        const payment = await Payment.create({ memberId: subscription.memberId, planId: plan._id, subscriptionId: subscription._id, renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || today), receiptNumber: await generateReceiptNumber(), idempotencyKey: key, requestFingerprint });
+    await Subscription.init();
+    await Payment.init();
+    requestFingerprint = JSON.stringify({ planId: body.planId || "", startDate: body.startDate || "", agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
+    const result = await runLedgerTransaction(async (session) => {
+      const subscription = await Subscription.findById(id).session(session);
+      if (!subscription) return { missing: true };
+      const previousTerm = subscription.renewalHistory.find((term) => term.renewalKey === key);
+      if (previousTerm) {
+        if (previousTerm.requestFingerprint !== requestFingerprint) throw Object.assign(new Error("This renewal request key was already used for different details."), { status: 409 });
+        return { subscription, duplicate: true };
+      }
+      if (subscription.status === "cancelled") throw Object.assign(new Error("Cancelled subscriptions cannot be renewed."), { status: 409 });
+      const today = gymToday();
+      const currentStatus = deriveSubscriptionStatus(subscription, today);
+      if (currentStatus === "pending") throw Object.assign(new Error("A future subscription cannot be renewed before its term starts."), { status: 409 });
+      const latest = subscription.renewalHistory.at(-1);
+      const startDate = currentStatus === "active" ? addDays(latest.expiryDate.toISOString().slice(0, 10), 1) : (body.startDate || today);
+      if (currentStatus !== "active" && startDate < today) throw Object.assign(new Error("An expired subscription cannot be renewed from a past date."), { status: 400, fields: { startDate: "Choose today or a future date." } });
+      const plan = await Plan.findById(body.planId || subscription.planId).session(session);
+      if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 400, fields: { planId: "Choose an active plan." } });
+      const agreedPrice = body.agreedPrice ?? plan.price;
+      const amountPaid = body.amountPaid ?? 0;
+      if (!Number.isSafeInteger(agreedPrice) || agreedPrice < 1 || amountPaid > agreedPrice) throw Object.assign(new Error("Enter a valid agreed price and payment amount."), { status: 400, fields: { agreedPrice: "Price must be positive whole rupees.", amountPaid: "Payment cannot exceed price." } });
+      if (amountPaid > 0 && !body.method) throw Object.assign(new Error("Choose a payment method."), { status: 400, fields: { method: "A payment method is required with a payment." } });
+
+      const expiryDate = addDays(startDate, plan.durationDays - 1);
+      const start = dateOnly(startDate);
+      const expiry = dateOnly(expiryDate);
+      const planSnapshot = { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice };
+      let paymentId = null;
+      if (amountPaid > 0) {
+        const payment = (await Payment.create([{
+          memberId: subscription.memberId, planId: plan._id, subscriptionId: subscription._id,
+          renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method,
+          paymentDate: dateOnly(body.paymentDate || today), receiptNumber: await generateReceiptNumber({ session }),
+          idempotencyKey: key,
+          requestFingerprint: JSON.stringify({ subscriptionId: id, renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || today }),
+        }], { session }))[0];
         paymentId = payment._id;
       }
+      const term = { renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot, startDate: start, expiryDate: expiry, paymentId };
+      await lockSubscriptionVersion(subscription, session);
+      const updated = await Subscription.findOneAndUpdate(
+        { _id: id, __v: (subscription.__v || 0) + 1, status: { $ne: "cancelled" }, "renewalHistory.renewalKey": { $ne: key } },
+        { $push: { renewalHistory: term }, $set: { planId: plan._id, startDate: start, expiryDate: expiry, originalPrice: plan.price, agreedPrice, planSnapshot, status: "pending" }, $inc: { __v: 1 } },
+        { new: true, session },
+      );
+      if (!updated) throw Object.assign(new Error("Subscription changed while renewing. Retry with the same request key."), { status: 409 });
+      return { subscription: updated, duplicate: false };
+    });
+    if (result.missing) return errorResponse("Subscription was not found.", 404);
+    return successResponse(result.subscription.toObject(), result.duplicate ? 200 : 201);
+  } catch (error) {
+    if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
+    if (error?.status) return errorResponse(error.message, error.status, error.fields);
+    const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse);
+    if (ledgerResponse) return ledgerResponse;
+    if (error?.code === 11000) {
+      try {
+        const existing = await Subscription.findById(id);
+        const term = existing?.renewalHistory.find((entry) => entry.renewalKey === requestKey);
+        if (term && term.requestFingerprint === requestFingerprint) return successResponse(existing.toObject(), 200);
+        if (term) return errorResponse("This renewal request key was already used for different details.", 409);
+      } catch { /* Preserve the safe conflict response below. */ }
+      return errorResponse("This renewal request was already processed.", 409);
     }
-    const requestFingerprint = JSON.stringify({ planId: String(plan._id), startDate: body.startDate || "", agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
-    const term = { renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate), paymentId };
-    const updated = await Subscription.findOneAndUpdate({ _id: id, status: { $ne: "cancelled" }, "renewalHistory.renewalKey": { $ne: key } }, { $push: { renewalHistory: term }, $set: { planId: plan._id, startDate: term.startDate, expiryDate: term.expiryDate, originalPrice: plan.price, agreedPrice, planSnapshot: term.planSnapshot, status: "pending" } }, { new: true });
-    if (!updated) { const retried = await Subscription.findById(id); if (retried?.renewalHistory.some((entry) => entry.renewalKey === key)) return successResponse(retried.toObject(), 200); return errorResponse("Subscription changed while renewing. Retry with a new request key.", 409); }
-    return successResponse(updated.toObject(), 201);
-  } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); if (error?.code === 11000) return errorResponse("This renewal request was already processed.", 409); console.error("Subscription renewal error:", error?.message); return errorResponse("Could not renew subscription.", 500); }
+    console.error("Subscription renewal error:", error?.message);
+    return errorResponse("Could not renew subscription.", 500);
+  }
 }

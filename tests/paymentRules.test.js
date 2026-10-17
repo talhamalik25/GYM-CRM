@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { currentGymPaymentMonthRange, isValidIdempotencyKey, isWholeRupeePrice, makePaymentFingerprint, paymentMonthRange } from "../lib/paymentRules.js";
+import { calculateOutstandingBalance, currentGymPaymentMonthRange, isPaymentWithinBalance, isValidIdempotencyKey, isWholeRupeePrice, makePaymentFingerprint, paymentMonthRange } from "../lib/paymentRules.js";
 
 test("plan prices require positive safe whole rupees", () => {
   assert.equal(isWholeRupeePrice(4500), true);
@@ -14,6 +14,36 @@ test("same payment payload fingerprints identically for retry; separate payments
   assert.equal(makePaymentFingerprint(first), makePaymentFingerprint({ ...first, memberId: first.memberId.toLowerCase(), notes: "October" }));
   assert.notEqual(makePaymentFingerprint(first), makePaymentFingerprint({ ...first, paymentDate: "2026-10-15" }));
   assert.notEqual(makePaymentFingerprint(first), makePaymentFingerprint({ ...first, amountPaid: 500 }));
+  assert.notEqual(makePaymentFingerprint(first), makePaymentFingerprint({ ...first, subscriptionId: "subscription-1", renewalKey: "term-1" }));
+});
+
+test("one full payment clears its agreed invoice balance", () => {
+  assert.deepEqual(calculateOutstandingBalance(12000, [{ amountPaid: 12000 }]), { agreedAmount: 12000, paid: 12000, outstanding: 0 });
+});
+
+test("multiple partial payments reduce the same agreed invoice balance", () => {
+  assert.deepEqual(calculateOutstandingBalance(12000, [{ amountPaid: 3500 }, { amountPaid: 2500 }]), { agreedAmount: 12000, paid: 6000, outstanding: 6000 });
+});
+
+test("repeated installments do not create another full-price charge", () => {
+  const payments = [{ amountPaid: 2000 }, { amountPaid: 3000 }, { amountPaid: 5000 }];
+  assert.equal(calculateOutstandingBalance(10000, payments).outstanding, 0);
+  assert.equal(calculateOutstandingBalance(10000, payments).agreedAmount, 10000);
+});
+
+test("payments above the outstanding balance are rejected", () => {
+  assert.equal(isPaymentWithinBalance(4000, 4000), true);
+  assert.equal(isPaymentWithinBalance(4001, 4000), false);
+  assert.equal(isPaymentWithinBalance(0, 4000), false);
+  assert.equal(isPaymentWithinBalance(2.5, 4000), false);
+});
+
+test("invoice dues equal agreed charges less payments and never go negative", () => {
+  const invoiceBalances = [
+    calculateOutstandingBalance(8000, [{ amountPaid: 2000 }, { amountPaid: 1000 }]).outstanding,
+    calculateOutstandingBalance(5000, [{ amountPaid: 9000 }]).outstanding,
+  ];
+  assert.equal(invoiceBalances.reduce((sum, balance) => sum + balance, 0), 5000);
 });
 
 test("idempotency keys have an accepted length and character set", () => {

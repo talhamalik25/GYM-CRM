@@ -8,6 +8,8 @@ import Plan from "../../../models/Plan";
 import Payment from "../../../models/Payment";
 import Subscription from "../../../models/Subscription";
 import generateReceiptNumber from "../../../lib/generateReceiptNumber";
+import { paymentLedgerErrorResponse, runLedgerTransaction } from "../../../lib/paymentLedger";
+import { isValidIdempotencyKey } from "../../../lib/paymentRules";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
@@ -51,6 +53,8 @@ export async function GET(request) {
 
 export async function POST(request) {
   const auth = await requireApiUser(request); if (auth) return auth;
+  let requestFingerprint;
+  let requestKey;
   try {
     const body = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
@@ -64,30 +68,58 @@ export async function POST(request) {
     if (body.method != null && !methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (body.paymentDate != null && (!isDateOnly(body.paymentDate) || body.paymentDate > gymToday())) fields.paymentDate = "Choose a valid payment date no later than today.";
     const key = request.headers.get("Idempotency-Key");
-    if (!key || !/^[A-Za-z0-9._:-]{16,128}$/.test(key)) fields.idempotencyKey = "A valid request key is required.";
+    requestKey = key;
+    if (!isValidIdempotencyKey(key)) fields.idempotencyKey = "A valid request key is required.";
     if (Object.keys(fields).length) return errorResponse("Please correct the highlighted fields.", 400, fields);
-    await connectToDatabase(); await Subscription.init();
-    const fingerprint = JSON.stringify({ memberId: body.memberId.toLowerCase(), planId: body.planId.toLowerCase(), startDate: body.startDate, agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
-    const prior = await Subscription.findOne({ createKey: key });
-    if (prior) return prior.createFingerprint === fingerprint ? successResponse(await serialize(prior), 200) : errorResponse("This request key was already used for different subscription details.", 409);
-    const [member, plan] = await Promise.all([Member.findById(body.memberId), Plan.findById(body.planId)]);
-    if (!member) return errorResponse("The selected member was not found.", 404, { memberId: "Choose an existing member." });
-    if (!plan || !plan.isActive) return errorResponse("Choose an available active plan.", 404, { planId: "Choose an active plan." });
-    const agreedPrice = body.agreedPrice ?? plan.price;
-    const amountPaid = body.amountPaid ?? 0;
-    if (amountPaid > agreedPrice) return errorResponse("Amount paid cannot exceed the agreed price.", 400, { amountPaid: "Enter an amount at or below the agreed price." });
-    if (amountPaid > 0 && !body.method) return errorResponse("Choose a payment method.", 400, { method: "A payment method is required when recording a payment." });
-    const startDate = body.startDate;
-    const expiryDate = addDays(startDate, plan.durationDays - 1);
-    const subscription = await Subscription.create({ memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate), originalPrice: plan.price, agreedPrice, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, status: "pending", createKey: key, createFingerprint: fingerprint, renewalHistory: [{ renewalKey: key, requestFingerprint: fingerprint, planId: plan._id, planSnapshot: { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice }, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate) }] });
-    if (amountPaid > 0) {
-      const payment = await Payment.create({ memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()), receiptNumber: await generateReceiptNumber(), idempotencyKey: key, requestFingerprint: `subscription:${subscription._id}:${amountPaid}:${body.method}` });
-      subscription.renewalHistory[0].paymentId = payment._id; await subscription.save();
-    }
-    return successResponse(await serialize(subscription), 201);
+    await connectToDatabase(); await Subscription.init(); await Payment.init();
+    requestFingerprint = JSON.stringify({ memberId: body.memberId.toLowerCase(), planId: body.planId.toLowerCase(), startDate: body.startDate, agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
+    const result = await runLedgerTransaction(async (session) => {
+      const prior = await Subscription.findOne({ createKey: key }).session(session);
+      if (prior) {
+        if (prior.createFingerprint !== requestFingerprint) throw Object.assign(new Error("This request key was already used for different subscription details."), { status: 409 });
+        return { subscription: prior, duplicate: true };
+      }
+      const [member, plan] = await Promise.all([Member.findById(body.memberId).session(session), Plan.findById(body.planId).session(session)]);
+      if (!member) throw Object.assign(new Error("The selected member was not found."), { status: 404, fields: { memberId: "Choose an existing member." } });
+      if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 404, fields: { planId: "Choose an active plan." } });
+      const agreedPrice = body.agreedPrice ?? plan.price;
+      const amountPaid = body.amountPaid ?? 0;
+      if (amountPaid > agreedPrice) throw Object.assign(new Error("Amount paid cannot exceed the agreed price."), { status: 400, fields: { amountPaid: "Enter an amount at or below the agreed price." } });
+      if (amountPaid > 0 && !body.method) throw Object.assign(new Error("Choose a payment method."), { status: 400, fields: { method: "A payment method is required when recording a payment." } });
+      const startDate = body.startDate;
+      const expiryDate = addDays(startDate, plan.durationDays - 1);
+      const planSnapshot = { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice };
+      const subscription = (await Subscription.create([{
+        memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate),
+        originalPrice: plan.price, agreedPrice, planSnapshot, status: "pending", createKey: key, createFingerprint: requestFingerprint,
+        renewalHistory: [{ renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate) }],
+      }], { session }))[0];
+      if (amountPaid > 0) {
+        const payment = (await Payment.create([{
+          memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
+          amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()),
+          receiptNumber: await generateReceiptNumber({ session }), idempotencyKey: key,
+          requestFingerprint: JSON.stringify({ subscriptionId: String(subscription._id), renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || gymToday() }),
+        }], { session }))[0];
+        subscription.renewalHistory[0].paymentId = payment._id;
+        await subscription.save({ session });
+      }
+      return { subscription, duplicate: false };
+    });
+    return successResponse(await serialize(result.subscription), result.duplicate ? 200 : 201);
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
-    if (error?.code === 11000) return errorResponse("This subscription request was already processed.", 409);
+    if (error?.status) return errorResponse(error.message, error.status, error.fields);
+    const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse);
+    if (ledgerResponse) return ledgerResponse;
+    if (error?.code === 11000) {
+      try {
+        const prior = await Subscription.findOne({ createKey: requestKey });
+        if (prior && prior.createFingerprint === requestFingerprint) return successResponse(await serialize(prior), 200);
+        if (prior) return errorResponse("This request key was already used for different subscription details.", 409);
+      } catch { /* Preserve the safe conflict response below. */ }
+      return errorResponse("This subscription request was already processed.", 409);
+    }
     console.error("Subscriptions API error:", error?.message); return errorResponse("Could not create subscription.", 500);
   }
 }
