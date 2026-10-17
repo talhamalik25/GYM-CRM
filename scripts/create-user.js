@@ -50,8 +50,9 @@ async function main() {
   if (password !== confirm) throw new Error("Passwords do not match.");
 
   await connectToDatabase();
-  await User.create({ email, passwordHash: await hashPassword(password) });
-  process.stdout.write("User created.\n");
+  const firstAccount = (await User.countDocuments()) === 0;
+  await User.create({ email, passwordHash: await hashPassword(password), role: firstAccount ? "superadmin" : "staff" });
+  process.stdout.write(firstAccount ? "Initial superadmin created.\n" : "Staff user created.\n");
 }
 
 main().catch((error) => {

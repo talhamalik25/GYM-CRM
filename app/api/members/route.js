@@ -56,7 +56,7 @@ export async function GET(request) {
       Member.find(filter).populate("planId", "name price").populate("trainerId", "fullName status").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       Member.countDocuments(filter),
     ]);
-    return successResponse({ items: members.map(serializeMember), total, page, limit, today: todayString });
+    return successResponse({ items: members.map((member) => serializeMember(member, todayString)), total, page, limit, today: todayString });
   } catch (error) {
     return handleMemberError(error);
   }
