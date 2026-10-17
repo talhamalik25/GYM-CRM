@@ -6,6 +6,7 @@ import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
 import { requireApiUser } from "../../../lib/auth";
 import { isValidIdempotencyKey, makePaymentFingerprint, paymentMonthRange } from "../../../lib/paymentRules";
+import { gymToday } from "../../../lib/subscriptionRules.js";
 import { paymentLedgerErrorResponse, recordMemberPayment, runLedgerTransaction } from "../../../lib/paymentLedger";
 
 const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
@@ -28,7 +29,7 @@ export async function POST(request) {
     if (typeof body.amountPaid !== "number" || !Number.isSafeInteger(body.amountPaid) || body.amountPaid <= 0) fields.amountPaid = "Amount paid must be a positive whole number of rupees.";
     if (!methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (!isDateOnly(body.paymentDate ?? body.date)) fields.paymentDate = "Choose a valid payment date.";
-    else if (new Date(`${body.paymentDate ?? body.date}T00:00:00.000Z`) > new Date()) fields.paymentDate = "Payment date cannot be in the future.";
+    else if ((body.paymentDate ?? body.date) > gymToday()) fields.paymentDate = "Payment date cannot be in the future.";
     if (body.notes != null && typeof body.notes !== "string") fields.notes = "Notes must be text.";
     if (typeof body.notes === "string" && body.notes.length > 1000) fields.notes = "Notes must be 1,000 characters or fewer.";
     if (body.subscriptionId != null && (typeof body.subscriptionId !== "string" || !mongoose.isObjectIdOrHexString(body.subscriptionId))) fields.subscriptionId = "Choose a valid invoice.";

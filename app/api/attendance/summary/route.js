@@ -4,6 +4,7 @@ import { handleAttendanceError } from "../../../../lib/attendanceApiHelpers";
 import { getGymDate } from "../../../../lib/gymDate";
 import Attendance from "../../../../models/Attendance";
 import { requireApiUser } from "../../../../lib/auth";
+import { resolveGymTimezone } from "../../../../lib/subscriptionRules.js";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -24,7 +25,7 @@ export async function GET(request) {
     ]);
     return successResponse({
       date: today,
-      timeZone: process.env.GYM_TIMEZONE || "Asia/Karachi",
+      timeZone: resolveGymTimezone(),
       checkedInToday: result?.checkedInToday || 0,
       currentlyInside: result?.currentlyInside || 0,
       averageCheckInsThisWeek: Math.round(((result?.checkInsThisWeek || 0) / 7) * 10) / 10,

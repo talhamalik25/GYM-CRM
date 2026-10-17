@@ -39,7 +39,10 @@ export async function POST(request) {
     const now = new Date();
     const date = getGymDate(now);
     if (await Attendance.exists({ memberId: member._id, date })) return alreadyCheckedIn(member._id, date);
-    const status = getMembershipStatus(member.expiryDate, date);
+    const status = getMembershipStatus(member.expiryDate?.toISOString?.().slice(0, 10) || member.expiryDate, date, member.startDate?.toISOString?.().slice(0, 10) || member.startDate);
+    if (status === "Upcoming") {
+      return attendanceError("This member's membership has not started yet.", 409, undefined, "MEMBERSHIP_NOT_STARTED");
+    }
     if (status === "Expired" && body.confirmExpired !== true) {
       return attendanceError("This member's membership has expired. Confirm to check them in anyway.", 409, undefined, "MEMBERSHIP_EXPIRED");
     }

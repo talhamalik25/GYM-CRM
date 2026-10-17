@@ -111,7 +111,7 @@ export default function MemberDetail({ memberId }) {
 
   const lastVisit = attendance[0] || null;
   const visibleVisits = attendance;
-  const daysRemaining = member ? getMembershipDaysRemaining(member.expiryDate) : null;
+  const daysRemaining = member ? (member.daysRemaining ?? getMembershipDaysRemaining(member.expiryDate, member.today)) : null;
 
   async function handlePaymentSaved(saved) {
     if (!member) return;

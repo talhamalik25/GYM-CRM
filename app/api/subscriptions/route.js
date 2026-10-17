@@ -47,7 +47,7 @@ export async function GET(request) {
     }
     const limit = Math.min(requestedLimit, 50);
     const [items, total] = await Promise.all([Subscription.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(), Subscription.countDocuments(filter)]);
-    return successResponse({ items: await Promise.all(items.map(serialize)), total, page, limit });
+    return successResponse({ items: await Promise.all(items.map(serialize)), total, page, limit, today: gymToday() });
   } catch (error) { console.error("Subscriptions API error:", error?.message); return errorResponse("Could not load subscriptions.", 500); }
 }
 

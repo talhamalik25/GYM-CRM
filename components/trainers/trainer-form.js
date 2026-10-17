@@ -11,7 +11,7 @@ import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 import { getTrainer, saveTrainer } from "../../lib/trainersService";
 
-const blank = { fullName: "", email: "", phone: "", specialization: "", joiningDate: new Intl.DateTimeFormat("en-CA", { timeZone: process.env.NEXT_PUBLIC_GYM_TIMEZONE || "Asia/Karachi" }).format(new Date()), status: "active", profileImage: "", notes: "" };
+const blank = { fullName: "", email: "", phone: "", specialization: "", joiningDate: "", status: "active", profileImage: "", notes: "" };
 function validate(value) {
   const errors = {};
   if (!value.fullName.trim()) errors.fullName = "Enter the trainer's full name.";
@@ -24,9 +24,9 @@ function validate(value) {
   return errors;
 }
 
-export default function TrainerForm({ trainerId = null }) {
+export default function TrainerForm({ trainerId = null, initialDate = "" }) {
   const router = useRouter(); const editing = Boolean(trainerId);
-  const [value, setValue] = useState(blank); const [errors, setErrors] = useState({}); const [loading, setLoading] = useState(editing); const [saving, setSaving] = useState(false); const [missing, setMissing] = useState(false); const [loadError, setLoadError] = useState(""); const [notice, setNotice] = useState("");
+  const [value, setValue] = useState({ ...blank, joiningDate: initialDate }); const [errors, setErrors] = useState({}); const [loading, setLoading] = useState(editing); const [saving, setSaving] = useState(false); const [missing, setMissing] = useState(false); const [loadError, setLoadError] = useState(""); const [notice, setNotice] = useState("");
   useEffect(() => { if (!editing) return; let cancelled = false; getTrainer(trainerId).then(trainer => { if (!cancelled) setValue({ fullName: trainer.fullName, email: trainer.email, phone: trainer.phone, specialization: trainer.specialization, joiningDate: trainer.joiningDate, status: trainer.status, profileImage: trainer.profileImage, notes: trainer.notes }); }).catch(error => { if (!cancelled) { if (error.status === 400 || error.status === 404) setMissing(true); else setLoadError(error.message); } }).finally(() => { if (!cancelled) setLoading(false); }); return () => { cancelled = true; }; }, [editing, trainerId]);
   function update(field, next) { setValue(current => ({ ...current, [field]: next })); setErrors(current => ({ ...current, [field]: undefined })); setNotice(""); }
   async function submit(event) { event.preventDefault(); const found = validate(value); setErrors(found); if (Object.keys(found).length) return; setSaving(true); setLoadError(""); try { const saved = await saveTrainer(value, trainerId); if (editing) { setNotice("Trainer details saved."); setValue({ fullName: saved.fullName, email: saved.email, phone: saved.phone, specialization: saved.specialization, joiningDate: saved.joiningDate, status: saved.status, profileImage: saved.profileImage, notes: saved.notes }); } else { router.push(`/trainers/${saved.id}`); router.refresh(); } } catch (error) { setErrors(error.fields || {}); if (!Object.keys(error.fields || {}).length) setLoadError(error.message); } finally { setSaving(false); } }

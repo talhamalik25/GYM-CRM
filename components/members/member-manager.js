@@ -140,6 +140,7 @@ export default function MemberManager() {
           />
           <Select id="member-status" label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
             <option value="all">All statuses</option>
+            <option value="upcoming">Upcoming</option>
             <option value="active">Active</option>
             <option value="expiring">Expiring</option>
             <option value="expired">Expired</option>
