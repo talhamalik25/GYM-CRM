@@ -8,6 +8,7 @@ import Plan from "../../../models/Plan";
 import Trainer from "../../../models/Trainer";
 import { isTrainerId, validateTrainerAssignment } from "../../../lib/trainerApiHelpers";
 import { requireApiUser } from "../../../lib/auth";
+import { gymToday } from "../../../lib/subscriptionRules.js";
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -29,7 +30,7 @@ export async function GET(request) {
     const requestedLimit = Number(params.get("limit") || 10);
     if (!Number.isInteger(page) || page < 1) return errorResponse("Page must be a positive whole number.", 400, { page: "Enter a valid page number." });
     if (!Number.isInteger(requestedLimit) || requestedLimit < 1) return errorResponse("Limit must be a positive whole number.", 400, { limit: "Enter a valid page size." });
-    if (!["all", "active", "expiring", "expired"].includes(status)) return errorResponse("Status must be active, expiring, expired, or all.", 400, { status: "Choose a valid member status." });
+    if (!["all", "upcoming", "active", "expiring", "expired"].includes(status)) return errorResponse("Status must be upcoming, active, expiring, expired, or all.", 400, { status: "Choose a valid member status." });
     if (planId && !mongoose.isObjectIdOrHexString(planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
 
     const limit = Math.min(requestedLimit, 50);
@@ -42,12 +43,13 @@ export async function GET(request) {
     }
     if (planId) filter.planId = planId;
 
-    const todayString = new Date().toISOString().slice(0, 10);
+    const todayString = gymToday();
     const today = memberDate(todayString);
     const expiringThrough = new Date(today.getTime() + EXPIRING_DAYS * 86400000);
+    if (status === "upcoming") filter.startDate = { $gt: today };
     if (status === "expired") filter.expiryDate = { $lt: today };
-    if (status === "expiring") filter.expiryDate = { $gte: today, $lte: expiringThrough };
-    if (status === "active") filter.expiryDate = { $gt: expiringThrough };
+    if (status === "expiring") { filter.startDate = { $lte: today }; filter.expiryDate = { $gte: today, $lte: expiringThrough }; }
+    if (status === "active") { filter.startDate = { $lte: today }; filter.expiryDate = { $gt: expiringThrough }; }
 
     await connectToDatabase();
     const [members, total] = await Promise.all([
