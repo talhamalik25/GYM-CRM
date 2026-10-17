@@ -70,7 +70,7 @@ export async function POST(request, { params }) {
         const payment = (await Payment.create([{
           memberId: subscription.memberId, planId: plan._id, subscriptionId: subscription._id,
           renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method,
-          paymentDate: dateOnly(body.paymentDate || today), receiptNumber: await generateReceiptNumber({ session }),
+          paymentDate: dateOnly(body.paymentDate || today), receiptNumber: await generateReceiptNumber(),
           idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: id, renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || today }),
         }], { session }))[0];

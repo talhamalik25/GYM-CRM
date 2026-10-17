@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Seed sample payments
 
-After MongoDB is configured and at least three members have plans priced at two or more whole rupees, run `node scripts/seed-payments.js`. This command is manual and creates one Paid, one Partial, and one Pending sample payment. It skips if its sample records already exist.
+After MongoDB is configured and at least three members have plans priced at two or more whole rupees, run `node scripts/seed-payments.js`. This command is manual and transactionally creates two subscription-linked sample payments (one full and one partial) plus one pending subscription invoice. It skips if its sample records already exist.
 
 ## Seed sample attendance
 
@@ -29,6 +29,8 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 ## Authentication setup
 
 Set `MONGODB_URI` and `AUTH_SESSION_SECRET` in `.env.local` for local development and in Vercel Project Settings for each deployment environment. Generate a unique session secret with `openssl rand -base64 48`; use a different value in Production, Preview, and Development. `GYM_TIMEZONE` remains optional and defaults to `Asia/Karachi`.
+
+Payment recording, subscription creation, and renewal require MongoDB transaction support (MongoDB Atlas or another replica-set deployment). The test suite's database concurrency test uses only the database named `fitivo_payment_ledger_test_<process-id>` derived from `MONGODB_TEST_URI`; it does not use `MONGODB_URI` for integration fixtures.
 
 Create a login account from an interactive terminal after configuring the database:
 

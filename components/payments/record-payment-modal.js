@@ -79,7 +79,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
       getPaymentMembers(values.memberName, initialMemberId).then((foundMembers) => setMembers((current) => [...new Map([...current, ...foundMembers].map((member) => [member.id, member])).values()])).catch(() => {});
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [open, values.memberName]);
+  }, [open, initialMemberId, values.memberName]);
 
   function updateValue(field, value) {
     requestKey.current = null;

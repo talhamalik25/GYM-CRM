@@ -1,6 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { calculateOutstandingBalance, currentGymPaymentMonthRange, isPaymentWithinBalance, isValidIdempotencyKey, isWholeRupeePrice, makePaymentFingerprint, paymentMonthRange } from "../lib/paymentRules.js";
+
+test("payment and subscription API routes retain authenticated access checks", async () => {
+  const routes = [
+    "../app/api/payments/route.js",
+    "../app/api/payments/dues/route.js",
+    "../app/api/payments/summary/route.js",
+    "../app/api/payments/[id]/route.js",
+    "../app/api/subscriptions/route.js",
+    "../app/api/subscriptions/[id]/route.js",
+    "../app/api/subscriptions/[id]/payments/route.js",
+    "../app/api/subscriptions/[id]/renew/route.js",
+  ];
+  for (const route of routes) {
+    const source = await readFile(fileURLToPath(new URL(route, import.meta.url)), "utf8");
+    assert.match(source, /await requireApiUser\(/, `${route} must enforce API authentication`);
+  }
+});
 
 test("plan prices require positive safe whole rupees", () => {
   assert.equal(isWholeRupeePrice(4500), true);

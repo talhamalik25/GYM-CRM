@@ -82,17 +82,25 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
     assert.ok(concurrentPayments.reduce((sum, payment) => sum + payment.amountPaid, 0) <= 10000);
 
     const rollbackKey = `rollback-${suffix}`;
+    const rollbackPaymentKey = `rollback-payment-${suffix}`;
     await assert.rejects(runLedgerTransaction(async (session) => {
-      await Subscription.create([{
+      const subscription = (await Subscription.create([{
         memberId: member._id, planId: plan._id, startDate: new Date(), expiryDate: new Date(),
         originalPrice: 10000, agreedPrice: 10000,
         planSnapshot: { name: "Rollback", durationDays: 30, originalPrice: 10000, agreedPrice: 10000 },
         createKey: rollbackKey, createFingerprint: rollbackKey,
         renewalHistory: [{ renewalKey: rollbackKey, requestFingerprint: rollbackKey, planId: plan._id, planSnapshot: { name: "Rollback", durationDays: 30, originalPrice: 10000, agreedPrice: 10000 }, startDate: new Date(), expiryDate: new Date() }],
+      }], { session }))[0];
+      await Payment.create([{
+        memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: rollbackKey,
+        amountDue: 10000, amountPaid: 1000, method: "cash", paymentDate: new Date(),
+        receiptNumber: `FIT-TEST-${suffix}`, idempotencyKey: rollbackPaymentKey,
+        requestFingerprint: rollbackPaymentKey,
       }], { session });
       throw new Error("simulate a payment creation failure");
     }), /simulate a payment creation failure/);
     assert.equal(await Subscription.exists({ createKey: rollbackKey }), null);
+    assert.equal(await Payment.exists({ idempotencyKey: rollbackPaymentKey }), null);
 
     const totalCharges = 30000;
     const allPayments = await Payment.find({ subscriptionId: { $in: subscriptionIds } }).lean();
