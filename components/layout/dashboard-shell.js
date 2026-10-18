@@ -10,6 +10,7 @@ const nav = [
   { label: 'Plans', href: '/memberships', Icon: Dumbbell },
   { label: 'Payments', href: '/payments', Icon: CreditCard },
   { label: 'Attendance', href: '/attendance', Icon: CalendarCheck2 },
+  { label: 'Staff', href: '/staff', Icon: Users },
 ];
 
 function getPageTitle(pathname) {
@@ -23,7 +24,7 @@ function getPageTitle(pathname) {
   }[pathname] || 'Dashboard');
 }
 
-function SidebarContent({ pathname, onNavigate }) {
+function SidebarContent({ pathname, onNavigate, canManageStaff }) {
   return <>
     <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="Fitivo home">
       <span className="fitivo-wordmark">Fitivo</span>
@@ -31,7 +32,7 @@ function SidebarContent({ pathname, onNavigate }) {
     <div className="workspace-switcher"><span className="workspace-mark">G</span><span><small>WORKSPACE</small><strong>Gym workspace</strong></span><ChevronDown className="workspace-chevron" size={15} aria-hidden="true" /></div>
     <p className="nav-label">MANAGEMENT</p>
     <nav aria-label="Main navigation" className="side-nav">
-      {nav.map(({ label, href, Icon }) => {
+      {nav.filter(({ href }) => href !== '/staff' || canManageStaff).map(({ label, href, Icon }) => {
         const active = pathname === href || (href === '/members' && pathname.startsWith('/members/')) || (href === '/memberships' && pathname.startsWith('/memberships/'));
         return <Link key={href} href={href} onClick={onNavigate} className={`nav-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
           <Icon className="nav-icon" size={18} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span>
@@ -45,7 +46,7 @@ function SidebarContent({ pathname, onNavigate }) {
   </>;
 }
 
-export default function DashboardShell({ children, isSuperadmin = false }) {
+export default function DashboardShell({ children, isSuperadmin = false, canManageStaff = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -76,11 +77,11 @@ export default function DashboardShell({ children, isSuperadmin = false }) {
     }
   }
   return <div className="app-shell">
-    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} /></aside>
+    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} canManageStaff={canManageStaff} /></aside>
     {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} />}
     <aside className={`sidebar mobile-sidebar${menuOpen ? ' mobile-sidebar-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!menuOpen}>
       <div className="mobile-sidebar-heading"><span>Navigation</span><button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
-      <SidebarContent pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+      <SidebarContent pathname={pathname} canManageStaff={canManageStaff} onNavigate={() => setMenuOpen(false)} />
     </aside>
     <div className="main-column">
       <header className="topbar">

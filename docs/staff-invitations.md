@@ -1,0 +1,7 @@
+# Staff invitations
+
+Gym owners can invite a user as `gym_admin` or `trainer`. The active gym is resolved from the signed-in session and its verified owner membership; request fields cannot select a gym or role outside this allowlist. Platform superadmin authorization remains separate. Existing tenant APIs permit `gym_owner` and `gym_admin`; the existing `trainer` membership role is not currently granted access to those APIs, so inviting a trainer creates the correctly scoped membership but does not grant CRM API access until trainer-specific permissions are designed.
+
+Invitations store only a SHA-256 token hash, expire after seven days, and are claimed in a MongoDB transaction with membership creation. A new account is created with the existing scrypt password hash. Existing accounts must be signed in as the invited email and their password is never changed. MongoDB deployments used for acceptance must support transactions. The user's existing single-active-gym tenant resolver means an account with another active gym membership will not gain a usable multi-gym session from this invitation.
+
+There is no email delivery integration. Outside production, invitation creation returns a one-time acceptance URL to the authenticated owner for development use. In production the API never returns the secret link; staff must not expect an email until a verified delivery provider is configured. The development-only link is sensitive and should be shared privately.
