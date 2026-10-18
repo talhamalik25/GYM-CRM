@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Button from "../ui/button";
 import Card from "../ui/card";
 import Input from "../ui/input";
@@ -121,7 +122,7 @@ export default function LoginForm() {
               <Button type="submit" size="lg" className="w-full" disabled={loading} aria-busy={loading}>
                 {loading ? <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />Signing in…</> : <><LockKeyhole size={16} aria-hidden="true" />Sign in</>}
               </Button>
-              <p className="text-center text-xs text-ink-muted">Sign in with your Fitivo account.</p>
+              <p className="text-center text-sm text-ink-muted">New to Fitivo? <Link className="font-medium text-brand hover:underline" href="/register">Create a gym account</Link></p>
             </form>
           </Card>
           <p className="mt-6 text-center text-xs text-ink-muted">Fitivo · Gym management workspace</p>

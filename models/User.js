@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
+  fullName: { type: String, trim: true, minlength: 2, maxlength: 120 },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 254 },
   passwordHash: { type: String, required: true, select: false },
   // `superadmin` is retained for existing accounts; new platform role naming is explicit.

@@ -11,19 +11,13 @@ import Plan from "../models/Plan.js";
 import Subscription from "../models/Subscription.js";
 import Counter from "../models/Counter.js";
 import Gym from "../models/Gym.js";
+import { isolatedTestUri } from "./testDatabaseConfig.js";
 
 const configuredTestUri = process.env.MONGODB_TEST_URI;
-
-function isolatedTestUri() {
-  if (!configuredTestUri) return null;
-  const uri = new URL(configuredTestUri);
-  uri.pathname = `/fitivo_payment_ledger_test_${process.pid}`;
-  return uri.toString();
-}
-
-const testUri = isolatedTestUri();
+const testUri = isolatedTestUri(configuredTestUri, "payment_ledger");
 
 test("MongoDB payment ledger transactions remain consistent under retries and concurrent installments", { skip: !testUri }, async () => {
+  const priorMongoUri = process.env.MONGODB_URI;
   process.env.MONGODB_URI = testUri;
   const suffix = `${process.pid}-${randomUUID()}`;
   let plan;
@@ -87,6 +81,23 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
     assert.equal(committed, 1);
     assert.ok(concurrentPayments.reduce((sum, payment) => sum + payment.amountPaid, 0) <= 10000);
 
+    const gapKey = `counter-gap-${suffix}`;
+    const counterName = `paymentReceipt:${String(gym._id)}`;
+    const beforeGap = await Counter.findOne({ gymId: gym._id, name: counterName }).lean();
+    const previousSequence = beforeGap?.seq || 0;
+    await assert.rejects(runLedgerTransaction(async (session) => {
+      await recordMemberPayment(session, {
+        gymId: gym._id, memberId: String(member._id), subscriptionId: partial.subscription._id,
+        renewalKey: partial.renewalKey, amountPaid: 1000, method: "cash",
+        paymentDate: new Date("2026-10-18T00:00:00.000Z"), idempotencyKey: gapKey,
+        notes: "integration test",
+      });
+      throw new Error("simulate failure after reserving a receipt number");
+    }), /simulate failure after reserving a receipt number/);
+    assert.equal(await Payment.exists({ gymId: gym._id, idempotencyKey: gapKey }), null);
+    const afterGap = await Counter.findOne({ gymId: gym._id, name: counterName }).lean();
+    assert.equal(afterGap.seq, previousSequence + 1, "aborted payment transaction leaves the reserved receipt sequence gap");
+
     const rollbackKey = `rollback-${suffix}`;
     const rollbackPaymentKey = `rollback-payment-${suffix}`;
     await assert.rejects(runLedgerTransaction(async (session) => {
@@ -120,13 +131,15 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
     assert.equal(summaryBalance, duesBalance);
   } finally {
     if (mongoose.connection.readyState === 1) {
-      await Payment.deleteMany({ memberId: member?._id });
-      await Subscription.deleteMany({ $or: [{ memberId: member?._id }, { _id: { $in: subscriptionIds } }] });
+      if (member) await Payment.deleteMany({ memberId: member._id, notes: "integration test" });
+      if (member) await Subscription.deleteMany({ memberId: member._id, _id: { $in: subscriptionIds } });
       if (member) await Member.deleteOne({ _id: member._id });
       if (plan) await Plan.deleteOne({ _id: plan._id });
       if (gym) await Gym.deleteOne({ _id: gym._id });
       if (gym) await Counter.deleteMany({ gymId: gym._id });
     }
     await mongoose.disconnect();
+    if (priorMongoUri === undefined) delete process.env.MONGODB_URI;
+    else process.env.MONGODB_URI = priorMongoUri;
   }
 });

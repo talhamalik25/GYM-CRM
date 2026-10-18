@@ -14,17 +14,10 @@ import { scopedTenantFilter } from "../lib/tenantQuery.js";
 import connectToDatabase from "../lib/db.js";
 import { recordMemberPayment, runLedgerTransaction, LedgerError } from "../lib/paymentLedger.js";
 import generateReceiptNumber from "../lib/generateReceiptNumber.js";
+import { isolatedTestUri } from "./testDatabaseConfig.js";
 
 const configuredTestUri = process.env.MONGODB_TEST_URI;
-
-function isolatedTestUri() {
-  if (!configuredTestUri) return null;
-  const uri = new URL(configuredTestUri);
-  uri.pathname = `/fitivo_tenant_isolation_test_${process.pid}`;
-  return uri.toString();
-}
-
-const testUri = isolatedTestUri();
+const testUri = isolatedTestUri(configuredTestUri, "tenant_isolation");
 
 test("synthetic gym A queries cannot read, update, or delete gym B records", { skip: !testUri }, async () => {
   const priorMongoUri = process.env.MONGODB_URI;
@@ -106,6 +99,20 @@ test("synthetic gym A queries cannot read, update, or delete gym B records", { s
       gymId: gymA._id, memberId: memberA._id, subscriptionId: subscriptionB._id,
       renewalKey: key, amountPaid: 100, method: "cash", paymentDate: new Date(), idempotencyKey: `cross-${suffix}`,
     }), (error) => error instanceof LedgerError && error.status === 404);
+    await assert.rejects(recordMemberPayment(null, {
+      gymId: gymA._id, memberId: memberB._id, subscriptionId: subscriptionA._id,
+      renewalKey: key, amountPaid: 100, method: "cash", paymentDate: new Date(), idempotencyKey: `cross-member-${suffix}`,
+    }), (error) => error instanceof LedgerError && error.status === 404);
+    const crossGymPlanSubscription = (await Subscription.create([{
+      gymId: gymA._id, memberId: memberA._id, planId: planB._id, startDate, expiryDate,
+      originalPrice: 1000, agreedPrice: 1000, planSnapshot,
+      createKey: `cross-plan-${suffix}`, createFingerprint: `cross-plan-${suffix}`,
+      renewalHistory: [{ renewalKey: `cross-plan-${suffix}`, requestFingerprint: `cross-plan-${suffix}`, planId: planB._id, planSnapshot, startDate, expiryDate }],
+    }]))[0];
+    await assert.rejects(recordMemberPayment(null, {
+      gymId: gymA._id, memberId: memberA._id, subscriptionId: crossGymPlanSubscription._id,
+      renewalKey: `cross-plan-${suffix}`, amountPaid: 100, method: "cash", paymentDate: new Date(), idempotencyKey: `cross-plan-payment-${suffix}`,
+    }), (error) => error instanceof LedgerError && error.status === 409);
     const ownPayment = await runLedgerTransaction((session) => recordMemberPayment(session, {
       gymId: gymA._id, memberId: memberA._id, subscriptionId: subscriptionA._id,
       renewalKey: key, amountPaid: 100, method: "cash", paymentDate: new Date(), idempotencyKey: `own-${suffix}`,
