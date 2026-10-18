@@ -46,7 +46,7 @@ try {
               gymId: gym._id,
               memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
               amountDue: plan.price, amountPaid: paidAmounts[index], method: "cash", paymentDate: new Date(),
-              receiptNumber: await generateReceiptNumber({ session }), idempotencyKey: `seed-${member._id}`,
+              receiptNumber: await generateReceiptNumber({ gymId: gym._id }), idempotencyKey: `seed-${member._id}`,
               requestFingerprint: `${key}:${paidAmounts[index]}`, notes: `${marker} ${index === 0 ? "Paid" : "Partial"}`,
             }], { session });
           }

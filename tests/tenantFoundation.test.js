@@ -9,6 +9,8 @@ import Subscription from "../models/Subscription.js";
 import Payment from "../models/Payment.js";
 import Attendance from "../models/Attendance.js";
 import Trainer from "../models/Trainer.js";
+import Counter from "../models/Counter.js";
+import generateReceiptNumber from "../lib/generateReceiptNumber.js";
 import { authorizeGymMembership } from "../lib/tenantAuthorization.js";
 import { scopedTenantFilter } from "../lib/tenantQuery.js";
 import { readFile } from "node:fs/promises";
@@ -53,11 +55,14 @@ test("new gym-owned documents require gymId while schemas retain a legacy-compat
     new Payment({ memberId: id, planId: id, amountDue: 100, amountPaid: 0, method: "cash", paymentDate: new Date(), receiptNumber: "FIT-0001" }),
     new Attendance({ memberId: id, date: "2026-10-18", checkInAt: new Date() }),
     new Trainer({ fullName: "Trainer", email: "trainer@example.test", phone: "+1234567890", specialization: "Fitness", joiningDate: new Date() }),
+    new Counter({ name: "receipt:test" }),
   ];
   for (const document of documents) {
     await assert.rejects(document.validate(), (error) => Boolean(error.errors.gymId));
     assert.equal(document.schema.path("gymId").options.required.call({ isNew: false }), false);
   }
+  assert.ok(Counter.schema.indexes().some(([keys, options]) => keys.gymId === 1 && keys.name === 1 && options.unique));
+  await assert.rejects(generateReceiptNumber(), /trusted gym id/);
 });
 
 test("gym authorization rejects missing membership, wrong role, and requested cross-gym id", () => {

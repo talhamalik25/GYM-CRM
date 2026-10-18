@@ -101,7 +101,7 @@ export async function POST(request) {
           gymId,
           memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
           amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()),
-          receiptNumber: await generateReceiptNumber({ session }), idempotencyKey: key,
+          receiptNumber: await generateReceiptNumber({ gymId }), idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: String(subscription._id), renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || gymToday() }),
         }], { session }))[0];
         subscription.renewalHistory[0].paymentId = payment._id;

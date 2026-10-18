@@ -16,6 +16,7 @@ test("account creation cannot accept a caller-selected role", () => {
   assert.equal(result.fields.role, "This field cannot be changed.");
   assert.equal(isSuperadmin({ role: "staff" }), false);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);
+  assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);
   assert.equal(isSuperadmin(null), false);
 });
 
@@ -24,7 +25,7 @@ test("admin account API and shared auth helper require superadmin authorization"
   const auth = await readFile(fileURLToPath(new URL("../lib/auth.js", import.meta.url)), "utf8");
   assert.equal((source.match(/await requireSuperadminUser\(request\)/g) || []).length, 2);
   assert.match(auth, /export async function requireSuperadminUser\(request\)/);
-  assert.match(auth, /if \(requiredRole && user\.role !== requiredRole\) return forbidden\(\)/);
+  assert.match(auth, /requiredRole === "superadmin" && isSuperadmin\(user\)/);
   assert.match(source, /passwordHash:\s*await hashPassword\(validation\.password\)/);
   assert.match(source, /role:\s*"staff"/);
   assert.doesNotMatch(source, /password:\s*user\.password/);

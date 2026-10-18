@@ -27,7 +27,7 @@ Current API coverage:
 | `Payment` | `/api/payments`, `/api/payments/[id]`, `/api/payments/dues`, `/api/payments/summary`; subscription flows | Scoped on reads, idempotency, ledger queries, aggregates, and same-gym references. |
 | `Attendance` | `/api/attendance`, `/api/attendance/summary`, `/api/attendance/check-in`, `/api/attendance/[id]/check-out` | Scoped on lists, summaries, member lookups, check-in uniqueness and checkout updates. |
 | `Trainer` | `/api/trainers`, `/api/trainers/[id]`; member assignment and counts | Scoped on reads/writes and member assignment counts. Email uniqueness is declared per gym. |
-| `Counter` | Receipt number generation through `lib/generateReceiptNumber.js` | Remains a global counter so existing `FIT-####` receipt numbers remain globally unique and unchanged. |
+| `Counter` | Receipt number generation through `lib/generateReceiptNumber.js` | New counter rows are gym-owned and sequence independently. Receipt strings include the full gym id plus sequence, while the payment receipt unique index prevents duplicates across gyms. The old unowned `paymentReceipt` counter is retained but no longer used for new receipts. |
 | `User` / `AuthSession` | `/api/admin/users`, login/logout and session helpers | Remain global identity data. Account administration is platform-role gated. |
 
 Dashboard and report pages consume the scoped APIs. Browser/local mock services do not access MongoDB and are not a server-side authorization boundary. Platform user administration and authentication are intentionally global.
@@ -36,7 +36,7 @@ Dashboard and report pages consume the scoped APIs. Browser/local mock services 
 
 1. Confirm the single current gym with the data owner and record its name, normalized slug, timezone, and a stable migration identifier. Do not infer ownership from request data or insert a guessed organization.
 2. Back up MongoDB and inventory counts for Members, Plans, Subscriptions, Payments, Attendance, Trainers, and Counters. Create the Gym and audited memberships for explicitly approved existing accounts.
-3. Backfill ownership, then require `gymId` for persisted business documents and non-API writers. Replace existing global indexes with tenant-scoped indexes only after an offline migration rehearsal. New compound indexes are declared in schemas; existing Atlas indexes have not been inspected, created, or dropped.
+3. Backfill ownership, then require `gymId` for persisted business documents and non-API writers. Keep the old global receipt counter as historical state; new counters use gym-specific keys. Replace existing global indexes with tenant-scoped indexes only after an offline migration rehearsal. New compound indexes are declared in schemas; existing Atlas indexes have not been inspected, created, or dropped.
 4. For orphaned or inconsistent records, quarantine/report them for manual ownership resolution; do not silently assign or delete them. Verify counts, references (member/plan/trainer/subscription/payment), duplicate keys, and representative financial/attendance totals before switching reads.
 5. Verify API-created data and tenant-scoped indexes in a disposable database. Keep a rollback backup and legacy data accessible until verification and acceptance. The current tenant-scoped APIs intentionally cannot see legacy documents with no `gymId`.
 
