@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const planSchema = new mongoose.Schema({
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", index: true },
   name: { type: String, required: true, trim: true },
   price: {
     type: Number,
@@ -18,6 +19,6 @@ const planSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // The collation makes the unique index treat names with different letter case as duplicates.
-planSchema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
+planSchema.index({ gymId: 1, name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
 
 export default mongoose.models.Plan || mongoose.model("Plan", planSchema);

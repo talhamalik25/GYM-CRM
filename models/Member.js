@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 
 const memberSchema = new mongoose.Schema({
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", index: true },
   fullName: { type: String, required: true, trim: true },
-  // `unique` creates the database index; route validation supplies the friendly conflict response.
-  phone: { type: String, required: true, trim: true, unique: true },
+  phone: { type: String, required: true, trim: true },
   email: {
     type: String,
     trim: true,
@@ -22,5 +22,7 @@ const memberSchema = new mongoose.Schema({
   expiryDate: { type: Date, required: true },
   notes: { type: String, default: "", trim: true },
 }, { timestamps: true });
+
+memberSchema.index({ gymId: 1, phone: 1 }, { unique: true });
 
 export default mongoose.models.Member || mongoose.model("Member", memberSchema);

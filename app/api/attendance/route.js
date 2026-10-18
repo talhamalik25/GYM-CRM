@@ -5,7 +5,7 @@ import { getGymDate } from "../../../lib/gymDate";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import Attendance from "../../../models/Attendance";
 import Member from "../../../models/Member";
-import { requireApiUser } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -37,15 +37,15 @@ export async function GET(request) {
     else if (!memberId) filter.date = getGymDate();
     if (memberId) filter.memberId = memberId;
     if (search) {
-      const matchingMembers = await Member.find({ fullName: new RegExp(escapeRegex(search), "i") }).distinct("_id");
+      const matchingMembers = await Member.find(tenantFilter(request, { fullName: new RegExp(escapeRegex(search), "i") })).distinct("_id");
       filter.memberId = { $in: memberId ? matchingMembers.filter((id) => String(id) === memberId) : matchingMembers };
     }
     const limit = Math.min(requestedLimit, 50);
     const [records, total] = await Promise.all([
-      Attendance.find(filter)
-        .populate({ path: "memberId", select: "fullName planId", populate: { path: "planId", select: "name" } })
+      Attendance.find(tenantFilter(request, filter))
+        .populate({ path: "memberId", match: tenantFilter(request), select: "fullName planId", populate: { path: "planId", match: tenantFilter(request), select: "name" } })
         .sort({ checkInAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-      Attendance.countDocuments(filter),
+      Attendance.countDocuments(tenantFilter(request, filter)),
     ]);
     return successResponse({ items: records.map(serializeAttendance), total, page, limit });
   } catch (error) { return handleAttendanceError(error); }

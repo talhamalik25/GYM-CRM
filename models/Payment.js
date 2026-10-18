@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const paymentSchema = new mongoose.Schema({
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", index: true },
   memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true, index: true },
   planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
   subscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: "Subscription", default: null, index: true },
@@ -24,6 +25,6 @@ const paymentSchema = new mongoose.Schema({
 
 paymentSchema.index({ memberId: 1, paymentDate: -1 });
 paymentSchema.index({ paymentDate: -1 });
-paymentSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
+paymentSchema.index({ gymId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.Payment || mongoose.model("Payment", paymentSchema);

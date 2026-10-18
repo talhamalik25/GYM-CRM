@@ -7,7 +7,7 @@ import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
 import Trainer from "../../../models/Trainer";
 import { isTrainerId, validateTrainerAssignment } from "../../../lib/trainerApiHelpers";
-import { requireApiUser } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 import { gymToday } from "../../../lib/subscriptionRules.js";
 
 function escapeRegex(value) {
@@ -53,8 +53,8 @@ export async function GET(request) {
 
     await connectToDatabase();
     const [members, total] = await Promise.all([
-      Member.find(filter).populate("planId", "name price").populate("trainerId", "fullName status").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-      Member.countDocuments(filter),
+      Member.find(tenantFilter(request, filter)).populate({ path: "planId", match: tenantFilter(request), select: "name price" }).populate({ path: "trainerId", match: tenantFilter(request), select: "fullName status" }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Member.countDocuments(tenantFilter(request, filter)),
     ]);
     return successResponse({ items: members.map((member) => serializeMember(member, todayString)), total, page, limit, today: todayString });
   } catch (error) {
@@ -74,17 +74,18 @@ export async function POST(request) {
     if (!mongoose.isObjectIdOrHexString(memberBody.planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
 
     await connectToDatabase();
-    const plan = await Plan.findById(memberBody.planId);
+    const plan = await Plan.findOne(tenantFilter(request, { _id: memberBody.planId }));
     if (!plan) return errorResponse("The selected plan was not found.", 400, { planId: "Choose an available plan." });
     if (!plan.isActive) return errorResponse("Only active plans can be assigned to a member.", 400, { planId: "Choose an active plan." });
     let trainer = null;
-    if (memberBody.trainerId && isTrainerId(memberBody.trainerId)) trainer = await Trainer.findById(memberBody.trainerId);
+    if (memberBody.trainerId && isTrainerId(memberBody.trainerId)) trainer = await Trainer.findOne(tenantFilter(request, { _id: memberBody.trainerId }));
     const trainerError = validateTrainerAssignment(memberBody.trainerId, trainer);
     if (trainerError) return errorResponse(trainerError.message, trainerError.status, { trainerId: trainerError.message });
 
     const startDate = memberDate(memberBody.startDate);
     const calculatedExpiry = getMembershipExpiryDate(memberBody.startDate, plan.durationDays);
     const member = await Member.create({
+      gymId: getRequestGymId(request),
       fullName: memberBody.fullName.trim(),
       phone: normalizeMemberPhone(memberBody.phone),
       email: memberBody.email?.trim().toLowerCase() || "",

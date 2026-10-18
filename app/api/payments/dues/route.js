@@ -4,7 +4,7 @@ import { handlePaymentError } from "../../../../lib/paymentApiHelpers";
 import Payment from "../../../../models/Payment";
 import Subscription from "../../../../models/Subscription";
 import Member from "../../../../models/Member";
-import { requireApiUser } from "../../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../lib/auth";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -13,13 +13,13 @@ export async function GET(request) {
     await connectToDatabase();
     const [legacyDues, subscriptions] = await Promise.all([
       Payment.aggregate([
-        { $match: { subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } },
-        { $group: { _id: "$memberId", balance: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } }, paymentCount: { $sum: 1 } } },
-        { $lookup: { from: "members", localField: "_id", foreignField: "_id", as: "member" } },
+        { $match: { gymId: getRequestGymId(request), subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } },
+        { $lookup: { from: "members", let: { memberId: "$memberId", gymId: "$gymId" }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$_id", "$$memberId"] }, { $eq: ["$gymId", "$$gymId"] }] } } }], as: "member" } },
         { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
-        { $project: { _id: 0, memberId: { $toString: "$_id" }, memberName: { $ifNull: ["$member.fullName", "Member unavailable"] }, balance: 1, paymentCount: 1 } },
+        { $group: { _id: "$memberId", memberName: { $first: "$member.fullName" }, balance: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } }, paymentCount: { $sum: 1 } } },
+        { $project: { _id: 0, memberId: { $toString: "$_id" }, memberName: { $ifNull: ["$memberName", "Member unavailable"] }, balance: 1, paymentCount: 1 } },
       ]),
-      Subscription.find({}).select("memberId renewalHistory").lean(),
+      Subscription.find(tenantFilter(request)).select("memberId renewalHistory").lean(),
     ]);
 
     const byMember = new Map(legacyDues.map((entry) => [entry.memberId, {
@@ -28,7 +28,7 @@ export async function GET(request) {
     }]));
     const subscriptionIds = subscriptions.map((item) => item._id);
     const payments = subscriptionIds.length
-      ? await Payment.find({ subscriptionId: { $in: subscriptionIds } }).select("subscriptionId renewalKey amountPaid").lean()
+      ? await Payment.find(tenantFilter(request, { subscriptionId: { $in: subscriptionIds } })).select("subscriptionId renewalKey amountPaid").lean()
       : [];
     const paidByTerm = new Map();
     for (const payment of payments) {
@@ -36,7 +36,7 @@ export async function GET(request) {
       paidByTerm.set(key, (paidByTerm.get(key) || 0) + payment.amountPaid);
     }
     const memberIds = [...new Set(subscriptions.map((item) => String(item.memberId)))];
-    const members = await Member.find({ _id: { $in: memberIds } }).select("fullName").lean();
+    const members = await Member.find(tenantFilter(request, { _id: { $in: memberIds } })).select("fullName").lean();
     const memberNames = new Map(members.map((member) => [String(member._id), member.fullName]));
     for (const subscription of subscriptions) {
       const memberId = String(subscription.memberId);

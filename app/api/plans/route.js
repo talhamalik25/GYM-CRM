@@ -1,7 +1,7 @@
 import connectToDatabase from "../../../lib/db";
 import Plan from "../../../models/Plan";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../lib/planApiResponse";
-import { requireApiUser } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -9,7 +9,7 @@ export async function GET(request) {
   try {
     await connectToDatabase();
     const onlyActive = new URL(request.url).searchParams.get("isActive") === "true";
-    const plans = await Plan.find(onlyActive ? { isActive: true } : {}).sort({ createdAt: -1 }).lean();
+    const plans = await Plan.find(tenantFilter(request, onlyActive ? { isActive: true } : {})).sort({ createdAt: -1 }).lean();
     return successResponse(plans);
   } catch (error) {
     return handlePlanError(error);
@@ -26,6 +26,7 @@ export async function POST(request) {
 
     await connectToDatabase();
     const plan = await Plan.create({
+      gymId: getRequestGymId(request),
       name: body.name.trim(),
       price: body.price,
       durationDays: body.durationDays,

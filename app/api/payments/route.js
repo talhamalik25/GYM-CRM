@@ -4,7 +4,7 @@ import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handlePaymentError, isDateOnly, paymentStatusMatch, serializePayment } from "../../../lib/paymentApiHelpers";
 import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
-import { requireApiUser } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 import { isValidIdempotencyKey, makePaymentFingerprint, paymentMonthRange } from "../../../lib/paymentRules";
 import { gymToday } from "../../../lib/subscriptionRules.js";
 import { paymentLedgerErrorResponse, recordMemberPayment, runLedgerTransaction } from "../../../lib/paymentLedger";
@@ -43,6 +43,7 @@ export async function POST(request) {
     await connectToDatabase();
     await Payment.init();
     const result = await runLedgerTransaction((session) => recordMemberPayment(session, {
+      gymId: getRequestGymId(request),
       memberId: body.memberId, subscriptionId: body.subscriptionId || "", renewalKey: body.renewalKey || "",
       amountPaid: body.amountPaid, method: body.method, paymentDate: paymentDateAt,
       paymentDateLabel: paymentDate, idempotencyKey, notes,
@@ -54,7 +55,7 @@ export async function POST(request) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     if (error?.code === 11000 && (error?.keyPattern?.idempotencyKey || error?.keyValue?.idempotencyKey)) {
       try {
-        const existing = await Payment.findOne({ idempotencyKey }).select("+requestFingerprint");
+        const existing = await Payment.findOne(tenantFilter(request, { idempotencyKey })).select("+requestFingerprint");
         if (existing && existing.requestFingerprint === fingerprint) {
           await existing.populate([{ path: "memberId", select: "fullName" }, { path: "planId", select: "name" }]);
           return successResponse(serializePayment(existing), 200);
@@ -94,13 +95,13 @@ export async function GET(request) {
       filter.paymentDate = paymentMonthRange(month);
     }
     if (search) {
-      const members = await Member.find({ fullName: new RegExp(escapeRegex(search), "i") }).distinct("_id");
+      const members = await Member.find(tenantFilter(request, { fullName: new RegExp(escapeRegex(search), "i") })).distinct("_id");
       filter.memberId = { $in: memberId ? members.filter((id) => String(id) === memberId) : members };
     }
     const limit = Math.min(requestedLimit, 50);
     const [records, total] = await Promise.all([
-      Payment.find(filter).populate("memberId", "fullName").populate("planId", "name").sort({ paymentDate: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-      Payment.countDocuments(filter),
+      Payment.find(tenantFilter(request, filter)).populate({ path: "memberId", match: tenantFilter(request), select: "fullName" }).populate({ path: "planId", match: tenantFilter(request), select: "name" }).sort({ paymentDate: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Payment.countDocuments(tenantFilter(request, filter)),
     ]);
     return successResponse({ items: records.map(serializePayment), total, page, limit });
   } catch (error) { return handlePaymentError(error); }

@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db";
 import Plan from "../../../../models/Plan";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../../lib/planApiResponse";
-import { requireApiUser } from "../../../../lib/auth";
+import { requireApiUser, tenantFilter } from "../../../../lib/auth";
 
 async function readId(context) {
   const { id } = await context.params;
@@ -16,7 +16,7 @@ export async function GET(_request, context) {
     const id = await readId(context);
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Plan id is invalid.", 400);
     await connectToDatabase();
-    const plan = await Plan.findById(id).lean();
+    const plan = await Plan.findOne(tenantFilter(_request, { _id: id })).lean();
     if (!plan) return errorResponse("Plan was not found.", 404);
     return successResponse(plan);
   } catch (error) {
@@ -36,9 +36,10 @@ export async function PATCH(request, context) {
 
     await connectToDatabase();
     const update = { ...body };
+    delete update.gymId;
     if (typeof update.name === "string") update.name = update.name.trim();
     if (typeof update.description === "string") update.description = update.description.trim();
-    const plan = await Plan.findByIdAndUpdate(id, update, { new: true, runValidators: true }).lean();
+    const plan = await Plan.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { new: true, runValidators: true }).lean();
     if (!plan) return errorResponse("Plan was not found.", 404);
     return successResponse(plan);
   } catch (error) {

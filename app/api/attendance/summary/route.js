@@ -3,7 +3,7 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse"
 import { handleAttendanceError } from "../../../../lib/attendanceApiHelpers";
 import { getGymDate } from "../../../../lib/gymDate";
 import Attendance from "../../../../models/Attendance";
-import { requireApiUser } from "../../../../lib/auth";
+import { requireApiUser, getRequestGymId } from "../../../../lib/auth";
 import { resolveGymTimezone } from "../../../../lib/subscriptionRules.js";
 
 export async function GET(request) {
@@ -15,7 +15,7 @@ export async function GET(request) {
     // “This week” means the last 7 gym calendar days, including today; divide by 7 for average check-ins per gym day.
     const weekStart = getGymDate(new Date(), 6);
     const [result] = await Attendance.aggregate([
-      { $match: { date: { $gte: weekStart, $lte: today } } },
+      { $match: { gymId: getRequestGymId(request), date: { $gte: weekStart, $lte: today } } },
       { $group: {
         _id: null,
         checkedInToday: { $sum: { $cond: [{ $eq: ["$date", today] }, 1, 0] } },

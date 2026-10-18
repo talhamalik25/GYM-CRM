@@ -5,14 +5,14 @@ import { getGymDate } from "../../../../lib/gymDate";
 import { getMembershipStatus } from "../../../../lib/membersService";
 import Attendance from "../../../../models/Attendance";
 import Member from "../../../../models/Member";
-import { requireApiUser } from "../../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../lib/auth";
 
-async function populatedAttendance(id) {
-  return Attendance.findById(id).populate({ path: "memberId", select: "fullName planId", populate: { path: "planId", select: "name" } }).lean();
+async function populatedAttendance(request, id) {
+  return Attendance.findOne(tenantFilter(request, { _id: id })).populate({ path: "memberId", match: tenantFilter(request), select: "fullName planId", populate: { path: "planId", match: tenantFilter(request), select: "name" } }).lean();
 }
 
-async function alreadyCheckedIn(memberId, date) {
-  const existing = await Attendance.findOne({ memberId, date }).lean();
+async function alreadyCheckedIn(request, memberId, date) {
+  const existing = await Attendance.findOne(tenantFilter(request, { memberId, date })).lean();
   return attendanceError(
     existing ? `This member is already checked in today at ${formatGymTime(existing.checkInAt)}.` : "This member already has an attendance record for today.",
     409,
@@ -34,11 +34,11 @@ export async function POST(request) {
 
     await connectToDatabase();
     await Attendance.init();
-    const member = await Member.findById(body.memberId).populate("planId", "name").lean();
+    const member = await Member.findOne(tenantFilter(request, { _id: body.memberId })).populate({ path: "planId", match: tenantFilter(request), select: "name" }).lean();
     if (!member) return attendanceError("The selected member was not found.", 404, { memberId: "Choose an existing member." });
     const now = new Date();
     const date = getGymDate(now);
-    if (await Attendance.exists({ memberId: member._id, date })) return alreadyCheckedIn(member._id, date);
+    if (await Attendance.exists(tenantFilter(request, { memberId: member._id, date }))) return alreadyCheckedIn(request, member._id, date);
     const status = getMembershipStatus(member.expiryDate?.toISOString?.().slice(0, 10) || member.expiryDate, date, member.startDate?.toISOString?.().slice(0, 10) || member.startDate);
     if (status === "Upcoming") {
       return attendanceError("This member's membership has not started yet.", 409, undefined, "MEMBERSHIP_NOT_STARTED");
@@ -48,17 +48,18 @@ export async function POST(request) {
     }
     try {
       const created = await Attendance.create({
+        gymId: getRequestGymId(request),
         memberId: member._id,
         date,
         checkInAt: now,
         overrideExpired: status === "Expired" && body.confirmExpired === true,
       });
-      return Response.json({ success: true, data: serializeAttendance(await populatedAttendance(created._id)) }, {
+      return Response.json({ success: true, data: serializeAttendance(await populatedAttendance(request, created._id)) }, {
         status: 201,
         headers: { "Cache-Control": "no-store" },
       });
     } catch (error) {
-      if (error?.code === 11000) return alreadyCheckedIn(member._id, date);
+      if (error?.code === 11000) return alreadyCheckedIn(request, member._id, date);
       throw error;
     }
   } catch (error) {

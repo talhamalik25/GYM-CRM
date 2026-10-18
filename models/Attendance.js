@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const attendanceSchema = new mongoose.Schema({
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", index: true },
   memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true },
   date: {
     type: String,
@@ -12,7 +13,7 @@ const attendanceSchema = new mongoose.Schema({
   overrideExpired: { type: Boolean, default: false },
 }, { timestamps: true });
 
-attendanceSchema.index({ memberId: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ gymId: 1, memberId: 1, date: 1 }, { unique: true });
 attendanceSchema.index({ date: -1, checkInAt: -1 });
 
 export default mongoose.models.Attendance || mongoose.model("Attendance", attendanceSchema);

@@ -7,7 +7,7 @@ import Member from "../../../../models/Member";
 import Plan from "../../../../models/Plan";
 import Trainer from "../../../../models/Trainer";
 import { isTrainerId, validateTrainerAssignment } from "../../../../lib/trainerApiHelpers";
-import { requireApiUser } from "../../../../lib/auth";
+import { requireApiUser, tenantFilter } from "../../../../lib/auth";
 
 function memberDate(value) {
   return new Date(`${value}T00:00:00.000Z`);
@@ -24,7 +24,7 @@ export async function GET(_request, context) {
     const { id } = await context.params;
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Member id is invalid.", 400);
     await connectToDatabase();
-    const member = await Member.findById(id).populate("planId", "name price").populate("trainerId", "fullName status").lean();
+    const member = await Member.findOne(tenantFilter(_request, { _id: id })).populate({ path: "planId", match: tenantFilter(_request), select: "name price" }).populate({ path: "trainerId", match: tenantFilter(_request), select: "fullName status" }).lean();
     if (!member) return errorResponse("Member was not found.", 404);
     return successResponse(serializeMember(member));
   } catch (error) {
@@ -48,7 +48,7 @@ export async function PATCH(request, context) {
     }
 
     await connectToDatabase();
-    const current = await Member.findById(id);
+    const current = await Member.findOne(tenantFilter(request, { _id: id }));
     if (!current) return errorResponse("Member was not found.", 404);
 
     const currentPlanId = String(current.planId);
@@ -58,14 +58,14 @@ export async function PATCH(request, context) {
     const update = { ...memberBody };
     if (Object.hasOwn(memberBody, "trainerId")) {
       const trainerId = memberBody.trainerId || null;
-      const trainer = trainerId && isTrainerId(trainerId) ? await Trainer.findById(trainerId).select("status") : null;
+      const trainer = trainerId && isTrainerId(trainerId) ? await Trainer.findOne(tenantFilter(request, { _id: trainerId })).select("status") : null;
       const trainerError = validateTrainerAssignment(trainerId, trainer, current.trainerId);
       if (trainerError) return errorResponse(trainerError.message, trainerError.status, { trainerId: trainerError.message });
       update.trainerId = trainerId;
     }
 
     if (memberBody.planId && planChanged || memberBody.startDate) {
-      const plan = await Plan.findById(nextPlanId);
+      const plan = await Plan.findOne(tenantFilter(request, { _id: nextPlanId }));
       if (!plan) return errorResponse("The selected plan was not found.", 400, { planId: "Choose an available plan." });
       if (planChanged && !plan.isActive) return errorResponse("Only active plans can be assigned to a member.", 400, { planId: "Choose an active plan." });
       if (planChanged || startDateChanged) {
@@ -82,7 +82,8 @@ export async function PATCH(request, context) {
     if (memberBody.startDate) update.startDate = memberDate(memberBody.startDate);
     if (memberBody.dateOfBirth !== undefined) update.dateOfBirth = memberBody.dateOfBirth ? memberDate(memberBody.dateOfBirth) : null;
 
-    const updated = await Member.findByIdAndUpdate(id, update, { new: true, runValidators: true }).populate("planId", "name price").populate("trainerId", "fullName status").lean();
+    delete update.gymId;
+    const updated = await Member.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { new: true, runValidators: true }).populate({ path: "planId", match: tenantFilter(request), select: "name price" }).populate({ path: "trainerId", match: tenantFilter(request), select: "fullName status" }).lean();
     return successResponse(serializeMember(updated));
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
