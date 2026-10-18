@@ -1,7 +1,7 @@
-import connectToDatabase from "../../../../lib/db";
-import { createSession, validateRequestOrigin } from "../../../../lib/auth";
-import { verifyPassword } from "../../../../lib/passwords";
-import User from "../../../../models/User";
+import connectToDatabase from "../../../../lib/db.js";
+import { createSession, validateRequestOrigin } from "../../../../lib/auth.js";
+import { verifyPassword } from "../../../../lib/passwords.js";
+import User from "../../../../models/User.js";
 
 const invalidCredentials = () => Response.json({ success: false, error: { message: "The email or password is incorrect." } }, {
   status: 401,

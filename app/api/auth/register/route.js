@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 import { randomBytes } from "node:crypto";
-import connectToDatabase from "../../../../lib/db";
-import { createSession, validateRequestOrigin } from "../../../../lib/auth";
-import { hashPassword } from "../../../../lib/passwords";
-import { validateGymOwnerRegistrationBody } from "../../../../lib/gymOwnerRegistration";
-import User from "../../../../models/User";
-import Gym from "../../../../models/Gym";
-import GymMembership from "../../../../models/GymMembership";
+import connectToDatabase from "../../../../lib/db.js";
+import { createSession, validateRequestOrigin } from "../../../../lib/auth.js";
+import { hashPassword } from "../../../../lib/passwords.js";
+import { validateGymOwnerRegistrationBody } from "../../../../lib/gymOwnerRegistration.js";
+import User from "../../../../models/User.js";
+import Gym from "../../../../models/Gym.js";
+import GymMembership from "../../../../models/GymMembership.js";
 
 function jsonError(message, status, fields) {
   return Response.json({ success: false, error: { message, ...(fields ? { fields } : {}) } }, {
@@ -29,8 +29,8 @@ function duplicateEmailError(error) {
 
 function makeGymSlug(gymName) {
   const base = gymName.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 68).replace(/-+$/g, "") || "gym";
-  return `${base}-${randomBytes(5).toString("hex")}`;
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 63).replace(/-+$/g, "") || "gym";
+  return `${base}-${randomBytes(8).toString("hex")}`;
 }
 
 export async function POST(request) {
@@ -84,7 +84,13 @@ export async function POST(request) {
     }
     return response || jsonError("Registration could not be completed. Please try again.", 503);
   } catch (error) {
-    if (duplicateEmailError(error)) return emailConflict();
+    if (duplicateEmailError(error)) {
+      try {
+        if (await User.exists({ email: validation.email })) return emailConflict();
+      } catch {
+        // Return the generic service error below if duplicate status cannot be safely confirmed.
+      }
+    }
     console.error("Gym owner registration failed.");
     return jsonError("Registration is temporarily unavailable. Please try again.", 503);
   }

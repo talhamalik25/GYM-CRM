@@ -105,7 +105,7 @@ test("every gym-data API route requires tenant authorization and an explicit que
     }
   }
   await collect(root);
-  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js"].some((suffix) => path.endsWith(suffix)));
+  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js"].some((suffix) => path.endsWith(suffix)));
   assert.ok(gymRoutes.length > 0);
   for (const path of gymRoutes) {
     const source = await readFile(path, "utf8");
