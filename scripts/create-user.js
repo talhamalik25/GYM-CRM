@@ -1,4 +1,5 @@
 import { emitKeypressEvents } from "node:readline";
+import nextEnv from "@next/env";
 import connectToDatabase from "../lib/db.js";
 import { hashPassword, validatePassword } from "../lib/passwords.js";
 import User from "../models/User.js";
@@ -37,6 +38,7 @@ function readHidden(prompt) {
 }
 
 async function main() {
+  nextEnv.loadEnvConfig(process.cwd());
   const emailArg = process.argv.find((arg) => arg.startsWith("--email="))?.slice("--email=".length)
     || (process.argv.includes("--email") ? process.argv[process.argv.indexOf("--email") + 1] : "");
   const email = emailArg.trim().toLowerCase();
@@ -66,7 +68,16 @@ main().catch((error) => {
       "Passwords do not match.",
       "Password must be at least 12 characters and no more than 128 bytes.",
     ]);
-    process.stderr.write(`${safeMessages.has(error.message) ? error.message : "User creation failed. Check configuration and database availability."}\n`);
+    const message = safeMessages.has(error.message)
+      ? error.message
+      : error.message === "MONGODB_URI is missing. Add your MongoDB connection string to .env.local."
+        ? "MONGODB_URI is missing. Add it to .env.local and retry."
+        : error.code === "ETIMEDOUT" || error.code === "ETIMEOUT"
+          ? "MongoDB connection timed out. Check Atlas network access, cluster status, and local network connectivity."
+          : error.code === "ENOTFOUND"
+            ? "MongoDB hostname could not be resolved. Check the URI hostname and DNS/network connectivity."
+            : "User creation failed. Check configuration and database availability.";
+    process.stderr.write(`${message}\n`);
   }
   process.exitCode = 1;
 });
