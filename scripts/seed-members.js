@@ -4,6 +4,7 @@ import { getMembershipExpiryDate } from "../lib/membersService.js";
 import { normalizeMemberPhone } from "../lib/memberApiHelpers.js";
 import Member from "../models/Member.js";
 import Plan from "../models/Plan.js";
+import { getSeedTenant } from "./seedTenant.js";
 
 const sampleMembers = [
   { fullName: "Amina Khan", phone: "+92 300 111 0001", email: "amina@example.com", gender: "Female" },
@@ -13,11 +14,12 @@ const sampleMembers = [
 
 try {
   await connectToDatabase();
-  const existingCount = await Member.countDocuments();
+  const gym = await getSeedTenant();
+  const existingCount = await Member.countDocuments({ gymId: gym._id });
   if (existingCount > 0) {
     console.log(`Skipped seeding because ${existingCount} member(s) already exist.`);
   } else {
-    const plans = await Plan.find({ isActive: true }).sort({ createdAt: 1 });
+    const plans = await Plan.find({ gymId: gym._id, isActive: true }).sort({ createdAt: 1 });
     if (!plans.length) throw new Error("Create at least one active plan before seeding members.");
 
     const startDateText = new Date().toISOString().slice(0, 10);
@@ -27,6 +29,7 @@ try {
       const expiryDateText = getMembershipExpiryDate(startDateText, plan.durationDays);
       return {
         ...member,
+        gymId: gym._id,
         phone: normalizeMemberPhone(member.phone),
         planId: plan._id,
         startDate,

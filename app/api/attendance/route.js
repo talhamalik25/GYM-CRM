@@ -5,7 +5,7 @@ import { getGymDate } from "../../../lib/gymDate";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import Attendance from "../../../models/Attendance";
 import Member from "../../../models/Member";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
+import { requireApiUser, tenantFilter } from "../../../lib/auth";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

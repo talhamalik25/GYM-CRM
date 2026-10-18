@@ -9,5 +9,5 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  return <html lang="en" className={geist.variable}><body>{children}</body></html>;
+  return <html lang="en" className={geist.variable} suppressHydrationWarning><body>{children}</body></html>;
 }

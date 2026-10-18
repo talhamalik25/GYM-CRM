@@ -90,7 +90,7 @@ export default function AttendanceManager() {
   }, [search]);
 
   useEffect(() => {
-    if (!debouncedSearch.trim()) { setMembers([]); return undefined; }
+    if (!debouncedSearch.trim()) return undefined;
     let cancelled = false;
     getAttendanceMembers(debouncedSearch).then((result) => { if (!cancelled) setMembers(result); })
       .catch((error) => { if (!cancelled) setActionError(error.message); });

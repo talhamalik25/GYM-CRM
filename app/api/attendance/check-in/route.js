@@ -28,6 +28,7 @@ export async function POST(request) {
     const body = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) return attendanceError("Request body must be a JSON object.", 400, {});
     const fields = {};
+    if (Object.hasOwn(body, "gymId")) fields.gymId = "Tenant ownership cannot be changed.";
     if (typeof body.memberId !== "string" || !mongoose.isObjectIdOrHexString(body.memberId)) fields.memberId = "Choose a valid member.";
     if (body.confirmExpired !== undefined && typeof body.confirmExpired !== "boolean") fields.confirmExpired = "Confirmation must be true or false.";
     if (Object.keys(fields).length) return attendanceError("Please correct the highlighted fields.", 400, fields);

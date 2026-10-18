@@ -25,6 +25,7 @@ export async function POST(request) {
     const body = await request.json();
     const fields = {};
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400, {});
+    if (Object.hasOwn(body, "gymId")) fields.gymId = "Tenant ownership cannot be changed.";
     if (typeof body.memberId !== "string" || !mongoose.isObjectIdOrHexString(body.memberId)) fields.memberId = "Choose a valid member.";
     if (typeof body.amountPaid !== "number" || !Number.isSafeInteger(body.amountPaid) || body.amountPaid <= 0) fields.amountPaid = "Amount paid must be a positive whole number of rupees.";
     if (!methods.includes(body.method)) fields.method = "Choose a valid payment method.";
@@ -49,7 +50,7 @@ export async function POST(request) {
       paymentDateLabel: paymentDate, idempotencyKey, notes,
     }));
     const payment = result.payment;
-    await payment.populate([{ path: "memberId", select: "fullName" }, { path: "planId", select: "name" }]);
+    await payment.populate([{ path: "memberId", match: { gymId: getRequestGymId(request) }, select: "fullName" }, { path: "planId", match: { gymId: getRequestGymId(request) }, select: "name" }]);
     return successResponse(serializePayment(payment), result.duplicate ? 200 : 201);
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
@@ -57,7 +58,7 @@ export async function POST(request) {
       try {
         const existing = await Payment.findOne(tenantFilter(request, { idempotencyKey })).select("+requestFingerprint");
         if (existing && existing.requestFingerprint === fingerprint) {
-          await existing.populate([{ path: "memberId", select: "fullName" }, { path: "planId", select: "name" }]);
+          await existing.populate([{ path: "memberId", match: { gymId: getRequestGymId(request) }, select: "fullName" }, { path: "planId", match: { gymId: getRequestGymId(request) }, select: "name" }]);
           return successResponse(serializePayment(existing), 200);
         }
         if (existing) return errorResponse("This payment request key was already used for different details.", 409);

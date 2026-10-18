@@ -1,6 +1,8 @@
 # Seed sample plans
 
-The seed script runs only when you explicitly start it. Set `MONGODB_URI` in `.env.local`, then run from the project root:
+Seed scripts run only when explicitly started. Set `MONGODB_URI` and `GYM_ID` in `.env.local`; `GYM_ID` must identify an existing active gym. The scripts scope their reads and writes to that gym and refuse to run while any legacy gym-owned record has no `gymId`.
+
+Run from the project root:
 
 ```sh
 node --experimental-default-type=module --env-file=.env.local scripts/seed-plans.js
@@ -10,7 +12,7 @@ It inserts Basic, Standard, and Premium only when the plans collection is empty.
 
 ## Seed sample members
 
-The member seed looks up active plan documents, so create or seed plans first. Then run from the project root:
+The member seed looks up active plans in `GYM_ID`, so create or seed plans first. Then run from the project root:
 
 ```sh
 node --experimental-default-type=module --env-file=.env.local scripts/seed-members.js

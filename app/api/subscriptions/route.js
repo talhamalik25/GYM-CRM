@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../lib/subscriptionRules";
-import { requireApiUser } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
 import Payment from "../../../models/Payment";
@@ -14,12 +14,12 @@ import { isValidIdempotencyKey } from "../../../lib/paymentRules";
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
 
-async function serialize(subscription) {
+async function serialize(subscription, request) {
   const s = subscription.toObject ? subscription.toObject() : subscription;
   const [member, plan, payments] = await Promise.all([
-    Member.findById(s.memberId).select("fullName phone email").lean(),
-    Plan.findById(s.planId).select("name").lean(),
-    Payment.find({ subscriptionId: s._id }).select("amountPaid amountDue paymentDate receiptNumber method").sort({ paymentDate: 1 }).lean(),
+    Member.findOne(tenantFilter(request, { _id: s.memberId })).select("fullName phone email").lean(),
+    Plan.findOne(tenantFilter(request, { _id: s.planId })).select("name").lean(),
+    Payment.find(tenantFilter(request, { subscriptionId: s._id })).select("amountPaid amountDue paymentDate receiptNumber method").sort({ paymentDate: 1 }).lean(),
   ]);
   const amountDue = s.renewalHistory.reduce((sum, term) => sum + term.planSnapshot.agreedPrice, 0);
   const amountPaid = payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
@@ -37,7 +37,7 @@ export async function GET(request) {
     if (!["all", "pending", "active", "expired", "cancelled"].includes(status)) return errorResponse("Choose a valid status.", 400, { status: "Choose a valid status." });
     await connectToDatabase();
     let filter = {};
-    if (search) { const ids = await Member.find({ $or: [{ fullName: new RegExp(escapeRegex(search), "i") }, { phone: new RegExp(escapeRegex(search), "i") }] }).distinct("_id"); filter.memberId = { $in: ids }; }
+    if (search) { const ids = await Member.find(tenantFilter(request, { $or: [{ fullName: new RegExp(escapeRegex(search), "i") }, { phone: new RegExp(escapeRegex(search), "i") }] })).distinct("_id"); filter.memberId = { $in: ids }; }
     if (status === "cancelled") filter.status = "cancelled";
     if (status !== "all" && status !== "cancelled") {
       const today = dateOnly(gymToday());
@@ -46,8 +46,8 @@ export async function GET(request) {
       if (status === "expired") { filter.expiryDate = { $lt: today }; filter.status = { $ne: "cancelled" }; }
     }
     const limit = Math.min(requestedLimit, 50);
-    const [items, total] = await Promise.all([Subscription.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(), Subscription.countDocuments(filter)]);
-    return successResponse({ items: await Promise.all(items.map(serialize)), total, page, limit, today: gymToday() });
+    const [items, total] = await Promise.all([Subscription.find(tenantFilter(request, filter)).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(), Subscription.countDocuments(tenantFilter(request, filter))]);
+    return successResponse({ items: await Promise.all(items.map((item) => serialize(item, request))), total, page, limit, today: gymToday() });
   } catch (error) { console.error("Subscriptions API error:", error?.message); return errorResponse("Could not load subscriptions.", 500); }
 }
 
@@ -74,12 +74,13 @@ export async function POST(request) {
     await connectToDatabase(); await Subscription.init(); await Payment.init();
     requestFingerprint = JSON.stringify({ memberId: body.memberId.toLowerCase(), planId: body.planId.toLowerCase(), startDate: body.startDate, agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
     const result = await runLedgerTransaction(async (session) => {
-      const prior = await Subscription.findOne({ createKey: key }).session(session);
+      const gymId = getRequestGymId(request);
+      const prior = await Subscription.findOne({ createKey: key, gymId }).session(session);
       if (prior) {
         if (prior.createFingerprint !== requestFingerprint) throw Object.assign(new Error("This request key was already used for different subscription details."), { status: 409 });
         return { subscription: prior, duplicate: true };
       }
-      const [member, plan] = await Promise.all([Member.findById(body.memberId).session(session), Plan.findById(body.planId).session(session)]);
+      const [member, plan] = await Promise.all([Member.findOne({ _id: body.memberId, gymId }).session(session), Plan.findOne({ _id: body.planId, gymId }).session(session)]);
       if (!member) throw Object.assign(new Error("The selected member was not found."), { status: 404, fields: { memberId: "Choose an existing member." } });
       if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 404, fields: { planId: "Choose an active plan." } });
       const agreedPrice = body.agreedPrice ?? plan.price;
@@ -90,15 +91,17 @@ export async function POST(request) {
       const expiryDate = addDays(startDate, plan.durationDays - 1);
       const planSnapshot = { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice };
       const subscription = (await Subscription.create([{
+        gymId,
         memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate),
         originalPrice: plan.price, agreedPrice, planSnapshot, status: "pending", createKey: key, createFingerprint: requestFingerprint,
         renewalHistory: [{ renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate) }],
       }], { session }))[0];
       if (amountPaid > 0) {
         const payment = (await Payment.create([{
+          gymId,
           memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
           amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()),
-          receiptNumber: await generateReceiptNumber(), idempotencyKey: key,
+          receiptNumber: await generateReceiptNumber({ session }), idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: String(subscription._id), renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || gymToday() }),
         }], { session }))[0];
         subscription.renewalHistory[0].paymentId = payment._id;
@@ -106,7 +109,7 @@ export async function POST(request) {
       }
       return { subscription, duplicate: false };
     });
-    return successResponse(await serialize(result.subscription), result.duplicate ? 200 : 201);
+    return successResponse(await serialize(result.subscription, request), result.duplicate ? 200 : 201);
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     if (error?.status) return errorResponse(error.message, error.status, error.fields);
@@ -114,8 +117,8 @@ export async function POST(request) {
     if (ledgerResponse) return ledgerResponse;
     if (error?.code === 11000) {
       try {
-        const prior = await Subscription.findOne({ createKey: requestKey });
-        if (prior && prior.createFingerprint === requestFingerprint) return successResponse(await serialize(prior), 200);
+        const prior = await Subscription.findOne(tenantFilter(request, { createKey: requestKey }));
+        if (prior && prior.createFingerprint === requestFingerprint) return successResponse(await serialize(prior, request), 200);
         if (prior) return errorResponse("This request key was already used for different subscription details.", 409);
       } catch { /* Preserve the safe conflict response below. */ }
       return errorResponse("This subscription request was already processed.", 409);

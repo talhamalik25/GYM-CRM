@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../../lib/planApiResponse";
 import { dateOnly, gymToday, isDateOnly } from "../../../../../lib/subscriptionRules";
-import { requireApiUser } from "../../../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../../lib/auth";
 import Subscription from "../../../../../models/Subscription";
 import Payment from "../../../../../models/Payment";
 import { createTermPayment, paymentLedgerErrorResponse, runLedgerTransaction } from "../../../../../lib/paymentLedger";
@@ -24,6 +24,7 @@ export async function POST(request, { params }) {
     idempotencyKey = key;
     const fields = {};
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
+    if (Object.hasOwn(body, "gymId")) fields.gymId = "Tenant ownership cannot be changed.";
     if (!Number.isSafeInteger(body.amountPaid) || body.amountPaid <= 0) fields.amountPaid = "Payment must be a positive whole number of rupees.";
     if (!methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (body.paymentDate != null && (!isDateOnly(body.paymentDate) || body.paymentDate > gymToday())) fields.paymentDate = "Choose a valid payment date no later than today.";
@@ -33,19 +34,21 @@ export async function POST(request, { params }) {
 
     await connectToDatabase();
     await Payment.init();
+    const gymId = getRequestGymId(request);
     const paymentDate = body.paymentDate || gymToday();
-    const renewalKey = body.renewalKey || (await Subscription.findById(id).select("renewalHistory").lean())?.renewalHistory?.at(-1)?.renewalKey;
+    const renewalKey = body.renewalKey || (await Subscription.findOne({ _id: id, gymId }).select("renewalHistory").lean())?.renewalHistory?.at(-1)?.renewalKey;
     if (!renewalKey) return errorResponse("Subscription term was not found.", 404, { renewalKey: "Choose a valid term." });
     fingerprint = JSON.stringify({ subscriptionId: id, renewalKey, amountPaid: body.amountPaid, method: body.method, paymentDate });
 
     const result = await runLedgerTransaction(async (session) => {
-      const subscription = await Subscription.findById(id).session(session);
+      const subscription = await Subscription.findOne({ _id: id, gymId }).session(session);
       if (!subscription) return { missing: true };
       const term = subscription.renewalHistory.find((entry) => entry.renewalKey === renewalKey);
       if (!term) return { missingTerm: true };
       return createTermPayment({
         session, subscription, term, amountPaid: body.amountPaid, method: body.method,
         paymentDate: dateOnly(paymentDate), idempotencyKey, requestFingerprint: fingerprint,
+        gymId,
       });
     });
     if (result.missing) return errorResponse("Subscription was not found.", 404);
@@ -57,7 +60,7 @@ export async function POST(request, { params }) {
     if (ledgerResponse) return ledgerResponse;
     if (error?.code === 11000) {
       try {
-        const existing = await Payment.findOne({ idempotencyKey }).select("+requestFingerprint");
+        const existing = await Payment.findOne(tenantFilter(request, { idempotencyKey })).select("+requestFingerprint");
         if (existing && existing.requestFingerprint === fingerprint) return successResponse({ _id: String(existing._id), receiptNumber: existing.receiptNumber, amountPaid: existing.amountPaid }, 200);
         if (existing) return errorResponse("This payment request key was already used for different details.", 409);
       } catch { /* Keep the sanitized route error below. */ }

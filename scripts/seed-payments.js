@@ -4,10 +4,12 @@ import generateReceiptNumber from "../lib/generateReceiptNumber.js";
 import Member from "../models/Member.js";
 import Payment from "../models/Payment.js";
 import Subscription from "../models/Subscription.js";
+import { getSeedTenant } from "./seedTenant.js";
 
 try {
   await connectToDatabase();
-  const members = (await Member.find().populate("planId", "name price durationDays").sort({ createdAt: 1 }))
+  const gym = await getSeedTenant();
+  const members = (await Member.find({ gymId: gym._id }).populate({ path: "planId", match: { gymId: gym._id }, select: "name price durationDays" }).sort({ createdAt: 1 }))
     .filter((member) => Number.isSafeInteger(member.planId?.price) && member.planId.price >= 2)
     .slice(0, 3);
   if (members.length < 3 || members.some((member) => !member.planId)) {
@@ -17,8 +19,8 @@ try {
   const marker = "Seed payment sample";
   const invoiceKeys = members.map((member) => `seed-payment-${member._id}`);
   const [legacySamples, existingInvoices] = await Promise.all([
-    Payment.countDocuments({ notes: { $regex: `^${marker}` } }),
-    Subscription.countDocuments({ createKey: { $in: invoiceKeys } }),
+    Payment.countDocuments({ gymId: gym._id, notes: { $regex: `^${marker}` } }),
+    Subscription.countDocuments({ gymId: gym._id, createKey: { $in: invoiceKeys } }),
   ]);
   if (legacySamples || existingInvoices) {
     console.log("Skipped seeding because sample payment or invoice records already exist.");
@@ -33,6 +35,7 @@ try {
           const key = invoiceKeys[index];
           const planSnapshot = { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice: plan.price };
           const subscription = (await Subscription.create([{
+            gymId: gym._id,
             memberId: member._id, planId: plan._id, startDate: member.startDate, expiryDate: member.expiryDate,
             originalPrice: plan.price, agreedPrice: plan.price, planSnapshot, status: "pending",
             createKey: key, createFingerprint: `${key}:${plan.price}`,
@@ -40,9 +43,10 @@ try {
           }], { session }))[0];
           if (paidAmounts[index] > 0) {
             await Payment.create([{
+              gymId: gym._id,
               memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
               amountDue: plan.price, amountPaid: paidAmounts[index], method: "cash", paymentDate: new Date(),
-              receiptNumber: await generateReceiptNumber(), idempotencyKey: `seed-${member._id}`,
+              receiptNumber: await generateReceiptNumber({ session }), idempotencyKey: `seed-${member._id}`,
               requestFingerprint: `${key}:${paidAmounts[index]}`, notes: `${marker} ${index === 0 ? "Paid" : "Partial"}`,
             }], { session });
           }

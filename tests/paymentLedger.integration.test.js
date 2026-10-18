@@ -10,6 +10,7 @@ import Payment from "../models/Payment.js";
 import Plan from "../models/Plan.js";
 import Subscription from "../models/Subscription.js";
 import Counter from "../models/Counter.js";
+import Gym from "../models/Gym.js";
 
 const configuredTestUri = process.env.MONGODB_TEST_URI;
 
@@ -27,12 +28,14 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
   const suffix = `${process.pid}-${randomUUID()}`;
   let plan;
   let member;
+  let gym;
   const subscriptionIds = [];
 
   const makeSubscription = async (amount, label) => {
     const key = `test-${suffix}-${label}`;
     const planSnapshot = { name: "Integration Test Plan", durationDays: 30, originalPrice: amount, agreedPrice: amount };
     const subscription = (await Subscription.create([{
+      gymId: gym._id,
       memberId: member._id, planId: plan._id, startDate: new Date("2026-01-01T00:00:00.000Z"),
       expiryDate: new Date("2026-01-30T00:00:00.000Z"), originalPrice: amount, agreedPrice: amount,
       planSnapshot, status: "active", createKey: key, createFingerprint: key,
@@ -43,6 +46,7 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
   };
 
   const postPayment = (subscription, renewalKey, key, amountPaid) => runLedgerTransaction((session) => recordMemberPayment(session, {
+    gymId: gym._id,
     memberId: String(member._id), subscriptionId: String(subscription._id), renewalKey,
     amountPaid, method: "cash", paymentDate: new Date("2026-10-18T00:00:00.000Z"),
     idempotencyKey: key, notes: "integration test",
@@ -50,9 +54,11 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
 
   try {
     await connectToDatabase();
-    await Promise.all([Payment.init(), Subscription.init(), Member.init(), Plan.init()]);
-    plan = await Plan.create({ name: `Integration ${suffix}`, price: 10000, durationDays: 30 });
+    await Promise.all([Payment.init(), Subscription.init(), Member.init(), Plan.init(), Gym.init()]);
+    gym = await Gym.create({ name: `Integration Gym ${suffix}`, slug: `integration-gym-${suffix}` });
+    plan = await Plan.create({ gymId: gym._id, name: `Integration ${suffix}`, price: 10000, durationDays: 30 });
     member = await Member.create({
+      gymId: gym._id,
       fullName: "Ledger Integration Member", phone: `+1555${String(Date.now()).slice(-7)}`,
       email: `ledger-${suffix}@example.test`, gender: "Prefer not to say", planId: plan._id,
       startDate: new Date("2026-01-01T00:00:00.000Z"), expiryDate: new Date("2026-01-30T00:00:00.000Z"),
@@ -85,6 +91,7 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
     const rollbackPaymentKey = `rollback-payment-${suffix}`;
     await assert.rejects(runLedgerTransaction(async (session) => {
       const subscription = (await Subscription.create([{
+        gymId: gym._id,
         memberId: member._id, planId: plan._id, startDate: new Date(), expiryDate: new Date(),
         originalPrice: 10000, agreedPrice: 10000,
         planSnapshot: { name: "Rollback", durationDays: 30, originalPrice: 10000, agreedPrice: 10000 },
@@ -92,6 +99,7 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
         renewalHistory: [{ renewalKey: rollbackKey, requestFingerprint: rollbackKey, planId: plan._id, planSnapshot: { name: "Rollback", durationDays: 30, originalPrice: 10000, agreedPrice: 10000 }, startDate: new Date(), expiryDate: new Date() }],
       }], { session }))[0];
       await Payment.create([{
+        gymId: gym._id,
         memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: rollbackKey,
         amountDue: 10000, amountPaid: 1000, method: "cash", paymentDate: new Date(),
         receiptNumber: `FIT-TEST-${suffix}`, idempotencyKey: rollbackPaymentKey,
@@ -116,6 +124,7 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
       await Subscription.deleteMany({ $or: [{ memberId: member?._id }, { _id: { $in: subscriptionIds } }] });
       if (member) await Member.deleteOne({ _id: member._id });
       if (plan) await Plan.deleteOne({ _id: plan._id });
+      if (gym) await Gym.deleteOne({ _id: gym._id });
       await Counter.deleteOne({ name: "paymentReceipt" });
     }
     await mongoose.disconnect();

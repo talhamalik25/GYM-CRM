@@ -19,7 +19,7 @@ export async function GET(request) {
     const subscriptionBalances = await Subscription.aggregate([
       { $match: { gymId: getRequestGymId(request) } },
       { $unwind: "$renewalHistory" },
-      { $group: { _id: "$_id", amountDue: { $sum: "$renewalHistory.planSnapshot.agreedPrice" } } },
+      { $group: { _id: "$_id", gymId: { $first: "$gymId" }, amountDue: { $sum: "$renewalHistory.planSnapshot.agreedPrice" } } },
       { $lookup: { from: "payments", let: { subscriptionId: "$_id", gymId: "$gymId" }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$subscriptionId", "$$subscriptionId"] }, { $eq: ["$gymId", "$$gymId"] }] } } }], as: "payments" } },
       { $project: { balance: { $max: [0, { $subtract: ["$amountDue", { $sum: "$payments.amountPaid" }] }] } } },
       { $group: { _id: null, pendingDues: { $sum: "$balance" } } },

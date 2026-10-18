@@ -10,7 +10,7 @@ const termSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const subscriptionSchema = new mongoose.Schema({
-  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", index: true },
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required() { return this.isNew; } },
   memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true, index: true },
   planId: { type: mongoose.Schema.Types.ObjectId, ref: "Plan", required: true },
   startDate: { type: Date, required: true }, expiryDate: { type: Date, required: true },

@@ -1,6 +1,7 @@
 import connectToDatabase from "../lib/db.js";
 import Plan from "../models/Plan.js";
 import mongoose from "mongoose";
+import { getSeedTenant } from "./seedTenant.js";
 
 const samplePlans = [
   { name: "Basic", price: 5000, durationDays: 30, description: "A simple membership for regular gym access." },
@@ -10,9 +11,10 @@ const samplePlans = [
 
 try {
   await connectToDatabase();
-  const count = await Plan.countDocuments();
+  const gym = await getSeedTenant();
+  const count = await Plan.countDocuments({ gymId: gym._id });
   if (count === 0) {
-    await Plan.insertMany(samplePlans);
+    await Plan.insertMany(samplePlans.map((plan) => ({ ...plan, gymId: gym._id })));
     console.log("Inserted 3 sample plans.");
   } else {
     console.log(`Skipped seeding because ${count} plan(s) already exist.`);

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const planSchema = new mongoose.Schema({
-  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", index: true },
+  gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required() { return this.isNew; } },
   name: { type: String, required: true, trim: true },
   price: {
     type: Number,

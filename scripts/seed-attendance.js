@@ -3,11 +3,13 @@ import connectToDatabase from "../lib/db.js";
 import { getGymDate } from "../lib/gymDate.js";
 import Attendance from "../models/Attendance.js";
 import Member from "../models/Member.js";
+import { getSeedTenant } from "./seedTenant.js";
 
 try {
   await connectToDatabase();
   await Attendance.init();
-  const members = await Member.find().sort({ createdAt: 1 }).limit(6).select("_id");
+  const gym = await getSeedTenant();
+  const members = await Member.find({ gymId: gym._id }).sort({ createdAt: 1 }).limit(6).select("_id");
   if (members.length < 3) throw new Error("At least three real members are required before seeding attendance.");
 
   const now = new Date();
@@ -17,9 +19,10 @@ try {
     const dayOffset = index < 2 ? 0 : index - 1;
     const checkInAt = new Date(now.getTime() - dayOffset * 86400000 - index * 60000);
     const date = getGymDate(checkInAt);
-    const existing = await Attendance.exists({ memberId: members[index]._id, date });
+    const existing = await Attendance.exists({ gymId: gym._id, memberId: members[index]._id, date });
     if (existing) continue;
     await Attendance.create({
+      gymId: gym._id,
       memberId: members[index]._id,
       date,
       checkInAt,
