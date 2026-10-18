@@ -1,14 +1,37 @@
 import mongoose from "mongoose";
-import connectToDatabase from "../../../../../lib/db";
-import { errorResponse, successResponse } from "../../../../../lib/planApiResponse";
-import { requireSuperadminUser } from "../../../../../lib/auth";
+import connectToDatabase from "../../../../../lib/db.js";
+import { errorResponse, successResponse } from "../../../../../lib/planApiResponse.js";
+import { requireSuperadminUser } from "../../../../../lib/auth.js";
 import { serializeAdminGym, validateGymStatusUpdate } from "../../../../../lib/adminGymRules.js";
-import Gym from "../../../../../models/Gym";
-import GymMembership from "../../../../../models/GymMembership";
+import Gym from "../../../../../models/Gym.js";
+import GymMembership from "../../../../../models/GymMembership.js";
 
 async function readGymId(context) {
   const { id } = await context.params;
   return id;
+}
+
+export async function GET(request, context) {
+  const authResponse = await requireSuperadminUser(request);
+  if (authResponse) return authResponse;
+
+  let id;
+  try { id = await readGymId(context); } catch {
+    return errorResponse("Gym id is invalid.", 400);
+  }
+  if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Gym id is invalid.", 400);
+
+  try {
+    await connectToDatabase();
+    const gym = await Gym.findById(id).select("name slug status timezone createdAt updatedAt").lean();
+    if (!gym) return errorResponse("Gym was not found.", 404);
+    const memberships = await GymMembership.find({ gymId: gym._id, role: "gym_owner", status: "active" })
+      .select("gymId userId").populate("userId", "fullName email").lean();
+    return successResponse(serializeAdminGym(gym, memberships));
+  } catch {
+    console.error("Admin gym details could not be loaded.");
+    return errorResponse("Could not load gym details. Please try again.", 503);
+  }
 }
 
 export async function PATCH(request, context) {

@@ -1,0 +1,68 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { GET as listGyms } from "../app/api/admin/gyms/route.js";
+import { GET as getGym, PATCH as updateGym } from "../app/api/admin/gyms/[id]/route.js";
+import { isSuperadmin } from "../lib/adminUserRules.js";
+import { serializeAdminGym, validateGymStatusUpdate } from "../lib/adminGymRules.js";
+
+test("gym status updates accept only active or suspended and reject other fields", () => {
+  assert.deepEqual(validateGymStatusUpdate({ status: "suspended" }), { status: "suspended" });
+  assert.equal(validateGymStatusUpdate({ status: "deleted" }).fields.status, "Choose active or suspended.");
+  assert.equal(validateGymStatusUpdate({ status: "active", ownerId: "forged" }).fields.ownerId, "This field cannot be changed.");
+  assert.ok(validateGymStatusUpdate([]).message);
+});
+
+test("gym serialization exposes organization details and only supplied active owner records", () => {
+  const gym = { _id: "gym-id", name: "Sample Gym", slug: "sample-gym", status: "active", timezone: "Asia/Karachi", createdAt: new Date("2026-01-01T00:00:00Z") };
+  assert.deepEqual(serializeAdminGym(gym), {
+    id: "gym-id", name: "Sample Gym", slug: "sample-gym", status: "active", timezone: "Asia/Karachi",
+    createdAt: gym.createdAt, updatedAt: undefined, owners: [],
+  });
+  assert.deepEqual(serializeAdminGym(gym, [{ userId: { fullName: "Gym Owner", email: "owner@example.test", passwordHash: "never-return" } }]).owners, [
+    { name: "Gym Owner", email: "owner@example.test" },
+  ]);
+});
+
+test("gym list and status endpoints require platform superadmin authorization", async () => {
+  const listResponse = await listGyms(new Request("http://localhost/api/admin/gyms"));
+  const patchResponse = await updateGym(new Request("http://localhost/api/admin/gyms/507f1f77bcf86cd799439011", {
+    method: "PATCH", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ status: "suspended" }),
+  }), { params: Promise.resolve({ id: "507f1f77bcf86cd799439011" }) });
+  const detailResponse = await getGym(new Request("http://localhost/api/admin/gyms/507f1f77bcf86cd799439011"), { params: Promise.resolve({ id: "507f1f77bcf86cd799439011" }) });
+  assert.equal(listResponse.status, 401);
+  assert.equal(patchResponse.status, 401);
+  assert.equal(detailResponse.status, 401);
+  assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);
+  assert.equal(isSuperadmin({ role: "superadmin" }), true);
+  assert.equal(isSuperadmin({ role: "gym_owner" }), false);
+
+  const listSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/route.js", import.meta.url)), "utf8");
+  const updateSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/[id]/route.js", import.meta.url)), "utf8");
+  assert.equal((updateSource.match(/await requireSuperadminUser\(request\)/g) || []).length, 2);
+  assert.match(updateSource, /Gym\.findById\(id\)\.select\("name slug status timezone createdAt updatedAt"\)/);
+  assert.match(updateSource, /populate\("userId", "fullName email"\)/);
+  assert.doesNotMatch(updateSource, /Payment|Subscription|Member\.find/);
+  assert.match(listSource, /await requireSuperadminUser\(request\)/);
+  assert.match(updateSource, /await requireSuperadminUser\(request\)/);
+  assert.match(listSource, /role: "gym_owner", status: "active"/);
+  assert.match(updateSource, /\$set: \{ status: validation\.status \}/);
+  const gymPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/gyms/page.js", import.meta.url)), "utf8");
+  const userPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/users/page.js", import.meta.url)), "utf8");
+  const dashboardShell = await readFile(fileURLToPath(new URL("../components/layout/dashboard-shell.js", import.meta.url)), "utf8");
+  assert.match(gymPage, /if \(!isSuperadmin\(user\)\) redirect/);
+  assert.match(userPage, /if \(!isSuperadmin\(user\)\) redirect/);
+  assert.match(dashboardShell, /href="\/admin\/gyms"/);
+  assert.match(dashboardShell, /isSuperadmin &&/);
+  const detailPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/gyms/[id]/page.js", import.meta.url)), "utf8");
+  const detailComponent = await readFile(fileURLToPath(new URL("../components/admin/admin-gym-details.js", import.meta.url)), "utf8");
+  const gymList = await readFile(fileURLToPath(new URL("../components/admin/admin-gym-manager.js", import.meta.url)), "utf8");
+  assert.match(detailPage, /if \(!isSuperadmin\(user\)\) redirect/);
+  assert.match(gymList, /href=\{`\/admin\/gyms\/\$\{encodeURIComponent\(gym\.id\)\}`\}/);
+  assert.match(detailComponent, /Loading gym details/);
+  assert.match(detailComponent, /gym account was not found/);
+  assert.match(detailComponent, /role="alert"/);
+  assert.match(detailComponent, /No active owner assigned/);
+  assert.match(detailComponent, /Back to Gyms/);
+});

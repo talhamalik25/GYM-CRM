@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
@@ -73,7 +74,7 @@ export default function AdminGymManager() {
       <table className="w-full min-w-[900px] text-left text-sm">
         <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Gym</th><th className="px-3 py-3">Owner</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Timezone</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Access</th></tr></thead>
         <tbody>{gyms.map((gym) => <tr key={gym.id} className="border-b border-line last:border-0 align-top">
-          <td className="px-3 py-4"><strong className="block text-ink">{gym.name}</strong><span className="text-xs text-ink-muted">{gym.slug}</span></td>
+          <td className="px-3 py-4"><Link className="block font-semibold text-brand hover:underline" href={`/admin/gyms/${encodeURIComponent(gym.id)}`}>{gym.name}</Link><span className="text-xs text-ink-muted">{gym.slug}</span></td>
           <td className="px-3 py-4">{gym.owners.length ? <div className="space-y-2">{gym.owners.map((owner) => <div key={owner.email || owner.name}><span className="block text-ink">{owner.name}</span><span className="text-xs text-ink-muted">{owner.email || "Email unavailable"}</span></div>)}</div> : <span className="text-ink-muted">No active owner assigned</span>}</td>
           <td className="px-3 py-4"><Badge tone={gym.status === "active" ? "success" : "warning"}>{gym.status === "active" ? "Active" : "Suspended"}</Badge></td>
           <td className="px-3 py-4 text-ink-muted">{gym.timezone}</td>

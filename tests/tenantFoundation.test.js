@@ -105,12 +105,16 @@ test("every gym-data API route requires tenant authorization and an explicit que
     }
   }
   await collect(root);
-  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js", "staff\\invitations\\accept\\route.js"].some((suffix) => path.endsWith(suffix)));
+  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js", "staff\\invitations\\accept\\route.js"].some((suffix) => path.endsWith(suffix)));
   assert.ok(gymRoutes.length > 0);
   for (const path of gymRoutes) {
     const source = await readFile(path, "utf8");
     assert.match(source, /requireApiUser\(/, `${path} must require an authenticated gym membership`);
     assert.match(source, /tenantFilter\(|getRequestGymId\(/, `${path} must scope its database operations`);
+  }
+  for (const suffix of ["admin\\users\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js"]) {
+    const source = await readFile(routeFiles.find((path) => path.endsWith(suffix)), "utf8");
+    assert.match(source, /requireSuperadminUser\(/, `${suffix} must restrict platform-wide access to superadmins`);
   }
   const acceptance = await readFile(join(root, "staff", "invitations", "accept", "route.js"), "utf8");
   assert.match(acceptance, /hashInvitationToken\(body\.token\)/, "invitation acceptance must validate the single-use secret");

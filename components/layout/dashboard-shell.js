@@ -21,6 +21,8 @@ function getPageTitle(pathname) {
     '/settings': 'Settings',
     '/trainers': 'Trainers',
     '/workouts': 'Workouts',
+    '/admin/users': 'User accounts',
+    '/admin/gyms': 'Gym accounts',
   }[pathname] || 'Dashboard');
 }
 
@@ -91,7 +93,10 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
           {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" role="menu" aria-label="Account menu">
             {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
             <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
-            {isSuperadmin && <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/users" role="menuitem" onClick={() => setAccountMenuOpen(false)}>User accounts</Link>}
+            {isSuperadmin && <>
+              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/gyms" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Gym accounts</Link>
+              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/users" role="menuitem" onClick={() => setAccountMenuOpen(false)}>User accounts</Link>
+            </>}
             <button type="button" className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-canvas" role="menuitem" onClick={handleLogout}>Log out</button>
           </div>}
         </div></div>

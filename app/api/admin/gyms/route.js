@@ -1,9 +1,9 @@
-import connectToDatabase from "../../../../lib/db";
-import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
-import { requireSuperadminUser } from "../../../../lib/auth";
+import connectToDatabase from "../../../../lib/db.js";
+import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
+import { requireSuperadminUser } from "../../../../lib/auth.js";
 import { serializeAdminGym } from "../../../../lib/adminGymRules.js";
-import Gym from "../../../../models/Gym";
-import GymMembership from "../../../../models/GymMembership";
+import Gym from "../../../../models/Gym.js";
+import GymMembership from "../../../../models/GymMembership.js";
 
 export async function GET(request) {
   const authResponse = await requireSuperadminUser(request);
