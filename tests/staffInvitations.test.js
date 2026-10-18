@@ -6,7 +6,8 @@ import { POST as acceptInvitation } from "../app/api/staff/invitations/accept/ro
 import { createInvitationToken, hashInvitationToken, validateStaffInvitationBody } from "../lib/staffInvitations.js";
 
 test("staff invitation validation normalizes email and limits roles", () => {
-  assert.deepEqual(validateStaffInvitationBody({ email: "  STAFF@EXAMPLE.TEST ", role: "trainer" }), { email: "staff@example.test", role: "trainer" });
+  assert.deepEqual(validateStaffInvitationBody({ email: "  STAFF@EXAMPLE.TEST ", role: "gym_admin" }), { email: "staff@example.test", role: "gym_admin" });
+  assert.match(validateStaffInvitationBody({ email: "staff@example.test", role: "trainer" }).fields.role, /paused/);
   assert.ok(validateStaffInvitationBody({ email: "staff@example.test", role: "gym_owner" }).fields.role);
   assert.ok(validateStaffInvitationBody({ email: "staff@example.test", role: "trainer", gymId: "forged" }).fields.gymId);
 });
@@ -22,6 +23,11 @@ test("unauthenticated users cannot invite staff", async () => {
   const request = new Request("http://localhost/api/staff/invitations", { method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ email: "staff@example.test", role: "trainer" }) });
   const response = await inviteStaff(request);
   assert.equal(response.status, 401);
+});
+
+test("trainer invitations fail with the least-privilege policy message", () => {
+  const result = validateStaffInvitationBody({ email: "staff@example.test", role: "trainer" });
+  assert.equal(result.fields.role, "Trainer invitations are paused until trainer-specific permissions are defined.");
 });
 
 test("invitation acceptance rejects malformed tokens before database access", async () => {
