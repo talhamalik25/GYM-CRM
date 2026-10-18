@@ -2,7 +2,9 @@
 
 ## Registration flow
 
-`/register` creates an owner account, a newly generated Gym, an active `gym_owner` membership, and the initial authenticated session. The registration API accepts only `fullName`, `email`, `password`, and `gymName`. Server validation trims names, normalizes email to lowercase to match login, and reuses the existing scrypt password policy. Client-provided roles, permissions, and Gym ids are rejected.
+**Current status: public registration is paused.** `/register` shows a maintenance message and the API returns HTTP 503 after input validation. The former flow described below is not currently available while legacy data ownership and tenant isolation remain unverified. Do not re-enable it until the migration gates in [MULTI_TENANT_MIGRATION_AUDIT.md](MULTI_TENANT_MIGRATION_AUDIT.md) pass.
+
+When it was enabled, `/register` created an owner account, a newly generated Gym, an active `gym_owner` membership, and the initial authenticated session. The registration API accepted only `fullName`, `email`, `password`, and `gymName`. Server validation trimmed names, normalized email to lowercase to match login, and reused the existing scrypt password policy. Client-provided roles, permissions, and Gym ids were rejected.
 
 The User's platform role is explicitly `staff`; gym ownership is exclusively the `GymMembership.role` value `gym_owner`. The Gym slug is derived from the submitted gym name with a random suffix, so the request cannot claim an existing Gym by slug or id. The existing session-backed tenant resolver then obtains the one active membership and allows the owner to access that Gym. No legacy business rows are migrated or assigned during registration.
 
@@ -10,9 +12,9 @@ User, Gym, GymMembership, and the initial AuthSession are created inside one Mon
 
 Successful registration sets the existing secure session cookie and redirects to `/dashboard`, matching the current login flow. Existing login and logout routes are unchanged. Expired sessions remain rejected by the existing session lookup.
 
-## Local verification
+## Historical local verification (not currently available)
 
-Use a dedicated, disposable local replica set. Configure the app's `MONGODB_URI` to that development-only deployment and `AUTH_SESSION_SECRET` to at least 32 random bytes through the local process environment. Do not use a production URI or put real secrets in source control. Then start the app and visit `/register`; submit a new email, a password of at least 12 characters, a full name, and a gym name. Successful signup should land on `/dashboard`. Sign out and sign in through `/login` to confirm backward compatibility.
+The former signup flow was designed for a dedicated, disposable local replica set. Do not use the procedure below while public registration is paused. Signup behavior must only be re-enabled after the migration audit gates pass and the service owner approves a separate change.
 
 For automated database tests, configure only the explicit `MONGODB_TEST_URI` described in [SAFE_DATABASE_INTEGRATION_TESTING.md](SAFE_DATABASE_INTEGRATION_TESTING.md). The test harness creates a unique per-run database name and refuses an unmarked database name or an undesignated remote host. Run:
 
@@ -23,7 +25,7 @@ npm run lint
 git diff --check
 ```
 
-The integration test exercises invalid input, attempted role/Gym/permission forgery, concurrent duplicate email submissions, successful owner membership creation, password hashing, tenant selection through a forged query parameter, and expired-session rejection. It skips when no explicit test URI exists; a skipped run is not integration verification. The test cleans up only rows tied to its randomly generated email, membership, and Gym ids in its per-run test database.
+The current registration test verifies that valid public signup returns HTTP 503 and that invalid/forged requests are rejected without database access. The former end-to-end signup test is no longer applicable while registration is paused. A successful signup test must be restored only when registration is deliberately re-enabled after tenant migration verification.
 
 ## Abuse protection and operational requirement
 

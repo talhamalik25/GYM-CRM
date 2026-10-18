@@ -1,6 +1,6 @@
 # Fitivo Gym CRM — Multi-Tenant Migration Audit
 
-**Phase:** 2B.1, read-only audit and migration design
+**Phase:** Phase 2 pre-migration audit; write migration blocked
 **Audit date:** 2026-10-18
 **Repository branch:** `main`
 
@@ -40,8 +40,11 @@ Collection names below are the default Mongoose pluralized names; confirm actual
 | Payment / `payments` | `gymId`; required for new docs, legacy-compatible | References Member, Plan, and optional Subscription. `receiptNumber` is globally unique; idempotency key is unique per Gym when it is a string. | NOT QUERIED |
 | Attendance / `attendances` | `gymId`; required for new docs, legacy-compatible | References Member. Unique `{gymId,memberId,date}`. | NOT QUERIED |
 | Counter / `counters` | `gymId`; required for new docs, legacy-compatible | Current schema declares globally unique `name` as well as unique `{gymId,name}`. The receipt generator includes the Gym id in new counter names, but the global constraint can still block another use of an identical name. | NOT QUERIED |
+| StaffInvitation / `staffinvitations` | `gymId` required | Added by staff management; token hashes are unique and accepted invitations reference an optional User. Check missing/orphan Gym and `acceptedBy` User refs. This collection is not a source for assigning ownership to older business records. | NOT QUERIED |
 
 `gymId` field presence in a schema does not prove that stored documents have it or that its value references a real Gym. The audit database must count missing/null fields and broken Gym references separately.
+
+No workout-record or gym-settings model or route was found in the repository. This is a source-tree inventory only; it does not prove those collections are absent from Atlas. Confirm unknown collections through read-only inventory on an authorized sanitized snapshot.
 
 ## Record ownership classification
 
@@ -98,7 +101,7 @@ Do not drop, create, or rebuild indexes in this audit phase. Index changes requi
 
 Before obtaining the missing counts, create a sanitized, consistent, non-production snapshot and configure a dedicated `MONGODB_AUDIT_URI` that targets only that snapshot. Do not point it at production and do not substitute the application's `MONGODB_URI`. Confirm database identity and collection names before running read-only counts/aggregations and read-only index inspection. The audit output should contain collection names and aggregate counts only—no names, phone numbers, emails, credentials, receipts, or connection strings. Capture totals, missing/null `gymId`, invalid Gym refs, missing/orphan refs, cross-Gym relationships, duplicate candidates for each declared/legacy unique key, membership ambiguity counts, legacy counter metadata counts, and actual index definitions/options.
 
-No optional audit script was added because no safe audit database is configured; this avoids introducing an unverified database connection path. No database was contacted.
+No write migration script or DB integration fixture was added because the pre-migration audit cannot establish a safe ownership strategy: the actual legacy Gym and account mapping, collection contents, reference integrity, and deployed indexes remain unknown. A generic “assign all missing gymId to one Gym” routine would invent ownership for records that may be ambiguous or orphaned. No database was contacted and no migration dry run was performed.
 
 ## Recommended migration dependency order
 
@@ -144,3 +147,9 @@ The following currently block a safe write migration:
 - No migration manifest, restored staging rehearsal, tested rollback, or maintenance window has been approved.
 
 Before authorizing a write migration, require: (1) an authorized, sanitized non-production snapshot and explicit audit/staging URI; (2) verified backup restore; (3) confirmed Gym identity and owner mapping; (4) complete count/reference/index/duplicate audit; (5) an approved per-record mapping manifest with ambiguous/unassigned rows excluded or explicitly resolved; (6) a staged dry run and idempotency/resume test; (7) approved index and receipt-counter policy; (8) reconciliation acceptance criteria and a tested rollback; and (9) a scheduled, approved write freeze/cutover window. This document authorizes no write operation.
+
+## Current task outcome
+
+The static audit does not satisfy the prerequisites for a write migration. No record counts or dry-run counts are available. Public owner registration is paused in the application until ownership migration and isolation verification are complete; this prevents adding new tenants while existing unowned rows remain unresolved. The pause is an application change required by the explicit migration safety condition and is not evidence that isolation is complete.
+
+The next safe step is to provide an authorized, sanitized, non-production snapshot and explicit read-only audit URI, plus the approved Gym identity and evidence mapping existing users/records. After the report establishes whether a single-Gym mapping is valid, implement the reviewed dry-run migration and disposable-DB tests. Until then, do not run a migration or enable public registration.

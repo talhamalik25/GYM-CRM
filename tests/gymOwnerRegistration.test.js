@@ -64,6 +64,16 @@ test("registration route rejects invalid input and forged ownership fields befor
   assert.equal(body.error.fields.gymId, "This field cannot be changed.");
 });
 
+test("valid public owner registration remains paused before database access", async () => {
+  const response = await registerOwner(new Request("http://localhost/api/auth/register", {
+    method: "POST",
+    headers: { origin: "http://localhost", "content-type": "application/json" },
+    body: JSON.stringify(valid),
+  }));
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error.message, /registration is paused/i);
+});
+
 test("registration route rejects a mismatched origin", async () => {
   const response = await registerOwner(new Request("http://localhost/api/auth/register", {
     method: "POST",
