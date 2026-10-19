@@ -23,6 +23,7 @@ function getPageTitle(pathname) {
     '/workouts': 'Workouts',
     '/admin/users': 'User accounts',
     '/admin/gyms': 'Gym accounts',
+    '/admin': 'Platform overview',
   }[pathname] || 'Dashboard');
 }
 
@@ -94,6 +95,7 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
             {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
             <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
             {isSuperadmin && <>
+              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Platform overview</Link>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/gyms" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Gym accounts</Link>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/users" role="menuitem" onClick={() => setAccountMenuOpen(false)}>User accounts</Link>
             </>}
