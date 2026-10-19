@@ -10,7 +10,7 @@ import Input from "../ui/input";
 import Modal from "../ui/modal";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
-import { getPlanMemberCounts, listPlans, createPlan, updatePlan, setPlanActive } from "../../lib/plansService";
+import { listPlans, createPlan, updatePlan, setPlanActive } from "../../lib/plansService";
 
 const blankValues = { name: "", price: "", duration: "1", unit: "months", description: "" };
 
@@ -39,7 +39,6 @@ function valuesFor(plan) {
 
 export default function PlansManager() {
   const [plans, setPlans] = useState([]);
-  const [memberCounts, setMemberCounts] = useState(getPlanMemberCounts);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -53,8 +52,7 @@ export default function PlansManager() {
     setLoading(true);
     setLoadError("");
     try {
-      setPlans(await listPlans());
-      setMemberCounts(getPlanMemberCounts());
+      setPlans(await listPlans({ includeMemberCounts: true }));
     } catch (error) {
       setLoadError(error.message || "Could not load plans.");
     } finally {
@@ -94,11 +92,11 @@ export default function PlansManager() {
     else if (plans.some((plan) => plan.id !== editingPlan?.id && plan.name.trim().toLowerCase() === values.name.trim().toLowerCase())) {
       next.name = "A plan with this name already exists.";
     }
-    if (!values.price.trim() || !Number.isFinite(Number(values.price)) || Number(values.price) <= 0) {
-      next.price = "Enter a price greater than zero.";
+    if (!values.price.trim() || !Number.isSafeInteger(Number(values.price)) || Number(values.price) <= 0) {
+      next.price = "Enter a positive whole number of rupees.";
     }
-    if (!values.duration.trim() || !Number.isInteger(Number(values.duration)) || Number(values.duration) <= 0) {
-      next.duration = "Enter a positive whole number.";
+    if (!values.duration.trim() || !Number.isSafeInteger(Number(values.duration)) || Number(values.duration) <= 0 || !Number.isSafeInteger(days)) {
+      next.duration = "Enter a positive whole duration.";
     }
     return next;
   }
@@ -115,7 +113,7 @@ export default function PlansManager() {
       const saved = editingPlan
         ? await updatePlan(editingPlan.id, { name: values.name, price: values.price, durationDays: days, description: values.description })
         : await createPlan({ name: values.name, price: values.price, durationDays: days, description: values.description });
-      setPlans((current) => editingPlan ? current.map((plan) => plan.id === saved.id ? saved : plan) : [saved, ...current]);
+      setPlans((current) => editingPlan ? current.map((plan) => plan.id === saved.id ? { ...plan, ...saved } : plan) : [saved, ...current]);
       setOpen(false);
     } catch (error) {
       const fieldErrors = { ...error.fields };
@@ -134,7 +132,7 @@ export default function PlansManager() {
     setActionError("");
     try {
       const updated = await setPlanActive(plan.id, plan.status !== "Active");
-      setPlans((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setPlans((current) => current.map((item) => item.id === updated.id ? { ...item, ...updated } : item));
     } catch (error) {
       setActionError(error.message || "Could not update this plan.");
     }
@@ -176,7 +174,7 @@ export default function PlansManager() {
               {plan.description && <p className="mt-4 min-h-10 text-sm leading-6 text-ink-muted">{plan.description}</p>}
               <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-muted">
                 <UsersRound size={16} aria-hidden="true" />
-                <span><strong className="font-semibold text-ink">{memberCounts[plan.id] || 0}</strong> {(memberCounts[plan.id] || 0) === 1 ? "member" : "members"}</span>
+                <span><strong className="font-semibold text-ink">{plan.memberCount ?? 0}</strong> {(plan.memberCount ?? 0) === 1 ? "member" : "members"}</span>
               </div>
               <div className="mt-auto flex flex-wrap gap-2 pt-5">
                 <Button variant="secondary" size="sm" onClick={() => openEditPlan(plan)}>Edit</Button>
@@ -195,7 +193,7 @@ export default function PlansManager() {
       >
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
           <Input id="plan-name" label="Plan name" required autoComplete="off" value={values.name} onChange={(event) => updateValue("name", event.target.value)} error={errors.name} />
-          <Input id="plan-price" label="Price (PKR)" type="number" min="0.01" step="any" inputMode="decimal" required value={values.price} onChange={(event) => updateValue("price", event.target.value)} error={errors.price} />
+          <Input id="plan-price" label="Price (PKR)" type="number" min="1" step="1" inputMode="numeric" required value={values.price} onChange={(event) => updateValue("price", event.target.value)} error={errors.price} />
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
             <Input id="plan-duration" label="Duration" type="number" min="1" step="1" inputMode="numeric" required value={values.duration} onChange={(event) => updateValue("duration", event.target.value)} error={errors.duration} />
             <Select id="plan-duration-unit" label="Unit" value={values.unit} onChange={(event) => updateValue("unit", event.target.value)}>

@@ -1,5 +1,6 @@
 import connectToDatabase from "../../../lib/db";
 import Plan from "../../../models/Plan";
+import Member from "../../../models/Member";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../lib/planApiResponse";
 import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 
@@ -8,8 +9,17 @@ export async function GET(request) {
   if (authResponse) return authResponse;
   try {
     await connectToDatabase();
-    const onlyActive = new URL(request.url).searchParams.get("isActive") === "true";
+    const params = new URL(request.url).searchParams;
+    const onlyActive = params.get("isActive") === "true";
     const plans = await Plan.find(tenantFilter(request, onlyActive ? { isActive: true } : {})).sort({ createdAt: -1 }).lean();
+    if (params.get("includeMemberCounts") === "true") {
+      const counts = plans.length ? await Member.aggregate([
+        { $match: { gymId: getRequestGymId(request), planId: { $in: plans.map(({ _id }) => _id) } } },
+        { $group: { _id: "$planId", count: { $sum: 1 } } },
+      ]) : [];
+      const countByPlan = new Map(counts.map(({ _id, count }) => [String(_id), count]));
+      return successResponse(plans.map((plan) => ({ ...plan, memberCount: countByPlan.get(String(plan._id)) || 0 })));
+    }
     return successResponse(plans);
   } catch (error) {
     return handlePlanError(error);

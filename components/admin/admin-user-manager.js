@@ -94,7 +94,7 @@ export default function AdminUserManager() {
 
     <Card className="p-5 md:p-7">
       <h2 className="text-lg font-semibold text-ink">Add a staff account</h2>
-      <p className="mb-5 mt-1 text-sm text-ink-muted">The new account can sign in and use the gym workspace. It will not have account-management privileges.</p>
+      <p className="mb-5 mt-1 text-sm text-ink-muted">The new account needs an active Gym membership before it can open a workspace. Assign owner access under Gym accounts or invite it from an existing Gym Owner account.</p>
       <form className="space-y-4" onSubmit={submit} noValidate>
         <Input id="new-user-email" label="Email address" type="email" autoComplete="off" required value={values.email} onChange={(event) => update("email", event.target.value)} error={errors.email} />
         <Input id="new-user-password" label="Temporary password" type="password" autoComplete="new-password" required value={values.password} onChange={(event) => update("password", event.target.value)} error={errors.password} />

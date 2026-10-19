@@ -5,6 +5,8 @@ import Link from "next/link";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
+import Input from "../ui/input";
+import Modal from "../ui/modal";
 
 async function requestGyms(id, options) {
   const response = await fetch(id ? `/api/admin/gyms/${encodeURIComponent(id)}` : "/api/admin/gyms", {
@@ -31,6 +33,10 @@ export default function AdminGymManager() {
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
   const [changingId, setChangingId] = useState("");
+  const [ownerGym, setOwnerGym] = useState(null);
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerError, setOwnerError] = useState("");
+  const [ownerSaving, setOwnerSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +68,39 @@ export default function AdminGymManager() {
     }
   }
 
+  async function assignOwner(event) {
+    event.preventDefault();
+    if (!ownerGym) return;
+    setOwnerSaving(true);
+    setOwnerError("");
+    try {
+      const response = await fetch("/api/admin/gym-owners", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gymId: ownerGym.id, email: ownerEmail }),
+      });
+      let result;
+      try { result = await response.json(); } catch { throw new Error("The server returned an unreadable response."); }
+      if (!response.ok || !result.success) {
+        const error = new Error(result.error?.message || "Could not assign this Gym owner.");
+        error.fields = result.error?.fields || {};
+        throw error;
+      }
+      const assignedOwner = result.data.owner;
+      setGyms((current) => current.map((gym) => gym.id === ownerGym.id
+        ? { ...gym, owners: [...gym.owners.filter((owner) => owner.email !== assignedOwner.email), assignedOwner] }
+        : gym));
+      setMessage(`${assignedOwner.name} now has owner access to ${ownerGym.name}.`);
+      setOwnerGym(null);
+      setOwnerEmail("");
+    } catch (error) {
+      setOwnerError(error.message || "Could not assign this Gym owner.");
+    } finally {
+      setOwnerSaving(false);
+    }
+  }
+
   return <Card className="mt-6 p-5 md:p-7">
     <div className="mb-5">
       <h2 className="text-lg font-semibold text-ink">Gym workspaces</h2>
@@ -75,7 +114,7 @@ export default function AdminGymManager() {
         <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Gym</th><th className="px-3 py-3">Owner</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Timezone</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Access</th></tr></thead>
         <tbody>{gyms.map((gym) => <tr key={gym.id} className="border-b border-line last:border-0 align-top">
           <td className="px-3 py-4"><Link className="block font-semibold text-brand hover:underline" href={`/admin/gyms/${encodeURIComponent(gym.id)}`}>{gym.name}</Link><span className="text-xs text-ink-muted">{gym.slug}</span></td>
-          <td className="px-3 py-4">{gym.owners.length ? <div className="space-y-2">{gym.owners.map((owner) => <div key={owner.email || owner.name}><span className="block text-ink">{owner.name}</span><span className="text-xs text-ink-muted">{owner.email || "Email unavailable"}</span></div>)}</div> : <span className="text-ink-muted">No active owner assigned</span>}</td>
+          <td className="px-3 py-4">{gym.owners.length ? <div className="space-y-2">{gym.owners.map((owner) => <div key={owner.email || owner.name}><span className="block text-ink">{owner.name}</span><span className="text-xs text-ink-muted">{owner.email || "Email unavailable"}</span></div>)}</div> : <span className="text-ink-muted">No active owner assigned</span>}<Button className="mt-3" type="button" size="sm" variant="secondary" disabled={gym.status !== "active"} onClick={() => { setOwnerGym(gym); setOwnerEmail(gym.owners[0]?.email || ""); setOwnerError(""); }}>Assign or repair owner access</Button></td>
           <td className="px-3 py-4"><Badge tone={gym.status === "active" ? "success" : "warning"}>{gym.status === "active" ? "Active" : "Suspended"}</Badge></td>
           <td className="px-3 py-4 text-ink-muted">{gym.timezone}</td>
           <td className="px-3 py-4 text-ink-muted">{dateLabel(gym.createdAt)}</td>
@@ -83,5 +122,18 @@ export default function AdminGymManager() {
         </tr>)}</tbody>
       </table>
     </div> : <p className="py-8 text-center text-sm text-ink-muted">No gym accounts have been created.</p>}
+    <Modal
+      open={Boolean(ownerGym)}
+      onClose={() => { if (!ownerSaving) setOwnerGym(null); }}
+      title="Assign Gym owner"
+      description={ownerGym ? `This gives an existing staff account owner access to ${ownerGym.name}.` : ""}
+    >
+      <form className="space-y-4" onSubmit={assignOwner} noValidate>
+        <Input id="gym-owner-email" label="Existing staff account email" type="email" autoComplete="email" required value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} />
+        <p className="text-xs leading-5 text-ink-muted">The account must be active and have no other active Gym assignment. Create staff accounts under User accounts first.</p>
+        {ownerError && <p className="text-sm text-error" role="alert">{ownerError}</p>}
+        <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={ownerSaving} onClick={() => setOwnerGym(null)}>Cancel</Button><Button type="submit" disabled={ownerSaving} aria-busy={ownerSaving}>{ownerSaving ? "Assigning…" : "Assign owner"}</Button></div>
+      </form>
+    </Modal>
   </Card>;
 }

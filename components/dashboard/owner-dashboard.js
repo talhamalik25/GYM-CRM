@@ -31,7 +31,9 @@ export default function OwnerDashboard() {
       if (!response.ok || !result.success) throw new Error(result.error?.message || "Could not load your gym dashboard.");
       if (!cancelled) setData(result.data);
     }).catch((requestError) => {
-      if (!cancelled) setError(requestError.message || "Could not load your gym dashboard.");
+      if (!cancelled) setError(requestError.message === "Select an account with exactly one active gym membership."
+        ? "Your account needs exactly one active Gym assignment. Ask a platform superadmin to assign your staff account under Gym accounts, then try again."
+        : requestError.message || "Could not load your gym dashboard.");
     }).finally(() => {
       if (!cancelled) setLoading(false);
     });

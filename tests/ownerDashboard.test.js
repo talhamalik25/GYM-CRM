@@ -41,6 +41,7 @@ test("owner dashboard exposes loading, retry, missing-context, setup, and existi
   assert.match(source, /Loading gym dashboard/);
   assert.match(source, /role="alert"/);
   assert.match(source, /Try again/);
+  assert.match(source, /Ask a platform superadmin to assign your staff account under Gym accounts/);
   assert.match(source, /could not be found/);
   assert.match(source, /Finish setting up your gym/);
   for (const href of ["/members", "/memberships", "/trainers", "/attendance", "/payments"]) assert.ok(source.includes(`href: "${href}"`));
