@@ -1,6 +1,5 @@
-import DashboardAttendanceData from "../../../components/dashboard/dashboard-attendance-data";
-import { dashboardMockData } from "../../../lib/mockData";
+import OwnerDashboard from "../../../components/dashboard/owner-dashboard";
 
 export default function DashboardPage() {
-  return <DashboardAttendanceData mockData={dashboardMockData} />;
+  return <OwnerDashboard />;
 }
