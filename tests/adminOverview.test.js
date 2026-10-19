@@ -21,11 +21,13 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(route, /Gym\.countDocuments\(\{ status: "suspended" \}\)/);
   assert.match(route, /User\.countDocuments\(\{ isActive: true \}\)/);
   assert.match(route, /User\.countDocuments\(\{ isActive: false \}\)/);
+  assert.match(route, /role: \{ \$in: \["superadmin", "platform_super_admin"\] \}/);
   assert.doesNotMatch(route, /Member|Payment|Subscription|Attendance/);
   assert.match(page, /if \(!isSuperadmin\(user\)\) redirect\("\/dashboard"\)/);
   assert.match(component, /role="alert"/);
   assert.match(component, /Loading platform counts/);
-  assert.match(component, /No Gym workspaces or user accounts have been created yet/);
+  assert.match(component, /No Gym workspaces have been registered yet/);
+  assert.match(component, /Superadmin accounts/);
   assert.match(dashboard, /if \(isSuperadmin\(user\)\) redirect\("\/admin"\)/);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);
   assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);

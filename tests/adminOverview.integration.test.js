@@ -41,26 +41,45 @@ test("platform overview counts Gym and account statuses and rejects non-superadm
     await connectToDatabase();
     await Promise.all([User.init(), AuthSession.init(), Gym.init()]);
     const superadmin = await User.create({ email: `overview-admin-${suffix}@example.test`, passwordHash: "test-hash", role: "platform_super_admin", isActive: true });
+    const legacySuperadmin = await User.create({ email: `overview-legacy-admin-${suffix}@example.test`, passwordHash: "test-hash", role: "superadmin", isActive: true });
     const staff = await User.create({ email: `overview-staff-${suffix}@example.test`, passwordHash: "test-hash", role: "staff", isActive: false });
-    users.push(superadmin._id, staff._id);
-    const activeGym = await Gym.create({ name: "Overview Active Gym", slug: `overview-active-${suffix}`, status: "active" });
-    const suspendedGym = await Gym.create({ name: "Overview Suspended Gym", slug: `overview-suspended-${suffix}`, status: "suspended" });
-    gyms.push(activeGym._id, suspendedGym._id);
-
-    const [adminToken, staffToken] = await Promise.all([
+    users.push(superadmin._id, legacySuperadmin._id, staff._id);
+    const [adminToken, legacyAdminToken, staffToken] = await Promise.all([
       createSession(superadmin._id, secret),
+      createSession(legacySuperadmin._id, secret),
       createSession(staff._id, secret),
     ]);
     assert.equal((await getOverview(request(staffToken))).status, 403);
+    assert.equal((await getOverview(request(legacyAdminToken))).status, 200);
+    const emptyGymResponse = await getOverview(request(adminToken));
+    assert.equal(emptyGymResponse.status, 200);
+    assert.deepEqual((await emptyGymResponse.json()).data.gyms, { total: 0, active: 0, suspended: 0 });
+
+    const activeGym = await Gym.create({ name: "Overview Active Gym", slug: `overview-active-${suffix}`, status: "active" });
+    const suspendedGym = await Gym.create({ name: "Overview Suspended Gym", slug: `overview-suspended-${suffix}`, status: "suspended" });
+    gyms.push(activeGym._id, suspendedGym._id);
 
     const response = await getOverview(request(adminToken));
     assert.equal(response.status, 200);
     const payload = await response.json();
     assert.deepEqual(payload.data.gyms, { total: 2, active: 1, suspended: 1 });
-    assert.deepEqual(payload.data.userAccounts, { total: 2, active: 1, inactive: 1 });
+    assert.deepEqual(payload.data.userAccounts, { total: 3, active: 2, inactive: 1, platformSuperadmins: 2 });
     assert.equal(JSON.stringify(payload).includes("passwordHash"), false);
     assert.equal(Object.hasOwn(payload.data, "members"), false);
     assert.equal(Object.hasOwn(payload.data, "payments"), false);
+
+    const originalGymCount = Gym.countDocuments;
+    const originalUserCount = User.countDocuments;
+    try {
+      Gym.countDocuments = async () => { throw new Error("synthetic query failure"); };
+      assert.equal((await getOverview(request(adminToken))).status, 503);
+      Gym.countDocuments = originalGymCount;
+      User.countDocuments = async () => { throw new Error("synthetic query failure"); };
+      assert.equal((await getOverview(request(adminToken))).status, 503);
+    } finally {
+      Gym.countDocuments = originalGymCount;
+      User.countDocuments = originalUserCount;
+    }
   } finally {
     if (mongoose.connection.readyState === 1) {
       await AuthSession.deleteMany({ userId: { $in: users } });

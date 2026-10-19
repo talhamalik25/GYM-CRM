@@ -10,18 +10,19 @@ export async function GET(request) {
 
   try {
     await connectToDatabase();
-    const [gyms, activeGyms, suspendedGyms, userAccounts, activeUserAccounts, inactiveUserAccounts] = await Promise.all([
+    const [gyms, activeGyms, suspendedGyms, userAccounts, activeUserAccounts, inactiveUserAccounts, platformSuperadmins] = await Promise.all([
       Gym.countDocuments({}),
       Gym.countDocuments({ status: "active" }),
       Gym.countDocuments({ status: "suspended" }),
       User.countDocuments({}),
       User.countDocuments({ isActive: true }),
       User.countDocuments({ isActive: false }),
+      User.countDocuments({ role: { $in: ["superadmin", "platform_super_admin"] } }),
     ]);
 
     return successResponse({
       gyms: { total: gyms, active: activeGyms, suspended: suspendedGyms },
-      userAccounts: { total: userAccounts, active: activeUserAccounts, inactive: inactiveUserAccounts },
+      userAccounts: { total: userAccounts, active: activeUserAccounts, inactive: inactiveUserAccounts, platformSuperadmins },
     });
   } catch {
     console.error("Admin platform overview could not be loaded.");
