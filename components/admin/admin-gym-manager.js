@@ -18,7 +18,11 @@ async function requestGyms(id, options) {
   });
   let result;
   try { result = await response.json(); } catch { throw new Error("The server returned an unreadable response."); }
-  if (!response.ok || !result.success) throw new Error(result.error?.message || "Could not access gym accounts.");
+  if (!response.ok || !result.success) {
+    const error = new Error(result.error?.message || "Could not access gym accounts.");
+    error.fields = result.error?.fields || {};
+    throw error;
+  }
   return result.data;
 }
 
@@ -41,6 +45,13 @@ export default function AdminGymManager() {
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerError, setOwnerError] = useState("");
   const [ownerSaving, setOwnerSaving] = useState(false);
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const [provisionValues, setProvisionValues] = useState({ name: "", slug: "", timezone: "Asia/Karachi", ownerEmail: "", accessMode: "trial", planId: "", trialDays: "" });
+  const [provisionErrors, setProvisionErrors] = useState({});
+  const [provisionSaving, setProvisionSaving] = useState(false);
+  const [eligiblePlans, setEligiblePlans] = useState([]);
+  const [trialDefault, setTrialDefault] = useState(0);
+  const [provisionOptionsError, setProvisionOptionsError] = useState("");
   const filteredGyms = filterAdminGyms(gyms, { query, status: statusFilter });
 
   useEffect(() => {
@@ -51,6 +62,20 @@ export default function AdminGymManager() {
       if (!cancelled) setLoadError(error.message || "Could not load gym accounts.");
     }).finally(() => {
       if (!cancelled) setLoading(false);
+    });
+    fetch("/api/admin/billing", { cache: "no-store" }).then(async (response) => {
+      let result;
+      try { result = await response.json(); } catch { throw new Error("Billing options could not be read."); }
+      if (!response.ok || !result.success) throw new Error(result.error?.message || "Billing options could not be loaded.");
+      if (cancelled) return;
+      const plans = (result.data.plans || []).filter((plan) => plan.isActive);
+      const configuredTrialDays = result.data.settings?.defaultTrialDays || 0;
+      setEligiblePlans(plans);
+      setTrialDefault(configuredTrialDays);
+      setProvisionValues((current) => ({ ...current, planId: current.planId || plans[0]?.id || "", trialDays: current.trialDays || String(configuredTrialDays || "") }));
+      if (!plans.length) setProvisionOptionsError("Create an active SaaS plan before provisioning access. You can still provision with access paused.");
+    }).catch((error) => {
+      if (!cancelled) setProvisionOptionsError(error.message || "Billing options could not be loaded.");
     });
     return () => { cancelled = true; };
   }, []);
@@ -106,10 +131,34 @@ export default function AdminGymManager() {
     }
   }
 
+  async function provisionGym(event) {
+    event.preventDefault();
+    setProvisionSaving(true);
+    setProvisionErrors({});
+    setActionError("");
+    try {
+      const payload = { ...provisionValues, ...(provisionValues.accessMode === "trial" ? { trialDays: Number(provisionValues.trialDays || trialDefault) } : {}) };
+      if (provisionValues.accessMode !== "trial") delete payload.trialDays;
+      if (provisionValues.accessMode === "none") delete payload.planId;
+      const data = await requestGyms(null, { method: "POST", body: JSON.stringify(payload) });
+      setGyms((current) => [data.gym, ...current.filter((gym) => gym.id !== data.gym.id)]);
+      const accessMessage = provisionValues.accessMode === "trial" ? `a ${payload.trialDays}-day trial was assigned` : provisionValues.accessMode === "invoice" ? data.invoice ? "an open manual invoice was issued; access awaits verified payment" : "the free plan was assigned" : "access remains paused until a SaaS plan or trial is assigned";
+      setMessage(`${data.gym.name} was created with its initial owner; ${accessMessage}.`);
+      setProvisionOpen(false);
+      setProvisionValues({ name: "", slug: "", timezone: "Asia/Karachi", ownerEmail: "", accessMode: "trial", planId: eligiblePlans[0]?.id || "", trialDays: String(trialDefault || "") });
+    } catch (error) {
+      setProvisionErrors(error.fields || {});
+      setActionError(error.message || "Could not provision the Gym. No partial Gym or owner assignment was retained.");
+    } finally {
+      setProvisionSaving(false);
+    }
+  }
+
   return <Card className="mt-6 p-5 md:p-7">
-    <div className="mb-5">
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <h2 className="text-lg font-semibold text-ink">Gym workspaces</h2>
       <p className="mt-1 text-sm text-ink-muted">Owner details come from active gym owner memberships. Missing owners are shown as unassigned.</p>
+      <Button type="button" onClick={() => { setProvisionErrors({}); setActionError(""); setProvisionOpen(true); }}>Provision Gym</Button>
     </div>
     {message && <p className="mb-4 rounded-lg border border-success/20 bg-success-soft p-3 text-sm text-success" role="status">{message}</p>}
     {actionError && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{actionError}</p>}
@@ -144,6 +193,31 @@ export default function AdminGymManager() {
         <p className="text-xs leading-5 text-ink-muted">The account must be active and have no other active Gym assignment. Create staff accounts under User accounts first.</p>
         {ownerError && <p className="text-sm text-error" role="alert">{ownerError}</p>}
         <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={ownerSaving} onClick={() => setOwnerGym(null)}>Cancel</Button><Button type="submit" disabled={ownerSaving} aria-busy={ownerSaving}>{ownerSaving ? "Assigning…" : "Assign owner"}</Button></div>
+      </form>
+    </Modal>
+    <Modal
+      open={provisionOpen}
+      onClose={() => { if (!provisionSaving) setProvisionOpen(false); }}
+      title="Provision Gym"
+      description="Create the Gym, initial owner membership, and selected SaaS access state in one database transaction."
+    >
+      <form className="space-y-4" onSubmit={provisionGym} noValidate>
+        <Input id="provision-gym-name" label="Gym name" required maxLength={120} value={provisionValues.name} onChange={(event) => setProvisionValues({ ...provisionValues, name: event.target.value })} error={provisionErrors.name} />
+        <Input id="provision-gym-slug" label="Gym URL slug" required maxLength={80} value={provisionValues.slug} onChange={(event) => setProvisionValues({ ...provisionValues, slug: event.target.value })} error={provisionErrors.slug} />
+        <Input id="provision-gym-timezone" label="IANA timezone" required maxLength={100} value={provisionValues.timezone} onChange={(event) => setProvisionValues({ ...provisionValues, timezone: event.target.value })} error={provisionErrors.timezone} />
+        <Input id="provision-gym-owner" label="Initial owner: existing staff email" type="email" required value={provisionValues.ownerEmail} onChange={(event) => setProvisionValues({ ...provisionValues, ownerEmail: event.target.value })} error={provisionErrors.ownerEmail} />
+        <Select id="provision-access-mode" label="Initial SaaS access" value={provisionValues.accessMode} onChange={(event) => setProvisionValues({ ...provisionValues, accessMode: event.target.value })} error={provisionErrors.accessMode}>
+          <option value="trial">Start a trial</option><option value="invoice">Assign plan and issue manual invoice</option><option value="none">Provision with access paused</option>
+        </Select>
+        {provisionValues.accessMode !== "none" && <Select id="provision-plan" label="Eligible active SaaS plan" value={provisionValues.planId} onChange={(event) => setProvisionValues({ ...provisionValues, planId: event.target.value })} error={provisionErrors.planId}>
+          <option value="">Select a plan</option>{eligiblePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · PKR {plan.price.toLocaleString("en-PK")} / {plan.interval}</option>)}
+        </Select>}
+        {provisionValues.accessMode === "trial" && <Input id="provision-trial-days" label="Trial length in days" type="number" min="1" max="90" required value={provisionValues.trialDays || String(trialDefault || "")} onChange={(event) => setProvisionValues({ ...provisionValues, trialDays: event.target.value })} error={provisionErrors.trialDays} />}
+        {provisionOptionsError && <p className="text-sm text-warning" role="status">{provisionOptionsError}</p>}
+        <p className="text-xs leading-5 text-ink-muted">The owner must be an active staff account with no active Gym assignment. Trial access starts immediately. Paid plans remain restricted until a Superadmin reconciles the manual invoice with a verified payment reference. Paused access can be enabled later by assigning a plan under Plans &amp; billing.</p>
+        {actionError && <p className="text-sm text-error" role="alert">{actionError}</p>}
+        {Object.keys(provisionErrors).some((key) => !["name", "slug", "timezone", "ownerEmail"].includes(key)) && <p className="text-sm text-error" role="alert">{Object.values(provisionErrors).join(" ")}</p>}
+        <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={provisionSaving} onClick={() => setProvisionOpen(false)}>Cancel</Button><Button type="submit" disabled={provisionSaving || (provisionValues.accessMode !== "none" && !eligiblePlans.some((plan) => plan.id === provisionValues.planId))} aria-busy={provisionSaving}>{provisionSaving ? "Provisioning…" : "Create Gym and assign owner"}</Button></div>
       </form>
     </Modal>
   </Card>;

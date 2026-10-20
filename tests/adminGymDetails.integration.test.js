@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { GET as getGym } from "../app/api/admin/gyms/[id]/route.js";
+import { GET as listGyms, POST as provisionGym } from "../app/api/admin/gyms/route.js";
 import connectToDatabase from "../lib/db.js";
 import { hashPassword } from "../lib/passwords.js";
 import AuthSession from "../models/AuthSession.js";
@@ -14,8 +15,8 @@ import { isolatedTestUri } from "./testDatabaseConfig.js";
 const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "admin_gym_details");
 const cookieName = process.env.NODE_ENV === "production" ? "__Host-fitivo_session" : "fitivo_session";
 
-function request(url, token) {
-  const result = new Request(`http://localhost${url}`);
+function request(url, token, options = {}) {
+  const result = new Request(`http://localhost${url}`, options);
   if (token) Object.defineProperty(result, "cookies", { value: { get: (name) => name === cookieName ? { value: token } : undefined } });
   return result;
 }
@@ -45,12 +46,16 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
     const superadmin = await User.create({ email: `superadmin-${suffix}@example.test`, passwordHash: await hashPassword("superadmin-test-password-long"), role: "platform_super_admin", isActive: true });
     const owner = await User.create({ fullName: "Gym Owner", email: `owner-${suffix}@example.test`, passwordHash: await hashPassword("owner-test-password-long"), role: "staff", isActive: true });
     const staff = await User.create({ email: `staff-${suffix}@example.test`, passwordHash: await hashPassword("staff-test-password-long"), role: "staff", isActive: true });
-    users.push(superadmin._id, owner._id, staff._id);
+    const inactiveOwner = await User.create({ fullName: "Inactive Owner", email: `inactive-owner-${suffix}@example.test`, passwordHash: await hashPassword("inactive-owner-password-long"), role: "staff", isActive: false });
+    const provisioningOwner = await User.create({ fullName: "Provisioning Owner", email: `provision-${suffix}@example.test`, passwordHash: await hashPassword("provision-test-password-long"), role: "staff", isActive: true });
+    const duplicateSlugOwner = await User.create({ email: `duplicate-${suffix}@example.test`, passwordHash: await hashPassword("duplicate-test-password-long"), role: "staff", isActive: true });
+    users.push(superadmin._id, owner._id, staff._id, inactiveOwner._id, provisioningOwner._id, duplicateSlugOwner._id);
     const gym = await Gym.create({ name: "Details Fixture Gym", slug: `details-${suffix}` });
     const otherGym = await Gym.create({ name: "Other Fixture Gym", slug: `other-details-${suffix}` });
     gyms.push(gym._id, otherGym._id);
     await GymMembership.create([
       { userId: owner._id, gymId: gym._id, role: "gym_owner", status: "active" },
+      { userId: inactiveOwner._id, gymId: gym._id, role: "gym_owner", status: "active" },
       { userId: staff._id, gymId: otherGym._id, role: "gym_owner", status: "active" },
     ]);
     const adminToken = await createSession(superadmin._id, secret);
@@ -72,6 +77,29 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
     assert.equal(JSON.stringify(payload).includes(staff.email), false);
     assert.equal(Object.hasOwn(payload.data, "members"), false);
     assert.equal(Object.hasOwn(payload.data, "payments"), false);
+    const listResponse = await listGyms(request("/api/admin/gyms", adminToken));
+    assert.equal(listResponse.status, 200);
+    const listedGym = (await listResponse.json()).data.items.find((item) => item.id === String(gym._id));
+    assert.deepEqual(listedGym.owners, [{ name: "Gym Owner", email: owner.email }]);
+
+    const provisionResponse = await provisionGym(request("/api/admin/gyms", adminToken, {
+      method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ name: "Provisioned Gym", slug: `provisioned-${suffix}`, timezone: "Asia/Karachi", ownerEmail: provisioningOwner.email }),
+    }));
+    assert.equal(provisionResponse.status, 201);
+    const provisioned = (await provisionResponse.json()).data.gym;
+    gyms.push(new mongoose.Types.ObjectId(provisioned.id));
+    assert.deepEqual(provisioned.owners, [{ name: "Provisioning Owner", email: provisioningOwner.email }]);
+    assert.equal(await GymMembership.countDocuments({ gymId: provisioned.id, userId: provisioningOwner._id, role: "gym_owner", status: "active" }), 1);
+
+    const countBeforeDuplicate = await Gym.countDocuments({});
+    const duplicateResponse = await provisionGym(request("/api/admin/gyms", adminToken, {
+      method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ name: "Duplicate Slug Gym", slug: `provisioned-${suffix}`, timezone: "UTC", ownerEmail: duplicateSlugOwner.email }),
+    }));
+    assert.equal(duplicateResponse.status, 409);
+    assert.equal(await Gym.countDocuments({}), countBeforeDuplicate);
+    assert.equal(await GymMembership.countDocuments({ userId: duplicateSlugOwner._id, status: "active" }), 0);
   } finally {
     if (mongoose.connection.readyState === 1) {
       await AuthSession.deleteMany({ userId: { $in: users } });

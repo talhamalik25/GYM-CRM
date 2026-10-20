@@ -8,7 +8,7 @@ import Plan from "../../../models/Plan";
 import Payment from "../../../models/Payment";
 import Subscription from "../../../models/Subscription";
 import generateReceiptNumber from "../../../lib/generateReceiptNumber";
-import { paymentLedgerErrorResponse, runLedgerTransaction } from "../../../lib/paymentLedger";
+import { lockMemberVersion, paymentLedgerErrorResponse, runLedgerTransaction, syncMemberSubscriptionFields } from "../../../lib/paymentLedger";
 import { isValidIdempotencyKey } from "../../../lib/paymentRules";
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -82,6 +82,7 @@ export async function POST(request) {
       }
       const [member, plan] = await Promise.all([Member.findOne({ _id: body.memberId, gymId }).session(session), Plan.findOne({ _id: body.planId, gymId }).session(session)]);
       if (!member) throw Object.assign(new Error("The selected member was not found."), { status: 404, fields: { memberId: "Choose an existing member." } });
+      if (member.isActive === false) throw Object.assign(new Error("Reactivate this member account before assigning a subscription."), { status: 409, fields: { memberId: "This member account is inactive." } });
       if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 404, fields: { planId: "Choose an active plan." } });
       const agreedPrice = body.agreedPrice ?? plan.price;
       const amountPaid = body.amountPaid ?? 0;
@@ -90,6 +91,10 @@ export async function POST(request) {
       const startDate = body.startDate;
       const expiryDate = addDays(startDate, plan.durationDays - 1);
       const planSnapshot = { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice };
+      await lockMemberVersion(member, session, gymId);
+      const existingSubscriptions = await Subscription.find({ memberId: member._id, gymId }).session(session).lean();
+      const hasCurrent = existingSubscriptions.some((entry) => ["active", "pending"].includes(deriveSubscriptionStatus(entry, gymToday())));
+      if (hasCurrent) throw Object.assign(new Error("This member already has a current subscription. Renew it instead of creating another."), { status: 409, fields: { memberId: "Renew the current subscription." } });
       const subscription = (await Subscription.create([{
         gymId,
         memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate),
@@ -107,6 +112,9 @@ export async function POST(request) {
         subscription.renewalHistory[0].paymentId = payment._id;
         await subscription.save({ session });
       }
+      await syncMemberSubscriptionFields(member, session, gymId, {
+        planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate), membershipCancelled: false,
+      }, { alreadyLocked: true });
       return { subscription, duplicate: false };
     });
     return successResponse(await serialize(result.subscription, request), result.duplicate ? 200 : 201);

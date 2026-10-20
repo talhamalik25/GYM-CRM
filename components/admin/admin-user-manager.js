@@ -78,6 +78,26 @@ export default function AdminUserManager() {
     }
   }
 
+  async function toggleUser(user) {
+    const nextActive = !user.isActive;
+    const action = nextActive ? "reactivate" : "deactivate";
+    if (!window.confirm(`Are you sure you want to ${action} ${user.email}?`)) return;
+    setLoadError("");
+    setMessage("");
+    try {
+      const result = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+        method: "PATCH", cache: "no-store", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      let payload;
+      try { payload = await result.json(); } catch { throw new Error("The server returned an unreadable response."); }
+      if (!result.ok || !payload.success) throw new Error(payload.error?.message || `Could not ${action} this account.`);
+      setUsers((current) => current.map((entry) => entry.id === user.id ? payload.data : entry));
+    } catch (error) {
+      setLoadError(error.message || `Could not ${action} this account.`);
+    }
+  }
+
   return <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,.8fr)]">
     <Card className="p-5 md:p-7">
       <div className="mb-5">
@@ -87,8 +107,8 @@ export default function AdminUserManager() {
       {loadError && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{loadError}</p>}
       {loading ? <p className="py-8 text-center text-sm text-ink-muted" role="status">Loading accounts…</p> : loadError && !users.length ? null : users.length ? <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] text-left text-sm">
-          <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Created</th></tr></thead>
-          <tbody>{users.map((user) => <tr key={user.id} className="border-b border-line last:border-0"><td className="px-3 py-3 text-ink">{user.fullName || "Name unavailable"}</td><td className="px-3 py-3 font-medium text-ink">{user.email}</td><td className="px-3 py-3 text-ink-muted">{adminUserRoleLabel(user)}</td><td className="px-3 py-3 text-ink-muted">{user.isActive ? "Active" : "Inactive"}</td><td className="px-3 py-3 text-ink-muted">{createdDate(user.createdAt)}</td></tr>)}</tbody>
+          <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Action</th></tr></thead>
+          <tbody>{users.map((user) => <tr key={user.id} className="border-b border-line last:border-0"><td className="px-3 py-3 text-ink">{user.fullName || "Name unavailable"}</td><td className="px-3 py-3 font-medium text-ink">{user.email}</td><td className="px-3 py-3 text-ink-muted">{adminUserRoleLabel(user)}</td><td className="px-3 py-3 text-ink-muted">{user.isActive ? "Active" : "Inactive"}</td><td className="px-3 py-3 text-ink-muted">{createdDate(user.createdAt)}</td><td className="px-3 py-3"><Button type="button" variant="secondary" onClick={() => toggleUser(user)}>{user.isActive ? "Deactivate" : "Reactivate"}</Button></td></tr>)}</tbody>
         </table>
       </div> : <p className="py-8 text-center text-sm text-ink-muted">No accounts found.</p>}
     </Card>

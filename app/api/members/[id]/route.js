@@ -6,6 +6,7 @@ import { handleMemberError, normalizeMemberPhone, serializeMember, validateMembe
 import Member from "../../../../models/Member";
 import Plan from "../../../../models/Plan";
 import Trainer from "../../../../models/Trainer";
+import Subscription from "../../../../models/Subscription";
 import { isTrainerId, validateTrainerAssignment } from "../../../../lib/trainerApiHelpers";
 import { requireApiUser, tenantFilter } from "../../../../lib/auth";
 
@@ -55,6 +56,12 @@ export async function PATCH(request, context) {
     const nextPlanId = memberBody.planId || currentPlanId;
     const planChanged = nextPlanId !== currentPlanId;
     const startDateChanged = Boolean(memberBody.startDate && memberBody.startDate !== dateString(current.startDate));
+    if ((planChanged || startDateChanged) && await Subscription.exists(tenantFilter(request, { memberId: current._id }))) {
+      return errorResponse("This member has subscription billing history. Change membership terms through the subscription workflow.", 409, {
+        planId: "Use the member's subscription to assign or renew a plan.",
+        startDate: "Use the member's subscription to assign or renew membership dates.",
+      });
+    }
     const update = { ...memberBody };
     if (Object.hasOwn(memberBody, "trainerId")) {
       const trainerId = memberBody.trainerId || null;

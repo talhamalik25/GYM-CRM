@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { addDays, dateOnly, deriveMembershipStatus, deriveSubscriptionStatus, gymToday, isDateOnly, membershipDaysRemaining, membershipExpiryDate, resolveGymTimezone } from "../lib/subscriptionRules.js";
 import { getGymDate } from "../lib/gymDate.js";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 test("subscription dates are strict date-only values and add calendar days", () => {
   assert.equal(isDateOnly("2026-02-28"), true);
@@ -54,6 +56,16 @@ test("member status and attendance use the same gym-local calendar day", () => {
 test("upcoming memberships remain distinct and cancellation takes precedence", () => {
   assert.equal(deriveMembershipStatus("2026-11-01", "2026-10-30", 7, "2026-11-01"), "Upcoming");
   assert.equal(deriveSubscriptionStatus({ status: "cancelled", startDate: dateOnly("2026-10-01"), expiryDate: dateOnly("2026-10-30") }, "2026-10-30"), "cancelled");
+});
+
+test("subscription create and renew synchronize the tenant member's attendance term", async () => {
+  const create = await readFile(fileURLToPath(new URL("../app/api/subscriptions/route.js", import.meta.url)), "utf8");
+  const renew = await readFile(fileURLToPath(new URL("../app/api/subscriptions/[id]/renew/route.js", import.meta.url)), "utf8");
+  const cancel = await readFile(fileURLToPath(new URL("../app/api/subscriptions/[id]/route.js", import.meta.url)), "utf8");
+  assert.match(create, /already has a current subscription/);
+  assert.match(create, /syncMemberSubscriptionFields/);
+  assert.match(renew, /syncMemberSubscriptionFields/);
+  assert.match(cancel, /membershipCancelled: true|membershipCancelled: true/);
 });
 
 test("invalid dates and timezone configuration fail safely", () => {

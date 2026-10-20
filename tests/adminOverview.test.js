@@ -20,10 +20,14 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(route, /await requireSuperadminUser\(request\)/);
   assert.match(route, /Gym\.countDocuments\(\{ status: "active" \}\)/);
   assert.match(route, /Gym\.countDocuments\(\{ status: "suspended" \}\)/);
-  assert.match(route, /User\.countDocuments\(\{ isActive: true \}\)/);
+  assert.match(route, /User\.countDocuments\(\{ isActive: \{ \$ne: false \} \}\)/);
   assert.match(route, /User\.countDocuments\(\{ isActive: false \}\)/);
+  assert.match(route, /PlatformInvoice\.countDocuments\(\{ status: "open" \}\)/);
+  assert.match(route, /User\.distinct\("_id", \{ role: "staff", isActive: \{ \$ne: false \} \}\)/);
+  assert.match(route, /gymsWithoutOwner/);
+  assert.match(route, /restrictedSaaSGyms/);
   assert.match(route, /role: \{ \$in: \["superadmin", "platform_super_admin"\] \}/);
-  assert.doesNotMatch(route, /Member|Payment|Subscription|Attendance/);
+  assert.doesNotMatch(route, /Member\.countDocuments|Payment\.(?:countDocuments|aggregate)|Attendance\.(?:countDocuments|aggregate)/);
   assert.match(page, /if \(!isSuperadmin\(user\)\) redirect\("\/dashboard"\)/);
   assert.match(component, /role="alert"/);
   assert.match(component, /Loading platform counts/);
@@ -32,6 +36,8 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(shell, /const adminNav = \[/);
   assert.match(shell, /href: '\/admin\/gyms'/);
   assert.match(shell, /href: '\/admin\/users'/);
+  assert.match(shell, /isSuperadmin \? "\/admin\/users" : "\/settings"/);
+  assert.match(shell, /!isSuperadmin && <Link[^>]*href="\/settings"/);
   assert.match(shell, /pathname\.startsWith\('\/admin\/gyms'\)/);
   assert.match(dashboard, /if \(isSuperadmin\(user\)\) redirect\("\/admin"\)/);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);

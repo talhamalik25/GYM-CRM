@@ -11,6 +11,9 @@ const gymSchema = new mongoose.Schema({
     match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
   },
   status: { type: String, enum: ["active", "suspended"], default: "active", required: true, index: true },
+  // Newly provisioned workspaces can explicitly require a SaaS term while
+  // legacy gyms without this flag retain their established access behavior.
+  saasAccessRequired: { type: Boolean, default: false, required: true },
   timezone: { type: String, required: true, default: "Asia/Karachi", trim: true, maxlength: 100 },
   saasSubscription: {
     type: new mongoose.Schema({

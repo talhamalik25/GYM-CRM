@@ -21,6 +21,8 @@ const memberSchema = new mongoose.Schema({
   startDate: { type: Date, required: true },
   expiryDate: { type: Date, required: true },
   notes: { type: String, default: "", trim: true },
+  isActive: { type: Boolean, default: true, required: true },
+  membershipCancelled: { type: Boolean, default: false, required: true },
 }, { timestamps: true });
 
 memberSchema.index({ gymId: 1, phone: 1 }, { unique: true });

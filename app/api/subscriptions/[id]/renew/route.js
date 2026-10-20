@@ -4,10 +4,11 @@ import { errorResponse, successResponse } from "../../../../../lib/planApiRespon
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../../../lib/subscriptionRules";
 import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../../lib/auth";
 import Subscription from "../../../../../models/Subscription";
+import Member from "../../../../../models/Member";
 import Plan from "../../../../../models/Plan";
 import Payment from "../../../../../models/Payment";
 import generateReceiptNumber from "../../../../../lib/generateReceiptNumber";
-import { lockSubscriptionVersion, paymentLedgerErrorResponse, runLedgerTransaction } from "../../../../../lib/paymentLedger";
+import { lockSubscriptionVersion, paymentLedgerErrorResponse, runLedgerTransaction, syncMemberSubscriptionFields } from "../../../../../lib/paymentLedger";
 import { isValidIdempotencyKey } from "../../../../../lib/paymentRules";
 
 const methods = ["cash", "bank_transfer", "easypaisa", "jazzcash"];
@@ -43,6 +44,9 @@ export async function POST(request, { params }) {
     const result = await runLedgerTransaction(async (session) => {
       const subscription = await Subscription.findOne({ _id: id, gymId }).session(session);
       if (!subscription) return { missing: true };
+      const member = await Member.findOne({ _id: subscription.memberId, gymId }).session(session);
+      if (!member) throw Object.assign(new Error("The subscription member was not found in this gym."), { status: 409 });
+      if (member.isActive === false) throw Object.assign(new Error("Reactivate this member account before renewing."), { status: 409 });
       const previousTerm = subscription.renewalHistory.find((term) => term.renewalKey === key);
       if (previousTerm) {
         if (previousTerm.requestFingerprint !== requestFingerprint) throw Object.assign(new Error("This renewal request key was already used for different details."), { status: 409 });
@@ -86,6 +90,9 @@ export async function POST(request, { params }) {
         { new: true, session },
       );
       if (!updated) throw Object.assign(new Error("Subscription changed while renewing. Retry with the same request key."), { status: 409 });
+      await syncMemberSubscriptionFields(member, session, gymId, {
+        planId: plan._id, startDate: start, expiryDate: expiry, membershipCancelled: false,
+      });
       return { subscription: updated, duplicate: false };
     });
     if (result.missing) return errorResponse("Subscription was not found.", 404);

@@ -61,7 +61,7 @@ function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin }) 
     </nav>
     <div className="sidebar-bottom">
       <div className="sidebar-note"><span className="sidebar-note-mark">F</span><div><strong>Fitivo</strong><p>Gym management workspace</p></div></div>
-      <Link className="profile-button" href="/settings" onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>Account</strong><small>Signed in</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
+      <Link className="profile-button" href={isSuperadmin ? "/admin/users" : "/settings"} onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>Account</strong><small>Signed in</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
     </div>
   </>;
 }
@@ -110,7 +110,7 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
           <button type="button" className="top-account border-0 bg-transparent p-0" aria-label="Open account menu" aria-haspopup="menu" aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen((open) => !open)}><span className="avatar avatar-user top-avatar">A</span><span className="top-account-label">Account</span><ChevronDown size={15} aria-hidden="true" /></button>
           {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" role="menu" aria-label="Account menu">
             {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
-            <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
+            {!isSuperadmin && <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>}
     {isSuperadmin && <>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Platform overview</Link>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/gyms" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Gym accounts</Link>

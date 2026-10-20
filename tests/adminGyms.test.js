@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { GET as listGyms } from "../app/api/admin/gyms/route.js";
 import { GET as getGym, PATCH as updateGym } from "../app/api/admin/gyms/[id]/route.js";
 import { isSuperadmin } from "../lib/adminUserRules.js";
-import { filterAdminGyms, serializeAdminGym, validateGymStatusUpdate } from "../lib/adminGymRules.js";
+import { filterAdminGyms, serializeAdminGym, validateGymProvisioning, validateGymStatusUpdate } from "../lib/adminGymRules.js";
 
 test("gym listing filters by status and searches gym and safe owner summary fields", () => {
   const gyms = [
@@ -25,6 +25,15 @@ test("gym status updates accept only active or suspended and reject other fields
   assert.ok(validateGymStatusUpdate([]).message);
 });
 
+test("Gym provisioning validates its URL, timezone, and existing owner account", () => {
+  assert.deepEqual(validateGymProvisioning({ name: " Fitivo North ", slug: "Fitivo-North", timezone: "Asia/Karachi", ownerEmail: " OWNER@example.test " }), {
+    name: "Fitivo North", slug: "fitivo-north", timezone: "Asia/Karachi", ownerEmail: "owner@example.test",
+  });
+  assert.equal(validateGymProvisioning({ name: "x", slug: "bad slug", timezone: "not/a-zone", ownerEmail: "bad" }).fields.slug, "Use lowercase letters, numbers, and single hyphens in the Gym URL.");
+  assert.equal(validateGymProvisioning({ name: "x", slug: "bad slug", timezone: "not/a-zone", ownerEmail: "bad" }).fields.ownerEmail, "Choose an existing staff account email.");
+  assert.equal(validateGymProvisioning({ name: "Valid Gym", slug: "valid-gym", timezone: "UTC", ownerEmail: "owner@example.test", status: "suspended" }).fields.status, "This field cannot be changed.");
+});
+
 test("gym serialization exposes organization details and only supplied active owner records", () => {
   const gym = { _id: "gym-id", name: "Sample Gym", slug: "sample-gym", status: "active", timezone: "Asia/Karachi", createdAt: new Date("2026-01-01T00:00:00Z") };
   assert.deepEqual(serializeAdminGym(gym), {
@@ -38,11 +47,13 @@ test("gym serialization exposes organization details and only supplied active ow
 
 test("gym list and status endpoints require platform superadmin authorization", async () => {
   const listResponse = await listGyms(new Request("http://localhost/api/admin/gyms"));
+  const createResponse = await (await import("../app/api/admin/gyms/route.js")).POST(new Request("http://localhost/api/admin/gyms", { method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ name: "Gym", slug: "gym", timezone: "UTC", ownerEmail: "owner@example.test" }) }));
   const patchResponse = await updateGym(new Request("http://localhost/api/admin/gyms/507f1f77bcf86cd799439011", {
     method: "PATCH", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ status: "suspended" }),
   }), { params: Promise.resolve({ id: "507f1f77bcf86cd799439011" }) });
   const detailResponse = await getGym(new Request("http://localhost/api/admin/gyms/507f1f77bcf86cd799439011"), { params: Promise.resolve({ id: "507f1f77bcf86cd799439011" }) });
   assert.equal(listResponse.status, 401);
+  assert.equal(createResponse.status, 401);
   assert.equal(patchResponse.status, 401);
   assert.equal(detailResponse.status, 401);
   assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);
@@ -53,11 +64,15 @@ test("gym list and status endpoints require platform superadmin authorization", 
   const updateSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/[id]/route.js", import.meta.url)), "utf8");
   assert.equal((updateSource.match(/await requireSuperadminUser\(request\)/g) || []).length, 2);
   assert.match(updateSource, /Gym\.findById\(id\)\.select\("name slug status timezone createdAt updatedAt"\)/);
-  assert.match(updateSource, /populate\("userId", "fullName email"\)/);
+  assert.match(updateSource, /populate\(\{ path: "userId", match: \{ isActive: \{ \$ne: false \} \}, select: "fullName email" \}\)/);
   assert.doesNotMatch(updateSource, /Payment|Subscription|Member\.find/);
   assert.match(listSource, /await requireSuperadminUser\(request\)/);
   assert.match(updateSource, /await requireSuperadminUser\(request\)/);
   assert.match(listSource, /role: "gym_owner", status: "active"/);
+  assert.match(listSource, /match: \{ isActive: \{ \$ne: false \} \}/);
+  assert.match(listSource, /await requireSuperadminUser\(request\)/);
+  assert.match(listSource, /session\.withTransaction/);
+  assert.match(listSource, /GymMembership\.create\(\[\{ userId: owner\._id, gymId: gym\._id, role: "gym_owner", status: "active" \}\], \{ session \}\)/);
   assert.match(updateSource, /\$set: \{ status: validation\.status \}/);
   const gymPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/gyms/page.js", import.meta.url)), "utf8");
   const userPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/users/page.js", import.meta.url)), "utf8");

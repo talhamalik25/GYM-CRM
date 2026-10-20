@@ -37,6 +37,8 @@ export async function POST(request) {
     await Attendance.init();
     const member = await Member.findOne(tenantFilter(request, { _id: body.memberId })).populate({ path: "planId", match: tenantFilter(request), select: "name" }).lean();
     if (!member) return attendanceError("The selected member was not found.", 404, { memberId: "Choose an existing member." });
+    if (member.isActive === false) return attendanceError("This member account is inactive and cannot check in.", 409, undefined, "MEMBER_INACTIVE");
+    if (member.membershipCancelled) return attendanceError("This member's subscription has been cancelled.", 409, undefined, "MEMBERSHIP_CANCELLED");
     const now = new Date();
     const date = getGymDate(now);
     if (await Attendance.exists(tenantFilter(request, { memberId: member._id, date }))) return alreadyCheckedIn(request, member._id, date);

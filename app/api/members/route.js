@@ -26,16 +26,20 @@ export async function GET(request) {
     const params = new URL(request.url).searchParams;
     const search = (params.get("search") || "").trim();
     const status = (params.get("status") || "all").toLowerCase();
+    const accountStatus = (params.get("accountStatus") || "all").toLowerCase();
     const planId = params.get("planId") || "";
     const page = Number(params.get("page") || 1);
     const requestedLimit = Number(params.get("limit") || 10);
     if (!Number.isInteger(page) || page < 1) return errorResponse("Page must be a positive whole number.", 400, { page: "Enter a valid page number." });
     if (!Number.isInteger(requestedLimit) || requestedLimit < 1) return errorResponse("Limit must be a positive whole number.", 400, { limit: "Enter a valid page size." });
     if (!["all", "upcoming", "active", "expiring", "expired"].includes(status)) return errorResponse("Status must be upcoming, active, expiring, expired, or all.", 400, { status: "Choose a valid member status." });
+    if (!["all", "active", "inactive"].includes(accountStatus)) return errorResponse("Choose active or inactive account status.", 400, { accountStatus: "Choose a valid account status." });
     if (planId && !mongoose.isObjectIdOrHexString(planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
 
     const limit = Math.min(requestedLimit, 50);
     const filter = {};
+    if (accountStatus === "active") filter.isActive = { $ne: false };
+    if (accountStatus === "inactive") filter.isActive = false;
     if (search) {
       const expression = new RegExp(escapeRegex(search), "i");
       const phoneSearch = normalizeMemberPhone(search);

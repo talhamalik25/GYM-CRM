@@ -26,7 +26,7 @@ export async function GET(request, context) {
     const gym = await Gym.findById(id).select("name slug status timezone createdAt updatedAt").lean();
     if (!gym) return errorResponse("Gym was not found.", 404);
     const memberships = await GymMembership.find({ gymId: gym._id, role: "gym_owner", status: "active" })
-      .select("gymId userId").populate("userId", "fullName email").lean();
+      .select("gymId userId").populate({ path: "userId", match: { isActive: { $ne: false } }, select: "fullName email" }).lean();
     return successResponse(serializeAdminGym(gym, memberships));
   } catch {
     console.error("Admin gym details could not be loaded.");

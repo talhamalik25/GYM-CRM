@@ -13,7 +13,10 @@ import SaaSPlan from "../../../../models/SaaSPlan.js";
 import PlatformSetting from "../../../../models/PlatformSetting.js";
 
 function serializeGym(gym) {
-  return { id: String(gym._id), name: gym.name, slug: gym.slug, status: gym.status, subscription: serializeGymSaaSSubscription(gym.saasSubscription) };
+  const subscription = gym.saasSubscription
+    ? { ...gym.saasSubscription, status: serializeGymSaaSSubscription(gym.saasSubscription).status }
+    : null;
+  return { id: String(gym._id), name: gym.name, slug: gym.slug, status: gym.status, subscription };
 }
 
 async function userIdFromRequest(request) {

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { adminUserRoleLabel, isSuperadmin, serializeAdminUser, validateCreateUserBody } from "../lib/adminUserRules.js";
+import { adminUserRoleLabel, isSuperadmin, serializeAdminUser, validateAccountStatusChange, validateCreateUserBody } from "../lib/adminUserRules.js";
 
 test("safe user summaries include optional names and role labels recognize both superadmin aliases", () => {
   const summary = serializeAdminUser({
@@ -35,6 +35,13 @@ test("account creation cannot accept a caller-selected role", () => {
   assert.equal(isSuperadmin(null), false);
 });
 
+test("user activation changes protect the current actor and preserve an active Superadmin", () => {
+  assert.deepEqual(validateAccountStatusChange({ actorId: "a", targetId: "a", desiredActive: false, targetRole: "staff", otherActiveSuperadmins: 1 }), { status: 409, message: "You cannot deactivate your own account." });
+  assert.deepEqual(validateAccountStatusChange({ actorId: "a", targetId: "b", desiredActive: false, targetRole: "superadmin", otherActiveSuperadmins: 0 }), { status: 409, message: "At least one active Superadmin account must remain." });
+  assert.equal(validateAccountStatusChange({ actorId: "a", targetId: "b", desiredActive: false, targetRole: "superadmin", otherActiveSuperadmins: 1 }), null);
+  assert.equal(validateAccountStatusChange({ actorId: "a", targetId: "a", desiredActive: true, targetRole: "staff", otherActiveSuperadmins: 0 }), null);
+});
+
 test("admin account API and shared auth helper require superadmin authorization", async () => {
   const source = await readFile(fileURLToPath(new URL("../app/api/admin/users/route.js", import.meta.url)), "utf8");
   const auth = await readFile(fileURLToPath(new URL("../lib/auth.js", import.meta.url)), "utf8");
@@ -48,4 +55,16 @@ test("admin account API and shared auth helper require superadmin authorization"
   assert.doesNotMatch(source, /password:\s*user\.password/);
   assert.match(manager, /adminUserRoleLabel\(user\)/);
   assert.match(manager, /Name unavailable/);
+});
+
+test("account status API remains Superadmin-only and the manager exposes activation controls", async () => {
+  const source = await readFile(fileURLToPath(new URL("../app/api/admin/users/[id]/route.js", import.meta.url)), "utf8");
+  const manager = await readFile(fileURLToPath(new URL("../components/admin/admin-user-manager.js", import.meta.url)), "utf8");
+  assert.match(source, /requireSuperadminUser\(request\)/);
+  assert.match(source, /getAuthenticatedUserFromRequest\(request\)/);
+  assert.match(source, /validateAccountStatusChange/);
+  assert.match(source, /User\.findById\(id\)/);
+  assert.match(manager, /method: "PATCH"/);
+  assert.match(manager, /Deactivate/);
+  assert.match(manager, /Reactivate/);
 });

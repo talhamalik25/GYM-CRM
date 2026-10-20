@@ -24,8 +24,10 @@ test("assignment requires an active staff account and preserves the single-activ
   const resolver = await readFile(fileURLToPath(new URL("../lib/tenantContext.js", import.meta.url)), "utf8");
   assert.match(route, /requireSuperadminUser\(request\)/);
   assert.match(route, /Gym\.findOne\(\{ _id: validation\.gymId, status: "active" \}\)/);
-  assert.match(route, /User\.findOne\(\{ email: validation\.email \}\)\.select\("_id email fullName role isActive"\)/);
-  assert.match(route, /user\.role !== "staff"/);
+  assert.match(route, /User\.findOne\(\{ email: validation\.email, role: "staff", isActive: true \}\)/);
+  assert.match(route, /session\.withTransaction/);
+  assert.match(route, /lockOwnerAccountForAssignment/);
+  assert.match(route, /ensureNoConflictingGymMembership/);
   assert.match(route, /GymMembership\.find\(\{ userId: user\._id, status: "active" \}\)/);
   assert.match(route, /activeMemberships\.length === 1[\s\S]*role === "gym_owner"/);
   assert.match(route, /role: "gym_owner", status: "active"/);

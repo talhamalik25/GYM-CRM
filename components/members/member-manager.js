@@ -11,7 +11,7 @@ import Input from "../ui/input";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 import Table from "../ui/table";
-import { listMembersApi } from "../../lib/membersService";
+import { listMembersApi, setMemberActiveApi } from "../../lib/membersService";
 import { listPlans } from "../../lib/plansService";
 
 const pageSize = 8;
@@ -91,6 +91,18 @@ export default function MemberManager() {
     setPage(1);
   };
 
+  async function toggleMemberActive(member) {
+    const nextActive = !member.isActive;
+    const action = nextActive ? "reactivate" : "deactivate";
+    if (!window.confirm(`${action[0].toUpperCase()}${action.slice(1)} ${member.name}? Existing membership and payment history will be kept.`)) return;
+    try {
+      await setMemberActiveApi(member.id, nextActive);
+      setRefreshKey((key) => key + 1);
+    } catch (error) {
+      setLoadError(error.message || `Could not ${action} this member.`);
+    }
+  }
+
   const columns = [
     {
       key: "name",
@@ -107,6 +119,7 @@ export default function MemberManager() {
     { key: "startDate", label: "Start date", render: (member) => formatDate(member.startDate) },
     { key: "expiryDate", label: "Expiry date", render: (member) => formatDate(member.expiryDate) },
     { key: "status", label: "Status", render: (member) => <Badge tone={statusTone(member.status)}>{member.status}</Badge> },
+    { key: "account", label: "Account", render: (member) => <Badge tone={member.isActive ? "success" : "neutral"}>{member.isActive ? "Active" : "Inactive"}</Badge> },
     {
       key: "actions",
       label: "Actions",
@@ -114,6 +127,7 @@ export default function MemberManager() {
         <div className="flex items-center gap-3">
           <Link className="font-medium text-ink-muted hover:text-brand" href={"/members/" + member.id}>View</Link>
           <Link className="font-medium text-ink-muted hover:text-brand" href={"/members/" + member.id + "/edit"}>Edit</Link>
+          <button className="font-medium text-ink-muted hover:text-brand" type="button" onClick={() => toggleMemberActive(member)}>{member.isActive ? "Deactivate" : "Reactivate"}</button>
         </div>
       ),
     },

@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { GET as adminBilling, POST as updateAdminBilling } from "../app/api/admin/billing/route.js";
 import { GET as gymBilling } from "../app/api/gym/billing/route.js";
+import { POST as processSaaSExpiry } from "../app/api/cron/saas-expiry/route.js";
 import { addBillingInterval, expiredSaaSPaidPeriodFilter, expiredSaaSTrialFilter, invoiceMatchesPendingSubscription, serializeGymSaaSSubscription, validateInvoiceVoid, validateManualReconciliation, validatePlatformSettings, validateSaaSPlanBody } from "../lib/platformBillingRules.js";
 
 test("SaaS plans validate prices, intervals, and only supported feature limits", () => {
@@ -55,11 +56,24 @@ test("platform and Gym SaaS billing APIs deny unauthenticated requests before da
   assert.equal(getOwner.status, 401);
 });
 
+test("SaaS expiry processing requires its configured Bearer secret before database access", async () => {
+  const previousSecret = process.env.SAAS_EXPIRY_CRON_SECRET;
+  process.env.SAAS_EXPIRY_CRON_SECRET = "x".repeat(40);
+  try {
+    const response = await processSaaSExpiry(new Request("http://localhost/api/cron/saas-expiry", { method: "POST" }));
+    assert.equal(response.status, 401);
+  } finally {
+    if (previousSecret === undefined) delete process.env.SAAS_EXPIRY_CRON_SECRET;
+    else process.env.SAAS_EXPIRY_CRON_SECRET = previousSecret;
+  }
+});
+
 test("platform billing requires superadmin and owner billing uses the authenticated Gym context", async () => {
   const adminSource = await readFile(fileURLToPath(new URL("../app/api/admin/billing/route.js", import.meta.url)), "utf8");
   const ownerSource = await readFile(fileURLToPath(new URL("../app/api/gym/billing/route.js", import.meta.url)), "utf8");
   assert.equal((adminSource.match(/await requireSuperadminUser\(request\)/g) || []).length, 2);
   assert.match(ownerSource, /allowedRoles: \["gym_owner"\]/);
+  assert.match(ownerSource, /allowSaaSInactive: true, allowSuspendedGym: true/);
   assert.match(ownerSource, /getRequestGymId\(request\)/);
   assert.doesNotMatch(ownerSource, /request\.json|searchParams|get\("gymId"\)/);
 });

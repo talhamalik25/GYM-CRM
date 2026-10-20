@@ -19,7 +19,7 @@ export async function GET(request) {
     await connectToDatabase();
     const scope = { gymId: getRequestGymId(request) };
     const [members, plans, trainers] = await Promise.all([
-      Member.countDocuments(scope),
+      Member.countDocuments({ ...scope, isActive: { $ne: false } }),
       Plan.countDocuments(scope),
       Trainer.countDocuments(scope),
     ]);
