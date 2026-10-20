@@ -9,6 +9,7 @@ import Trainer from "../../../models/Trainer";
 import { isTrainerId, validateTrainerAssignment } from "../../../lib/trainerApiHelpers";
 import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 import { gymToday } from "../../../lib/subscriptionRules.js";
+import { enforceSaaSCapacity } from "../../../lib/saasCapacity.js";
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -74,6 +75,8 @@ export async function POST(request) {
     if (!mongoose.isObjectIdOrHexString(memberBody.planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
 
     await connectToDatabase();
+    const limitResponse = await enforceSaaSCapacity(request, "members", Member);
+    if (limitResponse) return limitResponse;
     const plan = await Plan.findOne(tenantFilter(request, { _id: memberBody.planId }));
     if (!plan) return errorResponse("The selected plan was not found.", 400, { planId: "Choose an available plan." });
     if (!plan.isActive) return errorResponse("Only active plans can be assigned to a member.", 400, { planId: "Choose an active plan." });

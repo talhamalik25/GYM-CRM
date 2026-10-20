@@ -48,6 +48,7 @@ export default function AdminOverview() {
     {!loading && <section className="mt-7 grid gap-4 sm:grid-cols-2">
       <Card className="p-5"><h2 className="font-semibold text-ink">Gym management</h2><p className="mt-2 text-sm text-ink-muted">Review workspaces, owner assignments, and access status.</p><Link className="mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/gyms">Manage Gyms →</Link></Card>
       <Card className="p-5"><h2 className="font-semibold text-ink">User administration</h2><p className="mt-2 text-sm text-ink-muted">Review account status and create staff accounts.</p><Link className="mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/users">Manage accounts →</Link></Card>
+      <Card className="p-5"><h2 className="font-semibold text-ink">Fitivo subscriptions</h2><p className="mt-2 text-sm text-ink-muted">Configure SaaS tiers, Gym subscription terms, and manual invoices.</p><Link className="mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/billing">Manage plans &amp; billing →</Link></Card>
     </section>}
   </>;
 }

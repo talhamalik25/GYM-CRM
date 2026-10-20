@@ -4,6 +4,7 @@ import { handleTrainerError, serializeTrainer, validateTrainerBody } from "../..
 import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
 import Trainer from "../../../models/Trainer";
 import Member from "../../../models/Member";
+import { enforceSaaSCapacity } from "../../../lib/saasCapacity.js";
 
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -35,7 +36,10 @@ export async function POST(request) {
   try {
     const body = await request.json(); const validation = validateTrainerBody(body);
     if (validation) return errorResponse(validation.message, 400, validation.fields);
-    await connectToDatabase(); await Trainer.init();
+    await connectToDatabase();
+    const limitResponse = await enforceSaaSCapacity(request, "trainers", Trainer);
+    if (limitResponse) return limitResponse;
+    await Trainer.init();
     const trainer = await Trainer.create({ gymId: getRequestGymId(request), fullName: body.fullName.trim(), email: body.email.trim().toLowerCase(), phone: normalizePhone(body.phone), specialization: body.specialization.trim(), joiningDate: new Date(`${body.joiningDate}T00:00:00.000Z`), status: body.status || "active", profileImage: body.profileImage?.trim() || "", notes: body.notes?.trim() || "" });
     return successResponse(serializeTrainer(trainer), 201);
   } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }

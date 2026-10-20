@@ -13,12 +13,14 @@ const nav = [
   { label: 'Trainers', href: '/trainers', Icon: UserRound },
   { label: 'Reports', href: '/reports', Icon: ChartNoAxesColumn },
   { label: 'Settings', href: '/settings', Icon: Settings },
+  { label: 'Fitivo plan', href: '/billing', Icon: CreditCard },
   { label: 'Staff', href: '/staff', Icon: Users },
 ];
 const adminNav = [
   { label: 'Platform overview', href: '/admin', Icon: Activity },
   { label: 'Gym accounts', href: '/admin/gyms', Icon: Dumbbell },
   { label: 'User accounts', href: '/admin/users', Icon: Users },
+  { label: 'Plans & billing', href: '/admin/billing', Icon: CreditCard },
 ];
 
 function getPageTitle(pathname) {
@@ -27,20 +29,22 @@ function getPageTitle(pathname) {
   if (pathname.startsWith('/trainers')) return 'Trainers';
   if (pathname.startsWith('/admin/gyms')) return 'Gym accounts';
   if (pathname.startsWith('/admin/users')) return 'User accounts';
+  if (pathname.startsWith('/admin/billing')) return 'Plans & billing';
+  if (pathname.startsWith('/billing')) return 'Fitivo plan';
   if (pathname.startsWith('/admin')) return 'Platform overview';
   return nav.find(({ href }) => href === pathname)?.label || ({
     '/reports': 'Reports',
     '/settings': 'Settings',
     '/trainers': 'Trainers',
     '/workouts': 'Workouts',
-    '/admin/users': 'User accounts',
+  '/admin/users': 'User accounts',
     '/admin/gyms': 'Gym accounts',
     '/admin': 'Platform overview',
   }[pathname] || 'Dashboard');
 }
 
 function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin }) {
-  const links = isSuperadmin ? adminNav : nav.filter(({ href }) => (href !== '/staff' || canManageStaff) && (href !== '/settings' || canManageStaff));
+  const links = isSuperadmin ? adminNav : nav.filter(({ href }) => (href !== '/staff' || canManageStaff) && (href !== '/settings' || canManageStaff) && (href !== '/billing' || canManageStaff));
   return <>
     <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="Fitivo home">
       <span className="fitivo-wordmark">Fitivo</span>
@@ -107,10 +111,11 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
           {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" role="menu" aria-label="Account menu">
             {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
             <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
-            {isSuperadmin && <>
+    {isSuperadmin && <>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Platform overview</Link>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/gyms" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Gym accounts</Link>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/users" role="menuitem" onClick={() => setAccountMenuOpen(false)}>User accounts</Link>
+              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/billing" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Plans &amp; billing</Link>
             </>}
             <button type="button" className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-canvas" role="menuitem" onClick={handleLogout}>Log out</button>
           </div>}
