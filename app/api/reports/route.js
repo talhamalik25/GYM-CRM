@@ -25,22 +25,39 @@ export async function GET(request) {
     endOfToday.setUTCDate(endOfToday.getUTCDate() + 1);
     const monthExpression = { $dateToString: { format: "%Y-%m", date: "$paymentDate" } };
     const memberMonthExpression = { $dateToString: { format: "%Y-%m", date: "$createdAt" } };
+    const todayDate = dateOnly(today);
+    const expiringThrough = dateOnly(today);
+    expiringThrough.setUTCDate(expiringThrough.getUTCDate() + 7);
     const [payments, members, attendance, activeSubscriptions] = await Promise.all([
       Payment.aggregate([
         { $match: { gymId, paymentDate: { $gte: first.start, $lt: endOfToday } } },
         { $group: { _id: monthExpression, total: { $sum: "$amountPaid" } } },
       ]),
       Member.aggregate([
-        { $match: { gymId, createdAt: { $gte: first.start, $lte: now } } },
-        { $group: { _id: memberMonthExpression, count: { $sum: 1 } } },
+        { $match: { gymId } },
+        { $facet: {
+          growth: [
+            { $match: { createdAt: { $gte: first.start, $lte: now } } },
+            { $group: { _id: memberMonthExpression, count: { $sum: 1 } } },
+          ],
+          membershipStatuses: [
+            { $group: { _id: { $switch: { branches: [
+              { case: { $eq: ["$membershipCancelled", true] }, then: "cancelled" },
+              { case: { $gt: ["$startDate", todayDate] }, then: "upcoming" },
+              { case: { $lt: ["$expiryDate", todayDate] }, then: "expired" },
+              { case: { $lte: ["$expiryDate", expiringThrough] }, then: "expiring" },
+            ], default: "active" } }, count: { $sum: 1 } } },
+          ],
+        } },
       ]),
       Attendance.aggregate([
         { $match: { gymId, date: { $gte: `${first.month}-01`, $lte: today } } },
         { $group: { _id: { $substrBytes: ["$date", 0, 7] }, count: { $sum: 1 } } },
       ]),
-      Subscription.countDocuments({ gymId, status: { $ne: "cancelled" }, startDate: { $lte: dateOnly(today) }, expiryDate: { $gte: dateOnly(today) } }),
+      Subscription.countDocuments({ gymId, status: { $ne: "cancelled" }, startDate: { $lte: todayDate }, expiryDate: { $gte: todayDate } }),
     ]);
-    return successResponse(buildGymReport({ monthWindows, payments, members, attendance, activeSubscriptions }));
+    const memberAnalytics = members[0] || { growth: [], membershipStatuses: [] };
+    return successResponse(buildGymReport({ monthWindows, payments, members: memberAnalytics.growth, attendance, activeSubscriptions, membershipStatuses: memberAnalytics.membershipStatuses }));
   } catch {
     console.error("Gym reports could not be loaded.");
     return errorResponse("Could not load reports. Please try again.", 503);

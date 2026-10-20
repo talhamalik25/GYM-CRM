@@ -7,6 +7,7 @@ import Button from "../ui/button";
 import Card from "../ui/card";
 import PageHeading from "../ui/page-heading";
 import StatusBadge from "../ui/status-badge";
+import OwnerDashboardAnalytics from "./owner-dashboard-analytics";
 import { getOwnerSetupSteps } from "../../lib/ownerDashboardRules.js";
 
 const features = [
@@ -57,7 +58,7 @@ export default function OwnerDashboard() {
     ["Trainers", data.counts.trainers, "/trainers"],
   ];
 
-  return <div className="space-y-6">
+  return <div className="dashboard-page owner-dashboard">
     <PageHeading eyebrow="GYM OWNER WORKSPACE" title={data.gym.name || "Your gym"} description={`${data.gym.slug || "Gym workspace"} · ${data.gym.timezone || "Timezone not set"}`} action={<StatusBadge>{data.gym.status === "active" ? "Active" : data.gym.status === "suspended" ? "Suspended" : "Unavailable"}</StatusBadge>} />
 
     {!setupComplete && <Card className="p-5 md:p-6">
@@ -71,16 +72,17 @@ export default function OwnerDashboard() {
       </ol>
     </Card>}
 
-    <section aria-label="Gym overview" className="grid gap-4 sm:grid-cols-3">
-      {metrics.map(([label, value, href]) => <Link key={label} href={href} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"><Card className="p-5"><p className="text-sm text-ink-muted">{label}</p><p className="mt-2 text-2xl font-semibold text-ink">{Number(value).toLocaleString("en-PK")}</p></Card></Link>)}
+    <section aria-label="Gym overview" className="dashboard-metrics-grid owner-metrics-grid">
+      {metrics.map(([label, value, href]) => <Link key={label} href={href} className="dashboard-metric-link block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"><Card className="dashboard-metric-card p-5"><p className="dashboard-metric-label text-sm text-ink-muted">{label}</p><p className="dashboard-metric-value mt-2 text-2xl font-semibold text-ink">{Number(value).toLocaleString("en-PK")}</p><span className="dashboard-metric-detail">View {label.toLowerCase()}</span></Card></Link>)}
     </section>
 
-    <Card className="p-5 md:p-6">
-      <h2 className="text-base font-semibold text-ink">Gym management</h2>
-      <p className="mt-1 text-sm text-ink-muted">Go to the tools for your workspace.</p>
-      <nav aria-label="Gym management" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map(({ label, href, Icon }) => <Link key={href} href={href} className="flex items-center gap-3 rounded-lg border border-line p-4 text-sm font-medium text-ink hover:border-brand hover:text-brand"><Icon size={19} aria-hidden="true" />{label}<span className="ml-auto" aria-hidden="true">→</span></Link>)}
+    <Card className="dashboard-section-card p-5 md:p-6">
+      <div className="dashboard-section-heading"><h2>Gym management</h2><p>Go to the tools for your workspace.</p></div>
+      <nav aria-label="Gym management" className="dashboard-owner-actions mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {features.map(({ label, href, Icon }) => <Link key={href} href={href} className="dashboard-owner-action flex items-center gap-3 rounded-lg border border-line p-4 text-sm font-medium text-ink hover:border-brand hover:text-brand"><Icon size={19} aria-hidden="true" />{label}<span className="ml-auto" aria-hidden="true">→</span></Link>)}
       </nav>
     </Card>
+
+    <OwnerDashboardAnalytics />
   </div>;
 }

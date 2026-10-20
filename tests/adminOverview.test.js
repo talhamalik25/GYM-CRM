@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { GET as getOverview } from "../app/api/admin/overview/route.js";
 import { isSuperadmin } from "../lib/adminUserRules.js";
+import { buildPlatformAnalytics, getPlatformAnalyticsMonths } from "../lib/adminAnalyticsRules.js";
 
 test("platform overview API rejects unauthenticated requests before reading platform data", async () => {
   const response = await getOverview(new Request("http://localhost/api/admin/overview"));
@@ -31,8 +32,12 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(page, /if \(!isSuperadmin\(user\)\) redirect\("\/dashboard"\)/);
   assert.match(component, /role="alert"/);
   assert.match(component, /Loading platform counts/);
+  assert.match(component, /Try again/);
   assert.match(component, /No Gym workspaces have been registered yet/);
   assert.match(component, /Superadmin accounts/);
+  assert.match(component, /SaaS subscription status/);
+  assert.match(component, /Fitivo invoices and collections/);
+  assert.match(component, /Gym onboarding/);
   assert.match(shell, /const adminNav = \[/);
   assert.match(shell, /href: '\/admin\/gyms'/);
   assert.match(shell, /href: '\/admin\/users'/);
@@ -43,4 +48,30 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.equal(isSuperadmin({ role: "superadmin" }), true);
   assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);
   assert.equal(isSuperadmin({ role: "gym_owner" }), false);
+});
+
+test("platform analytics separates Gym SaaS invoices from manually verified collections", () => {
+  const monthWindows = getPlatformAnalyticsMonths(new Date("2026-10-20T12:00:00.000Z"));
+  assert.deepEqual(monthWindows.map(({ month }) => month), ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]);
+  const analytics = buildPlatformAnalytics({
+    monthWindows,
+    gymStatuses: [{ _id: "active", count: 3 }],
+    saasStatuses: [{ _id: "active", count: 2 }, { _id: "expired", count: 1 }],
+    onboarding: [{ _id: "2026-10", count: 2 }],
+    invoiceTrends: [{ _id: "2026-10", invoiced: 18000, collected: 12000 }],
+  });
+  assert.deepEqual(analytics.gymStatus, { active: 3, suspended: 0 });
+  assert.deepEqual(analytics.saasStatus, { trialing: 0, active: 2, past_due: 0, expired: 1, cancelled: 0, unconfigured: 0 });
+  assert.deepEqual(analytics.months[5], { month: "2026-10", gymsOnboarded: 2, invoiced: 18000, collected: 12000 });
+  assert.equal(analytics.months[0].collected, 0);
+});
+
+test("Superadmin analytics requires platform authorization and counts collection only from paid reconciled invoices", async () => {
+  const route = await readFile(fileURLToPath(new URL("../app/api/admin/overview/route.js", import.meta.url)), "utf8");
+  assert.match(route, /await requireSuperadminUser\(request\)/);
+  assert.match(route, /PlatformInvoice\.aggregate/);
+  assert.match(route, /status: "paid", paidAt:/);
+  assert.match(route, /\$sum: "\$amountDue"/);
+  assert.match(route, /saasSubscription\.periodEnd/);
+  assert.match(route, /Gym\.aggregate\(\[\{ \$facet:/);
 });

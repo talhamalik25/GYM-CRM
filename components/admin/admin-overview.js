@@ -3,12 +3,23 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Card from "../ui/card";
+import Button from "../ui/button";
+import AnalyticsBarChart from "../dashboard/analytics-bar-chart";
+
+function monthLabel(value) {
+  const [year, month] = value.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-PK", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+function money(value) {
+  return `Rs. ${Number(value || 0).toLocaleString("en-PK")}`;
+}
 
 function Metric({ label, value, detail }) {
-  return <Card className="p-5">
-    <p className="text-sm text-ink-muted">{label}</p>
-    <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">{value.toLocaleString()}</p>
-    <p className="mt-2 text-xs text-ink-subtle">{detail}</p>
+  return <Card className="dashboard-metric-card p-5">
+    <p className="dashboard-metric-label text-sm text-ink-muted">{label}</p>
+    <p className="dashboard-metric-value mt-3 text-3xl font-semibold tracking-tight text-ink">{value.toLocaleString()}</p>
+    <p className="dashboard-metric-detail mt-2 text-xs text-ink-subtle">{detail}</p>
   </Card>;
 }
 
@@ -16,6 +27,7 @@ export default function AdminOverview() {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,11 +42,13 @@ export default function AdminOverview() {
       .catch((requestError) => { if (!cancelled) setError(requestError.message || "Could not load platform overview."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [retryCount]);
 
-  return <>
-    <section aria-label="Platform summary" className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {loading ? ["Gyms", "Active gyms", "Suspended gyms", "User accounts", "Active accounts", "Inactive accounts", "Superadmin accounts"].map((label) => <Card key={label} className="p-5"><p className="text-sm text-ink-muted">{label}</p><p className="mt-3 text-3xl font-semibold text-ink" aria-label={`Loading ${label.toLowerCase()}`}>—</p><p className="mt-2 text-xs text-ink-subtle" role="status">Loading platform counts…</p></Card>) : error ? <Card className="p-5 sm:col-span-2 xl:col-span-4"><p className="text-sm text-error" role="alert">{error}</p></Card> : <>
+  return <div className="admin-dashboard">
+    <section aria-label="Platform summary" className="dashboard-platform-section">
+      <div className="dashboard-section-heading"><h2>Platform footprint</h2><p>Current Gym workspace and user account totals.</p></div>
+      <div className="dashboard-metrics-grid dashboard-platform-metrics">
+      {loading ? ["Gyms", "Active gyms", "Suspended gyms", "User accounts", "Active accounts", "Inactive accounts", "Superadmin accounts"].map((label) => <Card key={label} className="dashboard-metric-card dashboard-metric-loading p-5"><p className="dashboard-metric-label text-sm text-ink-muted">{label}</p><p className="dashboard-metric-value mt-3 text-3xl font-semibold text-ink" aria-label={`Loading ${label.toLowerCase()}`}>—</p><p className="dashboard-metric-detail mt-2 text-xs text-ink-subtle" role="status">Loading platform counts…</p></Card>) : error ? <Card className="dashboard-state-card p-5"><p className="text-sm text-error" role="alert">{error}</p><Button className="mt-4" variant="secondary" onClick={() => { setError(""); setLoading(true); setRetryCount((count) => count + 1); }}>Try again</Button></Card> : <>
         <Metric label="Gyms" value={overview.gyms.total} detail="Registered Gym workspaces" />
         <Metric label="Active gyms" value={overview.gyms.active} detail="Workspaces not administratively suspended" />
         <Metric label="Suspended gyms" value={overview.gyms.suspended} detail="Workspaces with access suspended" />
@@ -43,17 +57,61 @@ export default function AdminOverview() {
         <Metric label="Inactive accounts" value={overview.userAccounts.inactive} detail="Accounts disabled from signing in" />
         <Metric label="Superadmin accounts" value={overview.userAccounts.platformSuperadmins} detail="Accounts with platform-wide administration role" />
       </>}
+      </div>
     </section>
     {!loading && !error && overview.gyms.total === 0 && <Card className="mt-5 p-5"><p className="text-sm text-ink-muted">No Gym workspaces have been registered yet.</p></Card>}
-    {!loading && !error && <section aria-label="Operational attention" className="mt-5 grid gap-4 sm:grid-cols-3">
+    {!loading && !error && <section aria-label="Operational attention" className="dashboard-section">
+      <div className="dashboard-section-heading"><h2>Operational attention</h2><p>Items that may need platform follow-up.</p></div>
       <Metric label="Gyms without an owner" value={overview.operations.gymsWithoutOwner} detail="Workspaces needing owner assignment" />
       <Metric label="Open Fitivo invoices" value={overview.operations.openInvoices} detail="Awaiting verified manual reconciliation" />
       <Metric label="Restricted SaaS subscriptions" value={overview.operations.restrictedSaaSGyms} detail="Past due, cancelled, or beyond term dates" />
     </section>}
-    {!loading && !error && <section className="mt-7 grid gap-4 sm:grid-cols-2">
-      <Card className="p-5"><h2 className="font-semibold text-ink">Gym management</h2><p className="mt-2 text-sm text-ink-muted">Review workspaces, owner assignments, and access status.</p><Link className="mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/gyms">Manage Gyms →</Link></Card>
-      <Card className="p-5"><h2 className="font-semibold text-ink">User administration</h2><p className="mt-2 text-sm text-ink-muted">Review account status and create staff accounts.</p><Link className="mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/users">Manage accounts →</Link></Card>
-      <Card className="p-5"><h2 className="font-semibold text-ink">Fitivo subscriptions</h2><p className="mt-2 text-sm text-ink-muted">Configure SaaS tiers, Gym subscription terms, and manual invoices.</p><Link className="mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/billing">Manage plans &amp; billing →</Link></Card>
+    {loading && <section aria-label="Platform analytics" className="dashboard-analytics-grid admin-analytics-grid" role="status">
+      {["Gym status", "SaaS subscription status", "Fitivo invoices and collections", "Gym onboarding"].map((label) => <Card className="dashboard-chart-card dashboard-chart-loading p-5" key={label}><h3>{label}</h3><div className="dashboard-chart-skeleton" /></Card>)}
     </section>}
-  </>;
+    {!loading && !error && <section aria-label="Platform analytics" className="dashboard-analytics-grid admin-analytics-grid">
+      <AnalyticsBarChart
+        title="Gym status"
+        description="Administrative access state across all workspaces"
+        categories={[{ key: "active", label: "Active", color: "#16834a" }, { key: "suspended", label: "Suspended", color: "#9e3b58" }]}
+        series={[{ key: "gyms", label: "Gyms", color: "#486b9b", values: overview.analytics.gymStatus }]}
+        emptyMessage="No Gym workspaces have been registered yet."
+      />
+      <AnalyticsBarChart
+        title="SaaS subscription status"
+        description="Subscription state includes terms that have passed their end date"
+        categories={[{ key: "trialing", label: "Trialing", color: "#486b9b" }, { key: "active", label: "Active", color: "#16834a" }, { key: "past_due", label: "Past due", color: "#a96200" }, { key: "expired", label: "Expired", color: "#9e3b58" }, { key: "cancelled", label: "Cancelled", color: "#777680" }, { key: "unconfigured", label: "Unconfigured", color: "#929299" }]}
+        series={[{ key: "subscriptions", label: "Gyms", color: "#486b9b", values: overview.analytics.saasStatus }]}
+        emptyMessage="No Gym workspaces have been registered yet."
+      />
+      <AnalyticsBarChart
+        title="Fitivo invoices and collections"
+        description="Invoice amounts issued versus manually verified collections · last six months"
+        categories={overview.analytics.months.map((month) => ({ key: month.month, label: monthLabel(month.month) }))}
+        series={[
+          { key: "invoiced", label: "Invoiced", color: "#a96200", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.invoiced])) },
+          { key: "collected", label: "Collected", color: "#16834a", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.collected])) },
+        ]}
+        formatValue={money}
+        className="dashboard-chart-wide"
+        emptyMessage="No non-zero Fitivo invoice amounts were issued in this period."
+      />
+      <AnalyticsBarChart
+        title="Gym onboarding"
+        description="New Gym workspaces by creation month · last six months"
+        categories={overview.analytics.months.map((month) => ({ key: month.month, label: monthLabel(month.month) }))}
+        series={[{ key: "gyms-onboarded", label: "New Gyms", color: "#486b9b", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.gymsOnboarded])) }]}
+        className="dashboard-chart-wide"
+        emptyMessage="No Gym workspaces were created in this period."
+      />
+    </section>}
+    {!loading && !error && <section aria-label="Platform management" className="dashboard-section dashboard-management-section">
+      <div className="dashboard-section-heading"><h2>Platform management</h2><p>Shortcuts to the main administration workflows.</p></div>
+      <div className="dashboard-actions-grid">
+        <Card className="dashboard-action-card p-5"><h3 className="font-semibold text-ink">Gym management</h3><p className="mt-2 text-sm text-ink-muted">Review workspaces, owner assignments, and access status.</p><Link className="dashboard-action-link mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/gyms">Manage Gyms →</Link></Card>
+        <Card className="dashboard-action-card p-5"><h3 className="font-semibold text-ink">User administration</h3><p className="mt-2 text-sm text-ink-muted">Review account status and create staff accounts.</p><Link className="dashboard-action-link mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/users">Manage accounts →</Link></Card>
+        <Card className="dashboard-action-card p-5"><h3 className="font-semibold text-ink">Fitivo subscriptions</h3><p className="mt-2 text-sm text-ink-muted">Configure SaaS tiers, Gym subscription terms, and manual invoices.</p><Link className="dashboard-action-link mt-4 inline-block text-sm font-medium text-brand hover:underline" href="/admin/billing">Manage plans &amp; billing →</Link></Card>
+      </div>
+    </section>}
+  </div>;
 }

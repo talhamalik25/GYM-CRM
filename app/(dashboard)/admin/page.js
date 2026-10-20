@@ -9,8 +9,8 @@ export default async function AdminOverviewPage() {
   if (!user) redirect("/login");
   if (!isSuperadmin(user)) redirect("/dashboard");
 
-  return <>
+  return <div className="admin-dashboard-page">
     <PageHeading eyebrow="SUPERADMIN" title="Platform overview" description="A current snapshot of Fitivo Gym workspaces and user accounts." />
     <AdminOverview />
-  </>;
+  </div>;
 }
