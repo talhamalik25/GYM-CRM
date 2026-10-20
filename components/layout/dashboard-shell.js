@@ -12,10 +12,18 @@ const nav = [
   { label: 'Attendance', href: '/attendance', Icon: CalendarCheck2 },
   { label: 'Staff', href: '/staff', Icon: Users },
 ];
+const adminNav = [
+  { label: 'Platform overview', href: '/admin', Icon: Activity },
+  { label: 'Gym accounts', href: '/admin/gyms', Icon: Dumbbell },
+  { label: 'User accounts', href: '/admin/users', Icon: Users },
+];
 
 function getPageTitle(pathname) {
   if (pathname.startsWith('/memberships')) return 'Plans';
   if (pathname.startsWith('/members')) return 'Members';
+  if (pathname.startsWith('/admin/gyms')) return 'Gym accounts';
+  if (pathname.startsWith('/admin/users')) return 'User accounts';
+  if (pathname.startsWith('/admin')) return 'Platform overview';
   return nav.find(({ href }) => href === pathname)?.label || ({
     '/reports': 'Reports',
     '/settings': 'Settings',
@@ -27,16 +35,17 @@ function getPageTitle(pathname) {
   }[pathname] || 'Dashboard');
 }
 
-function SidebarContent({ pathname, onNavigate, canManageStaff }) {
+function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin }) {
+  const links = isSuperadmin ? adminNav : nav.filter(({ href }) => href !== '/staff' || canManageStaff);
   return <>
     <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="Fitivo home">
       <span className="fitivo-wordmark">Fitivo</span>
     </Link>
-    <div className="workspace-switcher"><span className="workspace-mark">G</span><span><small>WORKSPACE</small><strong>Gym workspace</strong></span><ChevronDown className="workspace-chevron" size={15} aria-hidden="true" /></div>
-    <p className="nav-label">MANAGEMENT</p>
+    <div className="workspace-switcher"><span className="workspace-mark">{isSuperadmin ? 'F' : 'G'}</span><span><small>{isSuperadmin ? 'PLATFORM' : 'WORKSPACE'}</small><strong>{isSuperadmin ? 'Fitivo platform' : 'Gym workspace'}</strong></span>{!isSuperadmin && <ChevronDown className="workspace-chevron" size={15} aria-hidden="true" />}</div>
+    <p className="nav-label">{isSuperadmin ? 'SUPERADMIN' : 'MANAGEMENT'}</p>
     <nav aria-label="Main navigation" className="side-nav">
-      {nav.filter(({ href }) => href !== '/staff' || canManageStaff).map(({ label, href, Icon }) => {
-        const active = pathname === href || (href === '/members' && pathname.startsWith('/members/')) || (href === '/memberships' && pathname.startsWith('/memberships/'));
+      {links.map(({ label, href, Icon }) => {
+        const active = pathname === href || (href !== '/admin' && isSuperadmin && pathname.startsWith(`${href}/`)) || (!isSuperadmin && ((href === '/members' && pathname.startsWith('/members/')) || (href === '/memberships' && pathname.startsWith('/memberships/'))));
         return <Link key={href} href={href} onClick={onNavigate} className={`nav-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
           <Icon className="nav-icon" size={18} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span>
         </Link>;
@@ -80,11 +89,11 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
     }
   }
   return <div className="app-shell">
-    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} canManageStaff={canManageStaff} /></aside>
+    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} /></aside>
     {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} />}
     <aside className={`sidebar mobile-sidebar${menuOpen ? ' mobile-sidebar-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!menuOpen}>
       <div className="mobile-sidebar-heading"><span>Navigation</span><button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
-      <SidebarContent pathname={pathname} canManageStaff={canManageStaff} onNavigate={() => setMenuOpen(false)} />
+      <SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} onNavigate={() => setMenuOpen(false)} />
     </aside>
     <div className="main-column">
       <header className="topbar">

@@ -14,6 +14,7 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   const route = await readFile(fileURLToPath(new URL("../app/api/admin/overview/route.js", import.meta.url)), "utf8");
   const page = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/page.js", import.meta.url)), "utf8");
   const component = await readFile(fileURLToPath(new URL("../components/admin/admin-overview.js", import.meta.url)), "utf8");
+  const shell = await readFile(fileURLToPath(new URL("../components/layout/dashboard-shell.js", import.meta.url)), "utf8");
   const dashboard = await readFile(fileURLToPath(new URL("../app/(dashboard)/dashboard/page.js", import.meta.url)), "utf8");
 
   assert.match(route, /await requireSuperadminUser\(request\)/);
@@ -28,6 +29,10 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(component, /Loading platform counts/);
   assert.match(component, /No Gym workspaces have been registered yet/);
   assert.match(component, /Superadmin accounts/);
+  assert.match(shell, /const adminNav = \[/);
+  assert.match(shell, /href: '\/admin\/gyms'/);
+  assert.match(shell, /href: '\/admin\/users'/);
+  assert.match(shell, /pathname\.startsWith\('\/admin\/gyms'\)/);
   assert.match(dashboard, /if \(isSuperadmin\(user\)\) redirect\("\/admin"\)/);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);
   assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);

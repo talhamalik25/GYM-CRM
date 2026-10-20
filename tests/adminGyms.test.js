@@ -5,7 +5,18 @@ import { fileURLToPath } from "node:url";
 import { GET as listGyms } from "../app/api/admin/gyms/route.js";
 import { GET as getGym, PATCH as updateGym } from "../app/api/admin/gyms/[id]/route.js";
 import { isSuperadmin } from "../lib/adminUserRules.js";
-import { serializeAdminGym, validateGymStatusUpdate } from "../lib/adminGymRules.js";
+import { filterAdminGyms, serializeAdminGym, validateGymStatusUpdate } from "../lib/adminGymRules.js";
+
+test("gym listing filters by status and searches gym and safe owner summary fields", () => {
+  const gyms = [
+    { name: "Northside Fitness", slug: "northside", status: "active", owners: [{ name: "Amina Khan", email: "amina@example.test" }] },
+    { name: "Harbor Club", slug: "harbor-club", status: "suspended", owners: [] },
+  ];
+  assert.deepEqual(filterAdminGyms(gyms, { query: " AMINA@EXAMPLE.TEST " }), [gyms[0]]);
+  assert.deepEqual(filterAdminGyms(gyms, { query: "NORTH", status: "active" }), [gyms[0]]);
+  assert.deepEqual(filterAdminGyms(gyms, { status: "suspended" }), [gyms[1]]);
+  assert.deepEqual(filterAdminGyms(gyms, { query: "missing" }), []);
+});
 
 test("gym status updates accept only active or suspended and reject other fields", () => {
   assert.deepEqual(validateGymStatusUpdate({ status: "suspended" }), { status: "suspended" });

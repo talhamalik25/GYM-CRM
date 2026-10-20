@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Button from "../ui/button";
 import Card from "../ui/card";
 import Input from "../ui/input";
+import { adminUserRoleLabel } from "../../lib/adminUserRules.js";
 
 async function requestUsers(options) {
   const response = await fetch("/api/admin/users", {
@@ -83,11 +84,11 @@ export default function AdminUserManager() {
         <h2 className="text-lg font-semibold text-ink">Workspace accounts</h2>
         <p className="mt-1 text-sm text-ink-muted">Superadmins can create staff accounts. Passwords are stored as password hashes and are never shown here.</p>
       </div>
-      {loadError && !users.length && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{loadError}</p>}
-      {loading ? <p className="py-8 text-center text-sm text-ink-muted" role="status">Loading accounts…</p> : users.length ? <div className="overflow-x-auto">
+      {loadError && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{loadError}</p>}
+      {loading ? <p className="py-8 text-center text-sm text-ink-muted" role="status">Loading accounts…</p> : loadError && !users.length ? null : users.length ? <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] text-left text-sm">
-          <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Email</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Created</th></tr></thead>
-          <tbody>{users.map((user) => <tr key={user.id} className="border-b border-line last:border-0"><td className="px-3 py-3 font-medium text-ink">{user.email}</td><td className="px-3 py-3 capitalize text-ink-muted">{user.role === "superadmin" ? "Superadmin" : "Staff"}</td><td className="px-3 py-3 text-ink-muted">{user.isActive ? "Active" : "Inactive"}</td><td className="px-3 py-3 text-ink-muted">{createdDate(user.createdAt)}</td></tr>)}</tbody>
+          <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Created</th></tr></thead>
+          <tbody>{users.map((user) => <tr key={user.id} className="border-b border-line last:border-0"><td className="px-3 py-3 text-ink">{user.fullName || "Name unavailable"}</td><td className="px-3 py-3 font-medium text-ink">{user.email}</td><td className="px-3 py-3 text-ink-muted">{adminUserRoleLabel(user)}</td><td className="px-3 py-3 text-ink-muted">{user.isActive ? "Active" : "Inactive"}</td><td className="px-3 py-3 text-ink-muted">{createdDate(user.createdAt)}</td></tr>)}</tbody>
         </table>
       </div> : <p className="py-8 text-center text-sm text-ink-muted">No accounts found.</p>}
     </Card>
