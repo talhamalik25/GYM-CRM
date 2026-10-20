@@ -20,14 +20,15 @@ test("safe user summaries include optional names and role labels recognize both 
 });
 
 test("new account validation normalizes email and accepts valid password lengths", () => {
-  const valid = validateCreateUserBody({ email: "  Staff@Example.com ", password: "a-long-unique-password" });
-  assert.deepEqual(valid, { email: "staff@example.com", password: "a-long-unique-password" });
-  assert.equal(validateCreateUserBody({ email: "bad", password: "a-long-unique-password" }).fields.email, "Enter a valid email address.");
-  assert.equal(validateCreateUserBody({ email: "staff@example.com", password: "short" }).fields.password, "Password must be at least 12 characters and no more than 128 bytes.");
+  const valid = validateCreateUserBody({ fullName: " Owner Name ", email: "  Staff@Example.com ", password: "a-long-unique-password" });
+  assert.deepEqual(valid, { fullName: "Owner Name", email: "staff@example.com", password: "a-long-unique-password" });
+  assert.equal(validateCreateUserBody({ fullName: "A", email: "bad", password: "a-long-unique-password" }).fields.email, "Enter a valid email address.");
+  assert.equal(validateCreateUserBody({ fullName: "A", email: "staff@example.com", password: "short" }).fields.password, "Password must be at least 12 characters and no more than 128 bytes.");
+  assert.equal(validateCreateUserBody({ email: "staff@example.com", password: "a-long-unique-password" }).fields.fullName, "Full name must be between 2 and 120 characters.");
 });
 
 test("account creation cannot accept a caller-selected role", () => {
-  const result = validateCreateUserBody({ email: "staff@example.com", password: "a-long-unique-password", role: "superadmin" });
+  const result = validateCreateUserBody({ fullName: "Staff User", email: "staff@example.com", password: "a-long-unique-password", role: "superadmin" });
   assert.equal(result.fields.role, "This field cannot be changed.");
   assert.equal(isSuperadmin({ role: "staff" }), false);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);
@@ -50,11 +51,13 @@ test("admin account API and shared auth helper require superadmin authorization"
   assert.match(auth, /export async function requireSuperadminUser\(request\)/);
   assert.match(auth, /requiredRole === "superadmin" && isSuperadmin\(user\)/);
   assert.match(source, /passwordHash:\s*await hashPassword\(validation\.password\)/);
+  assert.match(source, /fullName:\s*validation\.fullName/);
   assert.match(source, /select\("fullName email role isActive createdAt"\)/);
   assert.match(source, /role:\s*"staff"/);
   assert.doesNotMatch(source, /password:\s*user\.password/);
   assert.match(manager, /adminUserRoleLabel\(user\)/);
   assert.match(manager, /Name unavailable/);
+  assert.match(manager, /new-user-full-name/);
 });
 
 test("account status API remains Superadmin-only and the manager exposes activation controls", async () => {

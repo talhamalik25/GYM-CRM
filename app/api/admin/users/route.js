@@ -34,6 +34,7 @@ export async function POST(request) {
     await connectToDatabase();
     await User.init();
     const user = await User.create({
+      fullName: validation.fullName,
       email: validation.email,
       passwordHash: await hashPassword(validation.password),
       role: "staff",

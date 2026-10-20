@@ -30,7 +30,7 @@ function createdDate(value) {
 
 export default function AdminUserManager() {
   const [users, setUsers] = useState([]);
-  const [values, setValues] = useState({ email: "", password: "", confirmPassword: "" });
+  const [values, setValues] = useState({ fullName: "", email: "", password: "", confirmPassword: "" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -66,9 +66,9 @@ export default function AdminUserManager() {
     }
     setSaving(true);
     try {
-      const created = await requestUsers({ method: "POST", body: JSON.stringify({ email: values.email, password: values.password }) });
+      const created = await requestUsers({ method: "POST", body: JSON.stringify({ fullName: values.fullName, email: values.email, password: values.password }) });
       setUsers((current) => [...current, created]);
-      setValues({ email: "", password: "", confirmPassword: "" });
+      setValues({ fullName: "", email: "", password: "", confirmPassword: "" });
       setMessage("Staff account created. Share its sign-in details securely with the account owner.");
     } catch (error) {
       setErrors(error.fields || {});
@@ -117,6 +117,7 @@ export default function AdminUserManager() {
       <h2 className="text-lg font-semibold text-ink">Add a staff account</h2>
       <p className="mb-5 mt-1 text-sm text-ink-muted">The new account needs an active Gym membership before it can open a workspace. Assign owner access under Gym accounts or invite it from an existing Gym Owner account.</p>
       <form className="space-y-4" onSubmit={submit} noValidate>
+        <Input id="new-user-full-name" label="Full name" autoComplete="name" required maxLength={120} value={values.fullName} onChange={(event) => update("fullName", event.target.value)} error={errors.fullName} />
         <Input id="new-user-email" label="Email address" type="email" autoComplete="off" required value={values.email} onChange={(event) => update("email", event.target.value)} error={errors.email} />
         <Input id="new-user-password" label="Temporary password" type="password" autoComplete="new-password" required value={values.password} onChange={(event) => update("password", event.target.value)} error={errors.password} />
         <Input id="new-user-confirm-password" label="Confirm password" type="password" autoComplete="new-password" required value={values.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} error={errors.confirmPassword} />
