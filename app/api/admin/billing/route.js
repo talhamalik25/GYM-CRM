@@ -136,7 +136,7 @@ export async function POST(request) {
       try {
         await session.withTransaction(async () => {
           invoice = await createInvoice({ gymId: gym._id, planId: plan._id, snapshot, periodStart, periodEnd, createdBy: actorId, session });
-          updatedGym = await Gym.findOneAndUpdate({ _id: gym._id }, { $set: { saasSubscription: {
+          updatedGym = await Gym.findOneAndUpdate({ _id: gym._id, "saasSubscription.pendingInvoiceId": null }, { $set: { saasSubscription: {
             planId: plan._id, planSnapshot: snapshot, status: "past_due", periodStart, periodEnd,
             trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: invoice._id, autoRenew: false,
           } } }, { new: true, runValidators: true, session }).select("name slug status saasSubscription").lean();
@@ -237,7 +237,9 @@ export async function POST(request) {
   if (body.action === "cancel_subscription") {
     if (typeof body.gymId !== "string" || !mongoose.isObjectIdOrHexString(body.gymId)) return errorResponse("Gym id is invalid.", 400, { gymId: "Choose a valid Gym." });
     try {
-      const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
+      const existing = await Gym.findOne({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }).select("saasSubscription.pendingInvoiceId").lean();
+      if (existing?.saasSubscription?.pendingInvoiceId && await PlatformInvoice.exists({ _id: existing.saasSubscription.pendingInvoiceId, status: "open" })) return errorResponse("Void or reconcile the open invoice before cancelling this subscription.", 409);
+      const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true }, "saasSubscription.pendingInvoiceId": null }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
       if (!gym) return errorResponse("Gym SaaS subscription was not found.", 404);
       return successResponse({ gym: serializeGym(gym) });
     } catch { return errorResponse("Could not cancel this SaaS subscription.", 503); }

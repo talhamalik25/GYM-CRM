@@ -49,3 +49,13 @@ test("plan edit and active status remain tenant-scoped and subscription flows re
   assert.match(renewSubscription, /Plan\.findOne\(\{ _id: body\.planId \|\| subscription\.planId, gymId \}\)/);
   assert.match(renewSubscription, /!plan\.isActive/);
 });
+
+test("legacy plan URLs route to the API-backed plan manager instead of the local demo editor", async () => {
+  const createPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/memberships/plans/new/page.js", import.meta.url)), "utf8");
+  const editPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/memberships/plans/[id]/edit/page.js", import.meta.url)), "utf8");
+  for (const source of [createPage, editPage]) {
+    assert.match(source, /from "next\/navigation"/);
+    assert.match(source, /redirect\("\/memberships"\)/);
+    assert.doesNotMatch(source, /MembershipPlanForm|mock-memberships/);
+  }
+});

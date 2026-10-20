@@ -1,2 +1,5 @@
-import MembershipPlanForm from '../../../../../components/memberships/membership-plan-form';
-export default function NewPlanPage(){return <MembershipPlanForm/>;}
+import { redirect } from "next/navigation";
+
+export default function NewMembershipPlanPage() {
+  redirect("/memberships");
+}
