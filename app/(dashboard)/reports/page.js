@@ -1,3 +1,5 @@
-import PageHeading from '../../../components/ui/page-heading';
-const charts=[{title:'Revenue over time',note:'Monthly revenue · Last 6 months',values:[42,55,48,70,62,88]},{title:'Member growth',note:'New members · Last 6 months',values:[35,52,44,64,72,91]},{title:'Attendance trends',note:'Average weekly visits',values:[60,48,72,66,82,95]},{title:'Membership mix',note:'Active plan distribution',values:[88,56,31,18,12,8]}];
-export default function ReportsPage(){return <><PageHeading eyebrow="INSIGHTS & ANALYTICS" title="Reports" description="Understand how your club is doing and where it’s headed." action={<button className="button button-filter" type="button">▦ Last 6 months ⌄</button>}/><section className="summary-grid">{[{label:'Revenue this period',value:'$52,860',note:'+12.4% from previous period'},{label:'Member growth',value:'+36',note:'New members this period'},{label:'Avg. attendance',value:'54 / day',note:'+8.1% from previous period'},{label:'Retention rate',value:'92.4%',note:'+2.3% from previous period'}].map(x=><div className="summary-card" key={x.label}><span>{x.label}</span><strong>{x.value}</strong><small>{x.note}</small></div>)}</section><section className="report-grid">{charts.map(c=><article className="report-chart" key={c.title}><h2>{c.title}</h2><p>{c.note}</p><div className="report-bars">{c.values.map((v,i)=><i key={i} style={{height:`${v}%`}}/>)}</div></article>)}</section></>}
+import ReportsManager from "../../../components/reports/reports-manager";
+
+export default function ReportsPage() {
+  return <ReportsManager />;
+}

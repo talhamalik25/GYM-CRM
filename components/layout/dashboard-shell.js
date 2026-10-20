@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Activity, CalendarCheck2, ChevronDown, CreditCard, Dumbbell, Menu, Users, X } from 'lucide-react';
+import { Activity, CalendarCheck2, ChartNoAxesColumn, ChevronDown, CreditCard, Dumbbell, Menu, Settings, Users, UserRound, X } from 'lucide-react';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity },
@@ -10,6 +10,9 @@ const nav = [
   { label: 'Plans', href: '/memberships', Icon: Dumbbell },
   { label: 'Payments', href: '/payments', Icon: CreditCard },
   { label: 'Attendance', href: '/attendance', Icon: CalendarCheck2 },
+  { label: 'Trainers', href: '/trainers', Icon: UserRound },
+  { label: 'Reports', href: '/reports', Icon: ChartNoAxesColumn },
+  { label: 'Settings', href: '/settings', Icon: Settings },
   { label: 'Staff', href: '/staff', Icon: Users },
 ];
 const adminNav = [
@@ -21,6 +24,7 @@ const adminNav = [
 function getPageTitle(pathname) {
   if (pathname.startsWith('/memberships')) return 'Plans';
   if (pathname.startsWith('/members')) return 'Members';
+  if (pathname.startsWith('/trainers')) return 'Trainers';
   if (pathname.startsWith('/admin/gyms')) return 'Gym accounts';
   if (pathname.startsWith('/admin/users')) return 'User accounts';
   if (pathname.startsWith('/admin')) return 'Platform overview';
@@ -36,7 +40,7 @@ function getPageTitle(pathname) {
 }
 
 function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin }) {
-  const links = isSuperadmin ? adminNav : nav.filter(({ href }) => href !== '/staff' || canManageStaff);
+  const links = isSuperadmin ? adminNav : nav.filter(({ href }) => (href !== '/staff' || canManageStaff) && (href !== '/settings' || canManageStaff));
   return <>
     <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="Fitivo home">
       <span className="fitivo-wordmark">Fitivo</span>
