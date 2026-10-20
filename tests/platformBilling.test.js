@@ -14,6 +14,12 @@ test("SaaS plans validate prices, intervals, and only supported feature limits",
   assert.equal(validateSaaSPlanBody({ name: "Growth", price: 100, interval: "monthly", gatewaySecret: "secret" }).fields.gatewaySecret, "This field cannot be changed.");
 });
 
+test("SaaS plan deactivation confirms before changing plan availability", async () => {
+  const source = await readFile(fileURLToPath(new URL("../components/admin/admin-billing-manager.js", import.meta.url)), "utf8");
+  assert.match(source, /item\.isActive && !window\.confirm\(`Deactivate \$\{item\.name\}\? Existing subscriptions will keep their current terms\.`\)/);
+  assert.match(source, /isActive: !item\.isActive/);
+});
+
 test("billing intervals clamp month-end dates and preserve UTC time", () => {
   assert.equal(addBillingInterval(new Date("2026-01-31T10:20:00.000Z"), "monthly").toISOString(), "2026-02-28T10:20:00.000Z");
   assert.equal(addBillingInterval(new Date("2026-02-28T10:20:00.000Z"), "yearly").toISOString(), "2027-02-28T10:20:00.000Z");

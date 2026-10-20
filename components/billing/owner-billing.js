@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Badge from "../ui/badge";
 import Card from "../ui/card";
+import PageHeading from "../ui/page-heading";
 
 function amount(value) { return `PKR ${Number(value || 0).toLocaleString("en-PK")}`; }
 function date(value) { return value ? new Intl.DateTimeFormat("en-PK", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value)) : "—"; }
@@ -33,7 +34,7 @@ export default function OwnerBilling() {
   }, [retry]);
 
   return <div className="space-y-6">
-    <header><p className="text-xs font-semibold uppercase tracking-widest text-brand">FITIVO ACCOUNT</p><h1 className="mt-1 text-3xl font-semibold text-ink">Plan &amp; billing</h1><p className="mt-2 text-sm text-ink-muted">Your Gym’s Fitivo subscription and platform invoices. This is separate from member payments.</p></header>
+    <PageHeading eyebrow="FITIVO ACCOUNT" title="Plan & billing" description="Your Gym’s Fitivo subscription and platform invoices. This is separate from member payments." />
     {error && <Card className="p-5"><p className="text-sm text-error" role="alert">{error}</p><button className="mt-3 text-sm font-medium text-brand" type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button></Card>}
     {loading ? <Card className="p-6" role="status"><p className="text-sm text-ink-muted">Loading Fitivo billing…</p></Card> : !error && data && <>
       {!data.subscription ? <Card className="p-6"><h2 className="font-semibold text-ink">No Fitivo plan assigned</h2><p className="mt-2 text-sm text-ink-muted">Contact a Fitivo platform administrator for subscription information.</p></Card> : <Card className="p-5 md:p-7">

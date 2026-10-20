@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import PlansManager from "../plans/plans-manager";
+import PageHeading from "../ui/page-heading";
 import { listPlans } from "../../lib/plansService";
 import { listMembersApi } from "../../lib/membersService";
 import { cancelSubscription, createSubscription, getSubscription, listSubscriptions, renewSubscription } from "../../lib/subscriptionsService";
@@ -27,7 +28,7 @@ export default function MembershipManager() {
   async function submitRenew(event) { event.preventDefault(); if (!selected) return; setSaving(true); setError(""); try { const result = await renewSubscription(selected._id, { planId: selected.planId, startDate: selected.status === "active" ? undefined : data.today, agreedPrice: Number(values.agreedPrice || selected.agreedPrice), amountPaid: Number(values.amountPaid || 0), method: values.method }, key()); const refreshed = await getSubscription(selected._id); setSelected(refreshed || result); setRenewing(false); await load(); } catch (e) { setError(e.message); } finally { setSaving(false); } }
   async function cancel() { if (!selected || !window.confirm("Cancel this membership? Its financial history will be kept.")) return; setSaving(true); try { await cancelSubscription(selected._id); setSelected(await getSubscription(selected._id)); await load(); } catch (e) { setError(e.message); } finally { setSaving(false); } }
   return <main className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
-    <header className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-red-700">Member experience</p><h1 className="mt-1 text-3xl font-semibold">Memberships</h1><p className="mt-1 text-sm text-gray-500">Manage subscriptions, payments, and renewal history.</p></div>{tab === "subscriptions" && <button className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white" onClick={() => { setError(""); setCreating(true); }}>Create membership</button>}</header>
+    <PageHeading eyebrow="MEMBER EXPERIENCE" title="Memberships" description="Manage subscriptions, payments, and renewal history." action={tab === "subscriptions" && <button className="ui-button ui-button-primary ui-button-md" type="button" onClick={() => { setError(""); setCreating(true); }}>Create membership</button>} />
     <nav className="flex gap-2 border-b"><button className={`px-4 py-2 text-sm ${tab === "subscriptions" ? "border-b-2 border-red-700 font-semibold" : "text-gray-500"}`} onClick={() => setTab("subscriptions")}>Subscriptions ({data.total})</button><button className={`px-4 py-2 text-sm ${tab === "plans" ? "border-b-2 border-red-700 font-semibold" : "text-gray-500"}`} onClick={() => setTab("plans")}>Plans</button></nav>
     {tab === "plans" ? <PlansManager /> : <>
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
