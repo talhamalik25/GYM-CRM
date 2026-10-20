@@ -39,8 +39,7 @@ export async function POST(request) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await StaffInvitation.updateMany({ gymId: getRequestGymId(request), email: validation.email, status: "pending" }, { $set: { status: "revoked" } });
     await StaffInvitation.create({ gymId: getRequestGymId(request), email: validation.email, role: validation.role, tokenHash: tokenData.tokenHash, expiresAt });
-    const development = process.env.NODE_ENV !== "production";
-    return json({ success: true, data: { email: validation.email, role: validation.role, expiresAt, ...(development ? { invitationUrl: `/staff/accept?token=${encodeURIComponent(tokenData.token)}` } : {}) } }, 201);
+    return json({ success: true, data: { email: validation.email, role: validation.role, expiresAt, invitationUrl: `/staff/accept?token=${encodeURIComponent(tokenData.token)}` } }, 201);
   } catch {
     return json({ success: false, error: { message: "The invitation could not be created." } }, 503);
   }

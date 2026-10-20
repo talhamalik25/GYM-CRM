@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { GET as adminBilling, POST as updateAdminBilling } from "../app/api/admin/billing/route.js";
 import { GET as gymBilling } from "../app/api/gym/billing/route.js";
-import { addBillingInterval, validateInvoiceVoid, validateManualReconciliation, validatePlatformSettings, validateSaaSPlanBody } from "../lib/platformBillingRules.js";
+import { addBillingInterval, expiredSaaSPaidPeriodFilter, expiredSaaSTrialFilter, invoiceMatchesPendingSubscription, serializeGymSaaSSubscription, validateInvoiceVoid, validateManualReconciliation, validatePlatformSettings, validateSaaSPlanBody } from "../lib/platformBillingRules.js";
 
 test("SaaS plans validate prices, intervals, and only supported feature limits", () => {
   assert.deepEqual(validateSaaSPlanBody({ name: "Growth", price: 2500, interval: "monthly", limits: { members: 100, trainers: null } }), { name: "Growth", price: 2500, interval: "monthly", limits: { members: 100, trainers: null } });
@@ -16,6 +16,24 @@ test("SaaS plans validate prices, intervals, and only supported feature limits",
 test("billing intervals clamp month-end dates and preserve UTC time", () => {
   assert.equal(addBillingInterval(new Date("2026-01-31T10:20:00.000Z"), "monthly").toISOString(), "2026-02-28T10:20:00.000Z");
   assert.equal(addBillingInterval(new Date("2026-02-28T10:20:00.000Z"), "yearly").toISOString(), "2027-02-28T10:20:00.000Z");
+});
+
+test("Gym SaaS billing reports expired trials and paid periods at their boundary", () => {
+  const now = new Date("2026-10-20T00:00:00.000Z");
+  const base = { planId: "plan", planSnapshot: { name: "Basic" }, status: "trialing", trialEndsAt: now };
+  assert.equal(serializeGymSaaSSubscription(base, [], now).status, "trial_ended");
+  assert.equal(serializeGymSaaSSubscription({ ...base, status: "active", periodEnd: now }, [], now).status, "expired");
+});
+
+test("expiry processing selects boundary-expired terms once and invoice reconciliation requires its pending subscription", () => {
+  const now = new Date("2026-10-20T00:00:00.000Z");
+  assert.deepEqual(expiredSaaSTrialFilter(now), { "saasSubscription.status": "trialing", $or: [{ "saasSubscription.trialEndsAt": { $lte: now } }, { "saasSubscription.trialEndsAt": null }] });
+  assert.deepEqual(expiredSaaSPaidPeriodFilter(now), { "saasSubscription.status": "active", $or: [{ "saasSubscription.periodEnd": { $lte: now } }, { "saasSubscription.periodEnd": null }] });
+  const subscription = { _id: "gym-subscription", planId: "plan", pendingInvoiceId: "invoice", planSnapshot: { price: 2500, currency: "PKR", interval: "monthly" } };
+  const invoice = { _id: "invoice", planId: "plan", amountDue: 2500, currency: "PKR", planSnapshot: { price: 2500, currency: "PKR", interval: "monthly" }, periodStart: "2026-10-20T00:00:00Z", periodEnd: "2026-11-20T00:00:00Z" };
+  assert.equal(invoiceMatchesPendingSubscription(subscription, invoice), true);
+  assert.equal(invoiceMatchesPendingSubscription({ ...subscription, pendingInvoiceId: "other" }, invoice), false);
+  assert.equal(invoiceMatchesPendingSubscription(subscription, { ...invoice, amountDue: 3000 }), false);
 });
 
 test("manual reconciliation, invoice voiding, and platform settings require bounded valid input", () => {

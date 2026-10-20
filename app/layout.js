@@ -1,7 +1,4 @@
 import "./globals.css";
-import { Geist } from "next/font/google";
-
-const geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-app" });
 
 export const metadata = {
   title: "Fitivo",
@@ -9,5 +6,5 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  return <html lang="en" className={geist.variable} suppressHydrationWarning><body>{children}</body></html>;
+  return <html lang="en" suppressHydrationWarning><body>{children}</body></html>;
 }

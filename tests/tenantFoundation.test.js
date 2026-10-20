@@ -11,7 +11,7 @@ import Attendance from "../models/Attendance.js";
 import Trainer from "../models/Trainer.js";
 import Counter from "../models/Counter.js";
 import generateReceiptNumber from "../lib/generateReceiptNumber.js";
-import { authorizeGymMembership } from "../lib/tenantAuthorization.js";
+import { authorizeGymMembership, isSaaSAccessAllowed } from "../lib/tenantAuthorization.js";
 import { scopedTenantFilter } from "../lib/tenantQuery.js";
 import { readFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
@@ -75,6 +75,22 @@ test("gym authorization rejects missing membership, wrong role, and requested cr
 test("inactive users and suspended gyms are denied", () => {
   assert.equal(authorizeGymMembership({ ...base, user: { ...base.user, isActive: false } }).status, 401);
   assert.equal(authorizeGymMembership({ ...base, gym: { ...base.gym, status: "suspended" } }).status, 403);
+  assert.equal(authorizeGymMembership({ ...base, gym: { ...base.gym, status: "suspended" }, allowSuspendedGym: true }).ok, true);
+});
+
+test("SaaS access ends at trial or paid period expiry and rejects delinquent or cancelled plans", () => {
+  const now = new Date("2026-10-20T00:00:00.000Z");
+  assert.equal(isSaaSAccessAllowed({ status: "trialing", trialEndsAt: "2026-10-21T00:00:00Z" }, now), true);
+  assert.equal(isSaaSAccessAllowed({ status: "trialing", trialEndsAt: now }, now), false);
+  assert.equal(isSaaSAccessAllowed({ status: "active", periodEnd: "2026-10-21T00:00:00Z" }, now), true);
+  assert.equal(isSaaSAccessAllowed({ status: "active", periodEnd: now }, now), false);
+  assert.equal(isSaaSAccessAllowed({ status: "active", periodStart: "2026-10-21T00:00:00Z", periodEnd: "2026-11-21T00:00:00Z" }, now), false);
+  assert.equal(isSaaSAccessAllowed({ status: "active" }, now), false);
+  assert.equal(isSaaSAccessAllowed({ status: "trialing", trialStartedAt: "2026-10-21T00:00:00Z", trialEndsAt: "2026-11-21T00:00:00Z" }, now), false);
+  assert.equal(isSaaSAccessAllowed({ status: "past_due" }, now), false);
+  assert.equal(isSaaSAccessAllowed({ status: "cancelled" }, now), false);
+  assert.equal(isSaaSAccessAllowed(undefined, now), true);
+  assert.equal(authorizeGymMembership({ ...base, gym: { ...base.gym, saasSubscription: { status: "past_due" } } }).status, 403);
 });
 
 test("tenant filters cannot be overridden by caller-supplied gym ids", () => {
@@ -105,7 +121,7 @@ test("every gym-data API route requires tenant authorization and an explicit que
     }
   }
   await collect(root);
-  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js", "admin\\gym-owners\\route.js", "admin\\overview\\route.js", "admin\\billing\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js", "staff\\invitations\\accept\\route.js"].some((suffix) => path.endsWith(suffix)));
+  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js", "admin\\gym-owners\\route.js", "admin\\overview\\route.js", "admin\\billing\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js", "staff\\invitations\\accept\\route.js", "cron\\saas-expiry\\route.js"].some((suffix) => path.endsWith(suffix)));
   assert.ok(gymRoutes.length > 0);
   for (const path of gymRoutes) {
     const source = await readFile(path, "utf8");
@@ -116,6 +132,9 @@ test("every gym-data API route requires tenant authorization and an explicit que
     const source = await readFile(routeFiles.find((path) => path.endsWith(suffix)), "utf8");
     assert.match(source, /requireSuperadminUser\(/, `${suffix} must restrict platform-wide access to superadmins`);
   }
+  const expiry = await readFile(routeFiles.find((path) => path.endsWith("cron\\saas-expiry\\route.js")), "utf8");
+  assert.match(expiry, /SAAS_EXPIRY_CRON_SECRET/);
+  assert.match(expiry, /authorization\.startsWith\("Bearer "\)/);
   const acceptance = await readFile(join(root, "staff", "invitations", "accept", "route.js"), "utf8");
   assert.match(acceptance, /hashInvitationToken\(body\.token\)/, "invitation acceptance must validate the single-use secret");
   assert.match(acceptance, /getAuthenticatedUserFromRequest\(request\)/, "existing accounts must authenticate before acceptance");

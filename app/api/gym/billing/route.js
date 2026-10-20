@@ -6,7 +6,8 @@ import PlatformInvoice from "../../../../models/PlatformInvoice.js";
 import PlatformSetting from "../../../../models/PlatformSetting.js";
 
 export async function GET(request) {
-  const authResponse = await requireApiUser(request, { allowedRoles: ["gym_owner"] });
+  // Owners must retain read access to invoices and support instructions when SaaS access is restricted.
+  const authResponse = await requireApiUser(request, { allowedRoles: ["gym_owner"], allowSaaSInactive: true, allowSuspendedGym: true });
   if (authResponse) return authResponse;
   const context = getRequestTenantContext(request);
   if (!context?.gymId || !context?.gym) return errorResponse("Gym workspace could not be resolved.", 403);

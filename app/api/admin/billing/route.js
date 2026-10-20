@@ -3,7 +3,7 @@ import connectToDatabase from "../../../../lib/db.js";
 import { getAuthenticatedUserFromRequest, requireSuperadminUser } from "../../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
 import {
-  addBillingInterval, createPlatformInvoiceNumber, planSnapshot, serializePlatformInvoice,
+  addBillingInterval, createPlatformInvoiceNumber, invoiceMatchesPendingSubscription, planSnapshot, serializeGymSaaSSubscription, serializePlatformInvoice,
   serializeSaaSPlan, validateInvoiceVoid, validateManualReconciliation, validatePlanAssignment,
   validatePlatformSettings, validateSaaSPlanBody,
 } from "../../../../lib/platformBillingRules.js";
@@ -13,7 +13,7 @@ import SaaSPlan from "../../../../models/SaaSPlan.js";
 import PlatformSetting from "../../../../models/PlatformSetting.js";
 
 function serializeGym(gym) {
-  return { id: String(gym._id), name: gym.name, slug: gym.slug, status: gym.status, subscription: gym.saasSubscription || null };
+  return { id: String(gym._id), name: gym.name, slug: gym.slug, status: gym.status, subscription: serializeGymSaaSSubscription(gym.saasSubscription) };
 }
 
 async function userIdFromRequest(request) {
@@ -116,7 +116,7 @@ export async function POST(request) {
         const trialEndsAt = new Date(now.getTime() + validation.trialDays * 86400000);
         const updated = await Gym.findOneAndUpdate({ _id: gym._id }, { $set: { saasSubscription: {
           planId: plan._id, planSnapshot: snapshot, status: "trialing", periodStart: null, periodEnd: null,
-          trialEndsAt, renewalDate: trialEndsAt, pendingInvoiceId: null, autoRenew: false,
+          trialStartedAt: now, trialEndsAt, renewalDate: trialEndsAt, pendingInvoiceId: null, autoRenew: false,
         } } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
         return successResponse({ gym: serializeGym(updated), invoice: null });
       }
@@ -126,7 +126,7 @@ export async function POST(request) {
       if (plan.price === 0) {
         const updated = await Gym.findOneAndUpdate({ _id: gym._id }, { $set: { saasSubscription: {
           planId: plan._id, planSnapshot: snapshot, status: "active", periodStart, periodEnd,
-          trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: null, autoRenew: false,
+          trialStartedAt: null, trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: null, autoRenew: false,
         } } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
         return successResponse({ gym: serializeGym(updated), invoice: null });
       }
@@ -138,7 +138,7 @@ export async function POST(request) {
           invoice = await createInvoice({ gymId: gym._id, planId: plan._id, snapshot, periodStart, periodEnd, createdBy: actorId, session });
           updatedGym = await Gym.findOneAndUpdate({ _id: gym._id, "saasSubscription.pendingInvoiceId": null }, { $set: { saasSubscription: {
             planId: plan._id, planSnapshot: snapshot, status: "past_due", periodStart, periodEnd,
-            trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: invoice._id, autoRenew: false,
+            trialStartedAt: null, trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: invoice._id, autoRenew: false,
           } } }, { new: true, runValidators: true, session }).select("name slug status saasSubscription").lean();
           if (!updatedGym) throw new Error("Active Gym was not found.");
         });
@@ -185,6 +185,8 @@ export async function POST(request) {
       await session.withTransaction(async () => {
         const invoice = await PlatformInvoice.findOne({ _id: body.invoiceId, status: "open" }).session(session);
         if (!invoice) throw new Error("Invoice is missing or is not open.");
+        const gym = await Gym.findOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }).session(session).lean();
+        if (!gym || !invoiceMatchesPendingSubscription(gym.saasSubscription, invoice)) throw new Error("Invoice does not match the Gym's pending subscription.");
         invoice.status = "paid";
         invoice.paidAt = new Date();
         invoice.paymentReference = validation.paymentReference;
@@ -193,7 +195,8 @@ export async function POST(request) {
         const subscriptionUpdate = await Gym.updateOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: {
           "saasSubscription.status": "active", "saasSubscription.periodStart": invoice.periodStart,
           "saasSubscription.periodEnd": invoice.periodEnd, "saasSubscription.renewalDate": invoice.periodEnd,
-          "saasSubscription.trialEndsAt": null, "saasSubscription.pendingInvoiceId": null,
+          "saasSubscription.trialStartedAt": null, "saasSubscription.trialEndsAt": null,
+          "saasSubscription.pendingInvoiceId": null,
         } }, { session });
         if (subscriptionUpdate.modifiedCount !== 1) throw new Error("Invoice is no longer pending for this Gym subscription.");
         reconciled = invoice.toObject();
@@ -201,6 +204,7 @@ export async function POST(request) {
     } catch (error) {
       await session.endSession();
       if (error.message === "Invoice is missing or is not open.") return errorResponse(error.message, 409);
+      if (error.message === "Invoice does not match the Gym's pending subscription.") return errorResponse(error.message, 409);
       return errorResponse("Could not reconcile this invoice. Please try again.", 503);
     }
     await session.endSession();

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { POST as inviteStaff } from "../app/api/staff/invitations/route.js";
 import { POST as acceptInvitation } from "../app/api/staff/invitations/accept/route.js";
 import { createInvitationToken, hashInvitationToken, validateStaffInvitationBody } from "../lib/staffInvitations.js";
@@ -28,6 +30,19 @@ test("unauthenticated users cannot invite staff", async () => {
 test("trainer invitations fail with the least-privilege policy message", () => {
   const result = validateStaffInvitationBody({ email: "staff@example.test", role: "trainer" });
   assert.equal(result.fields.role, "Trainer invitations are paused until trainer-specific permissions are defined.");
+});
+
+test("authorized Gym owners receive a one-time share link when email delivery is unavailable", async () => {
+  const route = await readFile(fileURLToPath(new URL("../app/api/staff/invitations/route.js", import.meta.url)), "utf8");
+  const manager = await readFile(fileURLToPath(new URL("../components/staff/staff-manager.js", import.meta.url)), "utf8");
+  assert.match(route, /requireApiUser\(request, \{ allowedRoles: \["gym_owner"\] \}\)/);
+  assert.match(route, /invitationUrl: `\/staff\/accept\?token=/);
+  assert.doesNotMatch(route, /NODE_ENV/);
+  assert.match(manager, /Single-use invitation link/);
+  assert.match(manager, /navigator\.clipboard\.writeText\(inviteUrl\)/);
+  assert.match(manager, /Share the single-use link with the invitee within 7 days/);
+  assert.match(manager, /useState\("gym_admin"\)/);
+  assert.doesNotMatch(manager, /<option value="trainer">/);
 });
 
 test("invitation acceptance rejects malformed tokens before database access", async () => {
