@@ -22,6 +22,7 @@ const adminNav = [
   { label: 'User accounts', href: '/admin/users', Icon: Users },
   { label: 'Plans & billing', href: '/admin/billing', Icon: CreditCard },
 ];
+const trainerNav = [{ label: 'Trainer workspace', href: '/trainer', Icon: UserRound }];
 
 function getPageTitle(pathname) {
   if (pathname.startsWith('/memberships')) return 'Plans';
@@ -31,6 +32,8 @@ function getPageTitle(pathname) {
   if (pathname.startsWith('/admin/users')) return 'User accounts';
   if (pathname.startsWith('/admin/billing')) return 'Plans & billing';
   if (pathname.startsWith('/billing')) return 'Fitivo plan';
+  if (pathname.startsWith('/trainer')) return 'Trainer workspace';
+  if (pathname === '/profile') return 'Owner profile';
   if (pathname.startsWith('/admin')) return 'Platform overview';
   return nav.find(({ href }) => href === pathname)?.label || ({
     '/reports': 'Reports',
@@ -43,14 +46,14 @@ function getPageTitle(pathname) {
   }[pathname] || 'Dashboard');
 }
 
-function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin }) {
-  const links = isSuperadmin ? adminNav : nav.filter(({ href }) => (href !== '/staff' || canManageStaff) && (href !== '/settings' || canManageStaff) && (href !== '/billing' || canManageStaff));
+function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin, isTrainer }) {
+  const links = isSuperadmin ? adminNav : isTrainer ? trainerNav : nav.filter(({ href }) => (href !== '/staff' || canManageStaff) && (href !== '/settings' || canManageStaff) && (href !== '/billing' || canManageStaff));
   return <>
     <Link href="/dashboard" className="brand" onClick={onNavigate} aria-label="Fitivo home">
       <span className="fitivo-wordmark">Fitivo</span>
     </Link>
-    <div className="workspace-switcher"><span className="workspace-mark">{isSuperadmin ? 'F' : 'G'}</span><span><small>{isSuperadmin ? 'PLATFORM' : 'WORKSPACE'}</small><strong>{isSuperadmin ? 'Fitivo platform' : 'Gym workspace'}</strong></span>{!isSuperadmin && <ChevronDown className="workspace-chevron" size={15} aria-hidden="true" />}</div>
-    <p className="nav-label">{isSuperadmin ? 'SUPERADMIN' : 'MANAGEMENT'}</p>
+    <div className="workspace-switcher"><span className="workspace-mark">{isSuperadmin ? 'F' : 'G'}</span><span><small>{isSuperadmin ? 'PLATFORM' : isTrainer ? 'TRAINER' : 'WORKSPACE'}</small><strong>{isSuperadmin ? 'Fitivo platform' : 'Gym workspace'}</strong></span>{!isSuperadmin && !isTrainer && <ChevronDown className="workspace-chevron" size={15} aria-hidden="true" />}</div>
+    <p className="nav-label">{isSuperadmin ? 'SUPERADMIN' : isTrainer ? 'TRAINER' : 'MANAGEMENT'}</p>
     <nav aria-label="Main navigation" className="side-nav">
       {links.map(({ label, href, Icon }) => {
         const active = pathname === href || (href !== '/admin' && isSuperadmin && pathname.startsWith(`${href}/`)) || (!isSuperadmin && ((href === '/members' && pathname.startsWith('/members/')) || (href === '/memberships' && pathname.startsWith('/memberships/'))));
@@ -61,12 +64,12 @@ function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin }) 
     </nav>
     <div className="sidebar-bottom">
       <div className="sidebar-note"><span className="sidebar-note-mark">F</span><div><strong>Fitivo</strong><p>Gym management workspace</p></div></div>
-      <Link className="profile-button" href={isSuperadmin ? "/admin/users" : "/settings"} onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>Account</strong><small>Signed in</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
+      <Link className="profile-button" href={isSuperadmin ? "/admin/users" : isTrainer ? "/trainer" : canManageStaff ? "/profile" : "/dashboard"} onClick={onNavigate}><span className="avatar avatar-user">A</span><span className="profile-copy"><strong>{isTrainer ? "Trainer" : "Account"}</strong><small>Signed in</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
     </div>
   </>;
 }
 
-export default function DashboardShell({ children, isSuperadmin = false, canManageStaff = false }) {
+export default function DashboardShell({ children, isSuperadmin = false, canManageStaff = false, isTrainer = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,11 +100,11 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
     }
   }
   return <div className="app-shell">
-    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} /></aside>
+    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} isTrainer={isTrainer} /></aside>
     {menuOpen && <button className="drawer-backdrop" aria-label="Close navigation menu" onClick={() => setMenuOpen(false)} />}
     <aside className={`sidebar mobile-sidebar${menuOpen ? ' mobile-sidebar-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!menuOpen}>
       <div className="mobile-sidebar-heading"><span>Navigation</span><button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
-      <SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} onNavigate={() => setMenuOpen(false)} />
+      <SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} isTrainer={isTrainer} onNavigate={() => setMenuOpen(false)} />
     </aside>
     <div className="main-column">
       <header className="topbar">
@@ -110,7 +113,7 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
           <button type="button" className="top-account border-0 bg-transparent p-0" aria-label="Open account menu" aria-haspopup="menu" aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen((open) => !open)}><span className="avatar avatar-user top-avatar">A</span><span className="top-account-label">Account</span><ChevronDown size={15} aria-hidden="true" /></button>
           {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" role="menu" aria-label="Account menu">
             {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
-            {!isSuperadmin && <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/settings" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>}
+            {!isSuperadmin && !isTrainer && canManageStaff && <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/profile" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Owner profile</Link>}
     {isSuperadmin && <>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Platform overview</Link>
               <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/gyms" role="menuitem" onClick={() => setAccountMenuOpen(false)}>Gym accounts</Link>

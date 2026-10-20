@@ -3,6 +3,7 @@ import { getRequestGymId, requireApiUser } from "../../../../lib/auth.js";
 import { createInvitationToken, validateStaffInvitationBody } from "../../../../lib/staffInvitations.js";
 import GymMembership from "../../../../models/GymMembership.js";
 import StaffInvitation from "../../../../models/StaffInvitation.js";
+import Trainer from "../../../../models/Trainer.js";
 import User from "../../../../models/User.js";
 
 const json = (data, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -31,7 +32,13 @@ export async function POST(request) {
   if (validation.message) return json({ success: false, error: validation }, 400);
   try {
     await connectToDatabase();
-    const targetUser = await User.findOne({ email: validation.email }).select("_id").lean();
+    const targetUser = await User.findOne({ email: validation.email }).select("_id role isActive").lean();
+    if (targetUser && (targetUser.role !== "staff" || !targetUser.isActive)) {
+      return json({ success: false, error: { message: "This email belongs to an inactive or platform-level account and cannot be invited." } }, 409);
+    }
+    if (validation.role === "trainer" && !await Trainer.exists({ gymId: getRequestGymId(request), email: validation.email, status: "active" })) {
+      return json({ success: false, error: { message: "Create an active trainer profile with this email before sending a trainer invitation." }, fields: { email: "An active trainer profile must use this email." } }, 400);
+    }
     if (targetUser && await GymMembership.exists({ gymId: getRequestGymId(request), status: "active", userId: targetUser._id })) {
       return json({ success: false, error: { message: "This person is already a member of the gym." } }, 409);
     }

@@ -26,12 +26,19 @@ test("gym status updates accept only active or suspended and reject other fields
 });
 
 test("Gym provisioning validates its URL, timezone, and existing owner account", () => {
-  assert.deepEqual(validateGymProvisioning({ name: " Fitivo North ", slug: "Fitivo-North", timezone: "Asia/Karachi", ownerEmail: " OWNER@example.test " }), {
-    name: "Fitivo North", slug: "fitivo-north", timezone: "Asia/Karachi", ownerEmail: "owner@example.test",
+  const planId = "507f1f77bcf86cd799439011";
+  assert.deepEqual(validateGymProvisioning({ name: " Fitivo North ", slug: "Fitivo-North", timezone: "Asia/Karachi", ownerEmail: " OWNER@example.test ", accessMode: "trial", planId, trialDays: 14 }), {
+    name: "Fitivo North", slug: "fitivo-north", timezone: "Asia/Karachi", ownerEmail: "owner@example.test", accessMode: "trial", planId, trialDays: 14,
   });
-  assert.equal(validateGymProvisioning({ name: "x", slug: "bad slug", timezone: "not/a-zone", ownerEmail: "bad" }).fields.slug, "Use lowercase letters, numbers, and single hyphens in the Gym URL.");
-  assert.equal(validateGymProvisioning({ name: "x", slug: "bad slug", timezone: "not/a-zone", ownerEmail: "bad" }).fields.ownerEmail, "Choose an existing staff account email.");
-  assert.equal(validateGymProvisioning({ name: "Valid Gym", slug: "valid-gym", timezone: "UTC", ownerEmail: "owner@example.test", status: "suspended" }).fields.status, "This field cannot be changed.");
+  assert.deepEqual(validateGymProvisioning({ name: "Paused Gym", slug: "paused-gym", timezone: "UTC", ownerEmail: "owner@example.test", accessMode: "none" }), {
+    name: "Paused Gym", slug: "paused-gym", timezone: "UTC", ownerEmail: "owner@example.test", accessMode: "none", planId: "", trialDays: null,
+  });
+  assert.equal(validateGymProvisioning({ name: "Valid Gym", slug: "valid-gym", timezone: "UTC", ownerEmail: "owner@example.test", accessMode: "trial", planId, trialDays: 91 }).fields.trialDays, "Trial length must be from 1 to 90 days.");
+  assert.equal(validateGymProvisioning({ name: "Valid Gym", slug: "valid-gym", timezone: "UTC", ownerEmail: "owner@example.test", accessMode: "invoice", planId: "bad" }).fields.planId, "Choose an active SaaS plan.");
+  assert.deepEqual(validateGymProvisioning({ name: "Default Trial", slug: "default-trial", timezone: "UTC", ownerEmail: "owner@example.test", accessMode: "trial", planId }, { defaultTrialDays: 30 }).trialDays, 30);
+  assert.equal(validateGymProvisioning({ name: "x", slug: "bad slug", timezone: "not/a-zone", ownerEmail: "bad", accessMode: "none" }).fields.slug, "Use lowercase letters, numbers, and single hyphens in the Gym URL.");
+  assert.equal(validateGymProvisioning({ name: "x", slug: "bad slug", timezone: "not/a-zone", ownerEmail: "bad", accessMode: "none" }).fields.ownerEmail, "Choose an existing staff account email.");
+  assert.equal(validateGymProvisioning({ name: "Valid Gym", slug: "valid-gym", timezone: "UTC", ownerEmail: "owner@example.test", accessMode: "none", status: "suspended" }).fields.status, "This field cannot be changed.");
 });
 
 test("gym serialization exposes organization details and only supplied active owner records", () => {
@@ -86,6 +93,8 @@ test("gym list and status endpoints require platform superadmin authorization", 
   const gymList = await readFile(fileURLToPath(new URL("../components/admin/admin-gym-manager.js", import.meta.url)), "utf8");
   assert.match(detailPage, /if \(!isSuperadmin\(user\)\) redirect/);
   assert.match(gymList, /href=\{`\/admin\/gyms\/\$\{encodeURIComponent\(gym\.id\)\}`\}/);
+  assert.match(gymList, /Initial SaaS access/);
+  assert.match(gymList, /access remains paused until a SaaS plan or trial is assigned/);
   assert.match(detailComponent, /Loading gym details/);
   assert.match(detailComponent, /gym account was not found/);
   assert.match(detailComponent, /role="alert"/);

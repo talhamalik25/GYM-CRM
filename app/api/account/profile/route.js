@@ -8,6 +8,7 @@ import User from "../../../../models/User.js";
 async function getOwner(request) {
   const user = await getAuthenticatedUserFromRequest(request);
   if (!user || user.role !== "staff") return { error: errorResponse("Authentication is required.", 401) };
+  await connectToDatabase();
   const membership = await GymMembership.findOne({ userId: user._id, role: "gym_owner", status: "active" }).select("_id").lean();
   if (!membership) return { error: errorResponse("An active Gym Owner account is required.", 403) };
   return { user };
@@ -15,7 +16,6 @@ async function getOwner(request) {
 
 export async function GET(request) {
   try {
-    await connectToDatabase();
     const auth = await getOwner(request);
     if (auth.error) return auth.error;
     const user = await User.findOne({ _id: auth.user._id, role: "staff", isActive: true }).select("fullName email phone").lean();
@@ -35,7 +35,6 @@ export async function PATCH(request) {
   const validation = validateOwnerProfile(body);
   if (validation.message) return errorResponse(validation.message, 400, validation.fields);
   try {
-    await connectToDatabase();
     const auth = await getOwner(request);
     if (auth.error) return auth.error;
     const updated = await User.findOneAndUpdate(

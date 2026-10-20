@@ -4,12 +4,16 @@ import { randomBytes, randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { GET as listStaff, POST as inviteStaff } from "../app/api/staff/invitations/route.js";
 import { POST as acceptInvitation } from "../app/api/staff/invitations/accept/route.js";
+import { GET as getTrainerWorkspace } from "../app/api/trainer/workspace/route.js";
 import connectToDatabase from "../lib/db.js";
 import { hashPassword, verifyPassword } from "../lib/passwords.js";
 import AuthSession from "../models/AuthSession.js";
+import Attendance from "../models/Attendance.js";
 import Gym from "../models/Gym.js";
 import GymMembership from "../models/GymMembership.js";
+import Member from "../models/Member.js";
 import StaffInvitation from "../models/StaffInvitation.js";
+import Trainer from "../models/Trainer.js";
 import User from "../models/User.js";
 import { createInvitationToken } from "../lib/staffInvitations.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
@@ -35,6 +39,7 @@ test("owner invitations are gym scoped, role limited, single use, and preserve e
     const existing = await User.create({ fullName: "Existing Invitee", email: `existing-${suffix}@example.test`, passwordHash: await hashPassword("existing-password-long"), role: "staff", isActive: true }); ids.users.push(existing._id);
     const crossGym = await User.create({ fullName: "Cross Gym Invitee", email: `cross-gym-${suffix}@example.test`, passwordHash: await hashPassword("cross-gym-password-long"), role: "staff", isActive: true }); ids.users.push(crossGym._id);
     const racing = await User.create({ fullName: "Racing Invitee", email: `racing-${suffix}@example.test`, passwordHash: await hashPassword("racing-password-long"), role: "staff", isActive: true }); ids.users.push(racing._id);
+    const trainerUser = await User.create({ fullName: "Trainer User", email: `trainer-${suffix}@example.test`, passwordHash: await hashPassword("trainer-password-long"), role: "staff", isActive: true }); ids.users.push(trainerUser._id);
     const gym = await Gym.create({ name: "Invite Gym", slug: `invite-${suffix}` }); const otherGym = await Gym.create({ name: "Other Invite Gym", slug: `other-invite-${suffix}` }); ids.gyms.push(gym._id, otherGym._id);
     await GymMembership.create([{ userId: owner._id, gymId: gym._id, role: "gym_owner", status: "active" }, { userId: otherUser._id, gymId: otherGym._id, role: "gym_owner", status: "active" }]);
     const ownerToken = randomBytes(32).toString("base64url"); const adminToken = randomBytes(32).toString("base64url"); const otherOwnerToken = randomBytes(32).toString("base64url");
@@ -47,15 +52,15 @@ test("owner invitations are gym scoped, role limited, single use, and preserve e
     const unauth = await inviteStaff(request("/api/staff/invitations", { email: `new-${suffix}@example.test`, role: "gym_admin" })); assert.equal(unauth.status, 401);
     const forbidden = await inviteStaff(request("/api/staff/invitations", { email: `new-${suffix}@example.test`, role: "trainer" }, adminToken)); assert.equal(forbidden.status, 403);
     const forged = await inviteStaff(request("/api/staff/invitations", { email: `new-${suffix}@example.test`, role: "gym_owner", gymId: String(otherGym._id) }, ownerToken)); assert.equal(forged.status, 400);
-    const trainerInvite = await inviteStaff(request("/api/staff/invitations", { email: `new-${suffix}@example.test`, role: "trainer" }, ownerToken));
-    assert.equal(trainerInvite.status, 400); assert.match((await trainerInvite.json()).error.fields.role, /paused/);
+    const missingTrainerProfile = await inviteStaff(request("/api/staff/invitations", { email: `missing-trainer-${suffix}@example.test`, role: "trainer" }, ownerToken));
+    assert.equal(missingTrainerProfile.status, 400);
     const legacyTrainerToken = createInvitationToken();
-    const legacyTrainerInvite = await StaffInvitation.create({ gymId: gym._id, email: `legacy-trainer-${suffix}@example.test`, role: "trainer", tokenHash: legacyTrainerToken.tokenHash, expiresAt: new Date(Date.now() + 60000), status: "pending" });
+    const legacyTrainerInvite = await StaffInvitation.create({ gymId: gym._id, email: `missing-trainer-${suffix}@example.test`, role: "trainer", tokenHash: legacyTrainerToken.tokenHash, expiresAt: new Date(Date.now() + 60000), status: "pending" });
     ids.invitations.push(legacyTrainerInvite._id);
-    const legacyTrainerAccept = await acceptInvitation(request("/api/staff/invitations/accept", { token: legacyTrainerToken.token, fullName: "Legacy Trainer", password: "legacy-trainer-password-long" }));
-    assert.equal(legacyTrainerAccept.status, 400); assert.match((await legacyTrainerAccept.json()).error.message, /paused/);
+    const legacyTrainerAccept = await acceptInvitation(request("/api/staff/invitations/accept", { token: legacyTrainerToken.token, fullName: "Missing Trainer", password: "missing-trainer-password-long" }));
+    assert.equal(legacyTrainerAccept.status, 409);
     assert.equal((await StaffInvitation.findById(legacyTrainerInvite._id)).status, "pending");
-    assert.equal(await User.exists({ email: `legacy-trainer-${suffix}@example.test` }), null);
+    assert.equal(await User.exists({ email: `missing-trainer-${suffix}@example.test` }), null);
 
     const newEmail = `new-${suffix}@example.test`;
     const created = await inviteStaff(request("/api/staff/invitations", { email: newEmail, role: "gym_admin" }, ownerToken)); assert.equal(created.status, 201);
@@ -65,6 +70,24 @@ test("owner invitations are gym scoped, role limited, single use, and preserve e
     assert.equal(concurrent.filter(response => response.status === 200).length, 1);
     assert.equal(await GymMembership.countDocuments({ gymId: gym._id, role: "gym_admin", status: "active", userId: { $in: await User.find({ email: newEmail }).distinct("_id") } }), 1);
     assert.equal((await inviteStaff(request("/api/staff/invitations", { email: newEmail, role: "trainer" }, ownerToken))).status, 400);
+
+    const trainer = await Trainer.create({ gymId: gym._id, fullName: "Assigned Trainer", email: trainerUser.email, phone: "+923001112233", specialization: "Strength", joiningDate: new Date(), status: "active" });
+    const assignedMember = await Member.create({ gymId: gym._id, fullName: "Assigned Member", phone: `+92300${String(randomBytes(4).readUInt32BE(0) % 10000000).padStart(7, "0")}`, gender: "Other", planId: new mongoose.Types.ObjectId(), trainerId: trainer._id, startDate: new Date("2026-01-01"), expiryDate: new Date("2027-01-01") });
+    const unassignedMember = await Member.create({ gymId: gym._id, fullName: "Unassigned Member", phone: `+92301${String(randomBytes(4).readUInt32BE(0) % 10000000).padStart(7, "0")}`, gender: "Other", planId: new mongoose.Types.ObjectId(), startDate: new Date("2026-01-01"), expiryDate: new Date("2027-01-01") });
+    await Attendance.create({ gymId: gym._id, memberId: assignedMember._id, date: "2026-10-20", checkInAt: new Date() });
+    await Attendance.create({ gymId: gym._id, memberId: unassignedMember._id, date: "2026-10-20", checkInAt: new Date() });
+    const trainerToken = randomBytes(32).toString("base64url");
+    const trainerSession = await AuthSession.create({ userId: trainerUser._id, tokenHash: (await import("node:crypto")).createHmac("sha256", process.env.AUTH_SESSION_SECRET).update(trainerToken).digest("hex"), expiresAt: new Date(Date.now() + 60000) }); ids.sessions.push(trainerSession._id);
+    const trainerInvite = await inviteStaff(request("/api/staff/invitations", { email: trainerUser.email, role: "trainer" }, ownerToken)); assert.equal(trainerInvite.status, 201);
+    const trainerInviteToken = new URL((await trainerInvite.json()).data.invitationUrl, "http://localhost").searchParams.get("token");
+    assert.equal((await acceptInvitation(request("/api/staff/invitations/accept", { token: trainerInviteToken }, trainerToken))).status, 200);
+    const trainerWorkspace = await getTrainerWorkspace(request("/api/trainer/workspace", undefined, trainerToken)); assert.equal(trainerWorkspace.status, 200);
+    const trainerData = (await trainerWorkspace.json()).data;
+    assert.deepEqual(trainerData.members.map(member => member.id), [String(assignedMember._id)]);
+    assert.deepEqual(trainerData.attendance.map(record => record.memberId), [String(assignedMember._id)]);
+    const memberRoute = await (await import("node:fs/promises")).readFile(new URL("../app/api/members/route.js", import.meta.url), "utf8");
+    assert.match(memberRoute, /requireApiUser\(request\)/);
+    assert.doesNotMatch(memberRoute, /allowedRoles: \[[^\]]*trainer/);
 
     const existingInvite = await inviteStaff(request("/api/staff/invitations", { email: existing.email, role: "gym_admin" }, ownerToken)); assert.equal(existingInvite.status, 201);
     const existingToken = new URL((await existingInvite.json()).data.invitationUrl, "http://localhost").searchParams.get("token");
@@ -108,6 +131,9 @@ test("owner invitations are gym scoped, role limited, single use, and preserve e
     assert.equal((await acceptInvitation(request("/api/staff/invitations/accept", { token: newToken, fullName: "New Invitee", password: "new-invitee-password-long" }))).status, 400);
   } finally {
     if (mongoose.connection.readyState === 1) {
+      await Attendance.deleteMany({ gymId: { $in: ids.gyms } });
+      await Member.deleteMany({ gymId: { $in: ids.gyms } });
+      await Trainer.deleteMany({ gymId: { $in: ids.gyms } });
       await StaffInvitation.deleteMany({ email: { $regex: suffix } });
       await AuthSession.deleteMany({ userId: { $in: ids.users } });
       await GymMembership.deleteMany({ userId: { $in: ids.users }, gymId: { $in: ids.gyms } });

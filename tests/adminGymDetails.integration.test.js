@@ -9,6 +9,8 @@ import { hashPassword } from "../lib/passwords.js";
 import AuthSession from "../models/AuthSession.js";
 import Gym from "../models/Gym.js";
 import GymMembership from "../models/GymMembership.js";
+import PlatformInvoice from "../models/PlatformInvoice.js";
+import SaaSPlan from "../models/SaaSPlan.js";
 import User from "../models/User.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
@@ -49,7 +51,10 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
     const inactiveOwner = await User.create({ fullName: "Inactive Owner", email: `inactive-owner-${suffix}@example.test`, passwordHash: await hashPassword("inactive-owner-password-long"), role: "staff", isActive: false });
     const provisioningOwner = await User.create({ fullName: "Provisioning Owner", email: `provision-${suffix}@example.test`, passwordHash: await hashPassword("provision-test-password-long"), role: "staff", isActive: true });
     const duplicateSlugOwner = await User.create({ email: `duplicate-${suffix}@example.test`, passwordHash: await hashPassword("duplicate-test-password-long"), role: "staff", isActive: true });
-    users.push(superadmin._id, owner._id, staff._id, inactiveOwner._id, provisioningOwner._id, duplicateSlugOwner._id);
+    const pausedOwner = await User.create({ email: `paused-${suffix}@example.test`, passwordHash: await hashPassword("paused-owner-password-long"), role: "staff", isActive: true });
+    const slugOwner = await User.create({ email: `slug-${suffix}@example.test`, passwordHash: await hashPassword("slug-owner-password-long"), role: "staff", isActive: true });
+    users.push(superadmin._id, owner._id, staff._id, inactiveOwner._id, provisioningOwner._id, duplicateSlugOwner._id, pausedOwner._id, slugOwner._id);
+    const plan = await SaaSPlan.create({ name: `Provisioning ${suffix}`, price: 1200, interval: "monthly", isActive: true });
     const gym = await Gym.create({ name: "Details Fixture Gym", slug: `details-${suffix}` });
     const otherGym = await Gym.create({ name: "Other Fixture Gym", slug: `other-details-${suffix}` });
     gyms.push(gym._id, otherGym._id);
@@ -84,18 +89,42 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
 
     const provisionResponse = await provisionGym(request("/api/admin/gyms", adminToken, {
       method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
-      body: JSON.stringify({ name: "Provisioned Gym", slug: `provisioned-${suffix}`, timezone: "Asia/Karachi", ownerEmail: provisioningOwner.email }),
+      body: JSON.stringify({ name: "Provisioned Gym", slug: `provisioned-${suffix}`, timezone: "Asia/Karachi", ownerEmail: provisioningOwner.email, accessMode: "trial", planId: String(plan._id), trialDays: 14 }),
     }));
     assert.equal(provisionResponse.status, 201);
     const provisioned = (await provisionResponse.json()).data.gym;
     gyms.push(new mongoose.Types.ObjectId(provisioned.id));
     assert.deepEqual(provisioned.owners, [{ name: "Provisioning Owner", email: provisioningOwner.email }]);
     assert.equal(await GymMembership.countDocuments({ gymId: provisioned.id, userId: provisioningOwner._id, role: "gym_owner", status: "active" }), 1);
+    assert.equal(provisioned.subscription.status, "trialing");
+    assert.equal(provisioned.saasAccessRequired, true);
+
+    const invoiceResponse = await provisionGym(request("/api/admin/gyms", adminToken, {
+      method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ name: "Invoiced Gym", slug: `invoiced-${suffix}`, timezone: "UTC", ownerEmail: duplicateSlugOwner.email, accessMode: "invoice", planId: String(plan._id) }),
+    }));
+    assert.equal(invoiceResponse.status, 201);
+    const invoiceData = (await invoiceResponse.json()).data;
+    gyms.push(new mongoose.Types.ObjectId(invoiceData.gym.id));
+    assert.equal(invoiceData.invoice.status, "open");
+    assert.equal(invoiceData.invoice.amountDue, 1200);
+    assert.equal(String(invoiceData.gym.subscription.pendingInvoiceId), invoiceData.invoice.id);
+    assert.equal(await PlatformInvoice.countDocuments({ gymId: invoiceData.gym.id, status: "open" }), 1);
+
+    const pausedResponse = await provisionGym(request("/api/admin/gyms", adminToken, {
+      method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ name: "Paused Access Gym", slug: `paused-${suffix}`, timezone: "UTC", ownerEmail: pausedOwner.email, accessMode: "none" }),
+    }));
+    assert.equal(pausedResponse.status, 201);
+    const pausedGym = (await pausedResponse.json()).data.gym;
+    gyms.push(new mongoose.Types.ObjectId(pausedGym.id));
+    assert.equal(pausedGym.saasAccessRequired, true);
+    assert.equal(pausedGym.subscription, null);
 
     const countBeforeDuplicate = await Gym.countDocuments({});
     const duplicateResponse = await provisionGym(request("/api/admin/gyms", adminToken, {
       method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" },
-      body: JSON.stringify({ name: "Duplicate Slug Gym", slug: `provisioned-${suffix}`, timezone: "UTC", ownerEmail: duplicateSlugOwner.email }),
+      body: JSON.stringify({ name: "Duplicate Slug Gym", slug: `provisioned-${suffix}`, timezone: "UTC", ownerEmail: slugOwner.email, accessMode: "none" }),
     }));
     assert.equal(duplicateResponse.status, 409);
     assert.equal(await Gym.countDocuments({}), countBeforeDuplicate);
@@ -106,6 +135,8 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
       await GymMembership.deleteMany({ userId: { $in: users }, gymId: { $in: gyms } });
       await User.deleteMany({ _id: { $in: users } });
       await Gym.deleteMany({ _id: { $in: gyms } });
+      await PlatformInvoice.deleteMany({ gymId: { $in: gyms } });
+      await SaaSPlan.deleteMany({ name: `Provisioning ${suffix}` });
     }
     await mongoose.disconnect();
     if (previousUri === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previousUri;

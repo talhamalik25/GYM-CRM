@@ -36,8 +36,8 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(shell, /const adminNav = \[/);
   assert.match(shell, /href: '\/admin\/gyms'/);
   assert.match(shell, /href: '\/admin\/users'/);
-  assert.match(shell, /isSuperadmin \? "\/admin\/users" : "\/settings"/);
-  assert.match(shell, /!isSuperadmin && <Link[^>]*href="\/settings"/);
+  assert.match(shell, /isSuperadmin \? "\/admin\/users" : isTrainer \? "\/trainer" : canManageStaff \? "\/profile"/);
+  assert.match(shell, /href="\/profile" role="menuitem"/);
   assert.match(shell, /pathname\.startsWith\('\/admin\/gyms'\)/);
   assert.match(dashboard, /if \(isSuperadmin\(user\)\) redirect\("\/admin"\)/);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);

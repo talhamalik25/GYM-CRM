@@ -9,7 +9,7 @@ import { createInvitationToken, hashInvitationToken, validateStaffInvitationBody
 
 test("staff invitation validation normalizes email and limits roles", () => {
   assert.deepEqual(validateStaffInvitationBody({ email: "  STAFF@EXAMPLE.TEST ", role: "gym_admin" }), { email: "staff@example.test", role: "gym_admin" });
-  assert.match(validateStaffInvitationBody({ email: "staff@example.test", role: "trainer" }).fields.role, /paused/);
+  assert.deepEqual(validateStaffInvitationBody({ email: "trainer@example.test", role: "trainer" }), { email: "trainer@example.test", role: "trainer" });
   assert.ok(validateStaffInvitationBody({ email: "staff@example.test", role: "gym_owner" }).fields.role);
   assert.ok(validateStaffInvitationBody({ email: "staff@example.test", role: "trainer", gymId: "forged" }).fields.gymId);
 });
@@ -27,11 +27,6 @@ test("unauthenticated users cannot invite staff", async () => {
   assert.equal(response.status, 401);
 });
 
-test("trainer invitations fail with the least-privilege policy message", () => {
-  const result = validateStaffInvitationBody({ email: "staff@example.test", role: "trainer" });
-  assert.equal(result.fields.role, "Trainer invitations are paused until trainer-specific permissions are defined.");
-});
-
 test("authorized Gym owners receive a one-time share link when email delivery is unavailable", async () => {
   const route = await readFile(fileURLToPath(new URL("../app/api/staff/invitations/route.js", import.meta.url)), "utf8");
   const manager = await readFile(fileURLToPath(new URL("../components/staff/staff-manager.js", import.meta.url)), "utf8");
@@ -42,13 +37,24 @@ test("authorized Gym owners receive a one-time share link when email delivery is
   assert.match(manager, /navigator\.clipboard\.writeText\(inviteUrl\)/);
   assert.match(manager, /Share the single-use link with the invitee within 7 days/);
   assert.match(manager, /useState\("gym_admin"\)/);
-  assert.doesNotMatch(manager, /<option value="trainer">/);
+  assert.match(manager, /<option value="trainer">Trainer<\/option>/);
+  assert.ok(route.includes('Trainer.exists({ gymId: getRequestGymId(request), email: validation.email, status: "active" })'));
 });
 
 test("invitation acceptance rejects malformed tokens before database access", async () => {
   const request = new Request("http://localhost/api/staff/invitations/accept", { method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ token: "short" }) });
   const response = await acceptInvitation(request);
   assert.equal(response.status, 400);
+});
+
+test("trainer role cannot be escalated by profile or invitation fields", async () => {
+  const forged = await inviteStaff(new Request("http://localhost/api/staff/invitations", { method: "POST", headers: { origin: "http://localhost", "content-type": "application/json" }, body: JSON.stringify({ email: "trainer@example.test", role: "trainer", gymId: "507f1f77bcf86cd799439011", isSuperadmin: true }) }));
+  assert.equal(forged.status, 401);
+  const acceptance = await readFile(fileURLToPath(new URL("../app/api/staff/invitations/accept/route.js", import.meta.url)), "utf8");
+  assert.match(acceptance, /\["gym_admin", "trainer"\]/);
+  assert.match(acceptance, /role: invitation\.role/);
+  assert.match(acceptance, /TRAINER_PROFILE_MISSING/);
+  assert.doesNotMatch(acceptance, /role: "superadmin"/);
 });
 
 test("forged roles and gym ids are rejected by invitation endpoint before database access", async () => {

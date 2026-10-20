@@ -6,6 +6,7 @@ import { hashInvitationToken } from "../../../../../lib/staffInvitations.js";
 import Gym from "../../../../../models/Gym.js";
 import GymMembership from "../../../../../models/GymMembership.js";
 import StaffInvitation from "../../../../../models/StaffInvitation.js";
+import Trainer from "../../../../../models/Trainer.js";
 import User from "../../../../../models/User.js";
 
 const json = (data, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -21,11 +22,14 @@ export async function POST(request) {
   try {
     await connectToDatabase();
     const invitation = await StaffInvitation.findOne({ tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } }).select("+tokenHash").lean();
-    if (!invitation || invitation.role !== "gym_admin" || !await Gym.exists({ _id: invitation.gymId, status: "active" })) {
-      if (invitation?.role === "trainer") return json({ success: false, error: { message: "Trainer invitations are paused until trainer-specific permissions are defined." } }, 400);
+    if (!invitation || !["gym_admin", "trainer"].includes(invitation.role) || !await Gym.exists({ _id: invitation.gymId, status: "active" })) {
       return json({ success: false, error: { message: "This invitation is invalid or expired." } }, 400);
     }
-    const existingUser = await User.findOne({ email: invitation.email }).select("_id").lean();
+    if (invitation.role === "trainer" && !await Trainer.exists({ gymId: invitation.gymId, email: invitation.email, status: "active" })) {
+      return json({ success: false, error: { message: "The active trainer profile for this invitation is no longer available." } }, 409);
+    }
+    const existingUser = await User.findOne({ email: invitation.email }).select("_id role isActive").lean();
+    if (existingUser && (existingUser.role !== "staff" || !existingUser.isActive)) return json({ success: false, error: { message: "This invitation can only be accepted by an active staff account." } }, 409);
     let userId;
     let passwordHash;
     if (existingUser) {
@@ -60,6 +64,7 @@ export async function POST(request) {
           throw new Error("OTHER_ACTIVE_MEMBERSHIP");
         }
         if (await GymMembership.exists({ userId: memberId, gymId: invitation.gymId }).session(mongoSession)) throw new Error("MEMBERSHIP_EXISTS");
+        if (invitation.role === "trainer" && !await Trainer.exists({ gymId: invitation.gymId, email: invitation.email, status: "active" }).session(mongoSession)) throw new Error("TRAINER_PROFILE_MISSING");
         const claimed = await StaffInvitation.findOneAndUpdate(
           { _id: invitation._id, tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } },
           { $set: { status: "accepted" } }, { new: true, session: mongoSession },
@@ -74,6 +79,7 @@ export async function POST(request) {
   } catch (error) {
     const duplicate = error?.code === 11000;
     if (error?.message === "OTHER_ACTIVE_MEMBERSHIP") return json({ success: false, error: { message: "This account already belongs to another gym. Contact the gym owner for help." } }, 409);
+    if (error?.message === "TRAINER_PROFILE_MISSING") return json({ success: false, error: { message: "The active trainer profile for this invitation is no longer available." } }, 409);
     const membershipExists = error?.message === "MEMBERSHIP_EXISTS";
     return json({ success: false, error: { message: duplicate || membershipExists ? "This account already has access to the invited gym." : "This invitation is invalid, expired, or already used." } }, duplicate || membershipExists ? 409 : 400);
   }

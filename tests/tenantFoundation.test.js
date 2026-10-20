@@ -90,6 +90,8 @@ test("SaaS access ends at trial or paid period expiry and rejects delinquent or 
   assert.equal(isSaaSAccessAllowed({ status: "past_due" }, now), false);
   assert.equal(isSaaSAccessAllowed({ status: "cancelled" }, now), false);
   assert.equal(isSaaSAccessAllowed(undefined, now), true);
+  assert.equal(isSaaSAccessAllowed(undefined, now, true), false);
+  assert.equal(authorizeGymMembership({ ...base, gym: { ...base.gym, saasAccessRequired: true } }).status, 403);
   assert.equal(authorizeGymMembership({ ...base, gym: { ...base.gym, saasSubscription: { status: "past_due" } } }).status, 403);
 });
 
@@ -121,7 +123,7 @@ test("every gym-data API route requires tenant authorization and an explicit que
     }
   }
   await collect(root);
-  const gymRoutes = routeFiles.filter((path) => !["admin\\users\\route.js", "admin\\users\\[id]\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js", "admin\\gym-owners\\route.js", "admin\\overview\\route.js", "admin\\billing\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js", "staff\\invitations\\accept\\route.js", "cron\\saas-expiry\\route.js"].some((suffix) => path.endsWith(suffix)));
+  const gymRoutes = routeFiles.filter((path) => !["account\\profile\\route.js", "admin\\users\\route.js", "admin\\users\\[id]\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js", "admin\\gym-owners\\route.js", "admin\\overview\\route.js", "admin\\billing\\route.js", "auth\\login\\route.js", "auth\\logout\\route.js", "auth\\register\\route.js", "staff\\invitations\\accept\\route.js", "cron\\saas-expiry\\route.js"].some((suffix) => path.endsWith(suffix)));
   assert.ok(gymRoutes.length > 0);
   for (const path of gymRoutes) {
     const source = await readFile(path, "utf8");

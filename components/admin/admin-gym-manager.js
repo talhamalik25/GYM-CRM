@@ -52,6 +52,7 @@ export default function AdminGymManager() {
   const [eligiblePlans, setEligiblePlans] = useState([]);
   const [trialDefault, setTrialDefault] = useState(0);
   const [provisionOptionsError, setProvisionOptionsError] = useState("");
+  const [provisionOptionsLoading, setProvisionOptionsLoading] = useState(true);
   const filteredGyms = filterAdminGyms(gyms, { query, status: statusFilter });
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function AdminGymManager() {
       if (!plans.length) setProvisionOptionsError("Create an active SaaS plan before provisioning access. You can still provision with access paused.");
     }).catch((error) => {
       if (!cancelled) setProvisionOptionsError(error.message || "Billing options could not be loaded.");
-    });
+    }).finally(() => { if (!cancelled) setProvisionOptionsLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -213,11 +214,12 @@ export default function AdminGymManager() {
           <option value="">Select a plan</option>{eligiblePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · PKR {plan.price.toLocaleString("en-PK")} / {plan.interval}</option>)}
         </Select>}
         {provisionValues.accessMode === "trial" && <Input id="provision-trial-days" label="Trial length in days" type="number" min="1" max="90" required value={provisionValues.trialDays || String(trialDefault || "")} onChange={(event) => setProvisionValues({ ...provisionValues, trialDays: event.target.value })} error={provisionErrors.trialDays} />}
+        {provisionOptionsLoading && <p className="text-sm text-ink-muted" role="status">Loading active SaaS plans and trial settings…</p>}
         {provisionOptionsError && <p className="text-sm text-warning" role="status">{provisionOptionsError}</p>}
         <p className="text-xs leading-5 text-ink-muted">The owner must be an active staff account with no active Gym assignment. Trial access starts immediately. Paid plans remain restricted until a Superadmin reconciles the manual invoice with a verified payment reference. Paused access can be enabled later by assigning a plan under Plans &amp; billing.</p>
         {actionError && <p className="text-sm text-error" role="alert">{actionError}</p>}
         {Object.keys(provisionErrors).some((key) => !["name", "slug", "timezone", "ownerEmail"].includes(key)) && <p className="text-sm text-error" role="alert">{Object.values(provisionErrors).join(" ")}</p>}
-        <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={provisionSaving} onClick={() => setProvisionOpen(false)}>Cancel</Button><Button type="submit" disabled={provisionSaving || (provisionValues.accessMode !== "none" && !eligiblePlans.some((plan) => plan.id === provisionValues.planId))} aria-busy={provisionSaving}>{provisionSaving ? "Provisioning…" : "Create Gym and assign owner"}</Button></div>
+        <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={provisionSaving} onClick={() => setProvisionOpen(false)}>Cancel</Button><Button type="submit" disabled={provisionSaving || (provisionValues.accessMode !== "none" && (provisionOptionsLoading || !eligiblePlans.some((plan) => plan.id === provisionValues.planId)))} aria-busy={provisionSaving}>{provisionSaving ? "Provisioning…" : "Create Gym and assign owner"}</Button></div>
       </form>
     </Modal>
   </Card>;
