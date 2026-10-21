@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
 const limitsSchema = new mongoose.Schema({
-  members: { type: Number, default: null, min: 0, validate: Number.isSafeInteger },
-  trainers: { type: Number, default: null, min: 0, validate: Number.isSafeInteger },
+  members: { type: Number, default: null, min: 0, validate: (value) => value === null || Number.isSafeInteger(value) },
+  trainers: { type: Number, default: null, min: 0, validate: (value) => value === null || Number.isSafeInteger(value) },
 }, { _id: false });
 
 const saasPlanSchema = new mongoose.Schema({

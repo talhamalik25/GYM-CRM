@@ -106,7 +106,7 @@ test("owner invitations are gym scoped, role limited, single use, and preserve e
     assert.equal(crossGymAccept.status, 409); assert.match((await crossGymAccept.json()).error.message, /another gym/);
     assert.equal(await GymMembership.countDocuments({ userId: crossGym._id, status: "active" }), 1);
     assert.equal(await GymMembership.countDocuments({ userId: crossGym._id, gymId: gym._id }), 0);
-    assert.equal(await AuthSession.exists({ _id: crossGymSession._id }), true);
+    assert.ok(await AuthSession.exists({ _id: crossGymSession._id }));
     assert.equal((await StaffInvitation.findOne({ email: crossGym.email })).status, "pending");
 
     const racingToken = randomBytes(32).toString("base64url");

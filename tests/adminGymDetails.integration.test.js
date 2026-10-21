@@ -128,7 +128,7 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
     }));
     assert.equal(duplicateResponse.status, 409);
     assert.equal(await Gym.countDocuments({}), countBeforeDuplicate);
-    assert.equal(await GymMembership.countDocuments({ userId: duplicateSlugOwner._id, status: "active" }), 0);
+    assert.equal(await GymMembership.countDocuments({ userId: slugOwner._id, status: "active" }), 0);
   } finally {
     if (mongoose.connection.readyState === 1) {
       await AuthSession.deleteMany({ userId: { $in: users } });

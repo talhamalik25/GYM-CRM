@@ -4,6 +4,7 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse.
 import { gymToday, deriveMembershipStatus } from "../../../../lib/subscriptionRules.js";
 import Attendance from "../../../../models/Attendance.js";
 import Member from "../../../../models/Member.js";
+import Plan from "../../../../models/Plan.js";
 import Trainer from "../../../../models/Trainer.js";
 
 export async function GET(request) {
@@ -16,7 +17,7 @@ export async function GET(request) {
     if (!trainer) return errorResponse("An active trainer profile is required for this workspace.", 403);
     const today = gymToday(new Date(), context.gym.timezone);
     const members = await Member.find(tenantFilter(request, { trainerId: trainer._id, isActive: { $ne: false } }))
-      .populate({ path: "planId", match: tenantFilter(request), select: "name" })
+      .populate({ path: "planId", model: Plan, match: tenantFilter(request), select: "name" })
       .select("fullName phone planId startDate expiryDate membershipCancelled")
       .sort({ fullName: 1, _id: 1 }).limit(500).lean();
     const memberIds = members.map(({ _id }) => _id);

@@ -43,8 +43,9 @@ test("platform overview counts Gym and account statuses and rejects non-superadm
     await Promise.all([User.init(), AuthSession.init(), Gym.init()]);
     const superadmin = await User.create({ email: `overview-admin-${suffix}@example.test`, passwordHash: "test-hash", role: "platform_super_admin", isActive: true });
     const legacySuperadmin = await User.create({ email: `overview-legacy-admin-${suffix}@example.test`, passwordHash: "test-hash", role: "superadmin", isActive: true });
-    const staff = await User.create({ email: `overview-staff-${suffix}@example.test`, passwordHash: "test-hash", role: "staff", isActive: false });
-    users.push(superadmin._id, legacySuperadmin._id, staff._id);
+    const staff = await User.create({ email: `overview-staff-${suffix}@example.test`, passwordHash: "test-hash", role: "staff", isActive: true });
+    const inactiveStaff = await User.create({ email: `overview-inactive-${suffix}@example.test`, passwordHash: "test-hash", role: "staff", isActive: false });
+    users.push(superadmin._id, legacySuperadmin._id, staff._id, inactiveStaff._id);
     const [adminToken, legacyAdminToken, staffToken] = await Promise.all([
       createSession(superadmin._id, secret),
       createSession(legacySuperadmin._id, secret),
@@ -54,8 +55,9 @@ test("platform overview counts Gym and account statuses and rejects non-superadm
     assert.equal((await getOverview(request(legacyAdminToken))).status, 200);
     const emptyGymResponse = await getOverview(request(adminToken));
     assert.equal(emptyGymResponse.status, 200);
-    assert.deepEqual((await emptyGymResponse.json()).data.gyms, { total: 0, active: 0, suspended: 0 });
-    assert.deepEqual((await emptyGymResponse.json()).data.operations, { gymsWithoutOwner: 0, openInvoices: 0, restrictedSaaSGyms: 0 });
+    const emptyGymPayload = await emptyGymResponse.json();
+    assert.deepEqual(emptyGymPayload.data.gyms, { total: 0, active: 0, suspended: 0 });
+    assert.deepEqual(emptyGymPayload.data.operations, { gymsWithoutOwner: 0, openInvoices: 0, restrictedSaaSGyms: 0 });
 
     const activeGym = await Gym.create({ name: "Overview Active Gym", slug: `overview-active-${suffix}`, status: "active" });
     const suspendedGym = await Gym.create({ name: "Overview Suspended Gym", slug: `overview-suspended-${suffix}`, status: "suspended" });
@@ -66,8 +68,8 @@ test("platform overview counts Gym and account statuses and rejects non-superadm
     assert.equal(response.status, 200);
     const payload = await response.json();
     assert.deepEqual(payload.data.gyms, { total: 2, active: 1, suspended: 1 });
-    assert.deepEqual(payload.data.operations, { gymsWithoutOwner: 2, openInvoices: 0, restrictedSaaSGyms: 0 });
-    assert.deepEqual(payload.data.userAccounts, { total: 3, active: 2, inactive: 1, platformSuperadmins: 2 });
+    assert.deepEqual(payload.data.operations, { gymsWithoutOwner: 1, openInvoices: 0, restrictedSaaSGyms: 0 });
+    assert.deepEqual(payload.data.userAccounts, { total: 4, active: 3, inactive: 1, platformSuperadmins: 2 });
     assert.equal(JSON.stringify(payload).includes("passwordHash"), false);
     assert.equal(Object.hasOwn(payload.data, "members"), false);
     assert.equal(Object.hasOwn(payload.data, "payments"), false);

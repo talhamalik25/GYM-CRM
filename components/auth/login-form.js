@@ -116,7 +116,7 @@ export default function LoginForm() {
                 </button>
               </div>
               <div className="flex justify-end">
-                <span className="cursor-not-allowed text-xs text-ink-muted" title="Coming soon" aria-label="Forgot password? Coming soon">Forgot password? <span className="underline underline-offset-2">Coming soon</span></span>
+                <span className="cursor-not-allowed text-xs text-ink-muted" aria-label="Forgot password?"><span className="underline underline-offset-2">Forgot password?</span></span>
               </div>
               {formError && <p className="rounded-lg border border-error/20 bg-error-soft px-3 py-2.5 text-sm text-error" role="alert">{formError}</p>}
               <Button type="submit" size="lg" className="w-full" disabled={loading} aria-busy={loading}>
