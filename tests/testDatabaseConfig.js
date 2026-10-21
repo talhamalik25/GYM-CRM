@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const TEST_DATABASE_MARKER = /(^|[-_])(test|testing|disposable)([-_]|$)/i;
 
@@ -40,6 +40,10 @@ export function isolatedTestUri(configuredUri, suiteName, {
     throw new Error("Remote MONGODB_TEST_URI refused; explicitly designate the remote deployment as disposable with MONGODB_TEST_DISPOSABLE=YES.");
   }
 
-  uri.pathname = `/${suiteName}_test_${processId}_${runId}`;
+  const uniqueSuffix = createHash("sha256")
+    .update(`${suiteName}:${processId}:${runId}`)
+    .digest("hex")
+    .slice(0, 32);
+  uri.pathname = `/test_${uniqueSuffix}`;
   return uri.toString();
 }
