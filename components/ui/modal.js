@@ -1,49 +1,45 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 
-export default function Modal({ open, onClose, title, description, children, className = "" }) {
+const openDialogs = new Set();
+let previousOverflow;
+
+export default function Modal({ open, onClose, title, description, children, footer, className = "", placement = "center", dismissible = true, initialFocusRef, role = "dialog" }) {
   const dialogRef = useRef(null);
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  const pointerStartedOnBackdrop = useRef(false);
+  const id = useId();
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement;
     const dialog = dialogRef.current;
-    const focusable = () => [...(dialog?.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])') || [])];
-    (focusable()[0] || dialog)?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onCloseRef.current?.();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const items = focusable();
-      if (!items.length) {
-        event.preventDefault();
-        dialog?.focus();
-      } else if (event.shiftKey && (document.activeElement === dialog || document.activeElement === items[0] || !dialog?.contains(document.activeElement))) {
-        event.preventDefault();
-        items[items.length - 1].focus();
-      } else if (!event.shiftKey && (document.activeElement === items[items.length - 1] || !dialog?.contains(document.activeElement))) {
-        event.preventDefault();
-        items[0].focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
+    dialog.showModal();
+    if (!openDialogs.size) {
+      previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    openDialogs.add(dialog);
+    if (initialFocusRef?.current && dialog.contains(initialFocusRef.current)) initialFocusRef.current.focus();
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+      const wasTopDialog = [...openDialogs].at(-1) === dialog;
+      if (dialog.open) dialog.close();
+      openDialogs.delete(dialog);
+      if (!openDialogs.size) document.body.style.overflow = previousOverflow;
+      if (wasTopDialog && previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
     };
-  }, [open]);
+  }, [open, initialFocusRef]);
 
   if (!open) return null;
   return (
-    <div className="ui-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <section ref={dialogRef} tabIndex={-1} className={`ui-modal ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby="ui-modal-title">
-        <header className="ui-modal-header"><div><h2 id="ui-modal-title">{title}</h2>{description && <p>{description}</p>}</div><button type="button" className="ui-icon-button" aria-label="Close dialog" onClick={onClose}><X size={18} /></button></header>
+    <dialog ref={dialogRef} className={`ui-modal-backdrop${["left", "right"].includes(placement) ? ` ui-drawer-backdrop ui-drawer-${placement}` : ""}`} role={role} aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={description ? `${id}-description` : undefined}
+      onCancel={(event) => { event.preventDefault(); if (dismissible) onClose?.(); }}
+      onPointerDown={(event) => { pointerStartedOnBackdrop.current = event.target === event.currentTarget; }}
+      onClick={(event) => { if (dismissible && pointerStartedOnBackdrop.current && event.target === event.currentTarget) onClose?.(); }}>
+      <section className={`ui-modal ${className}`.trim()}>
+        <header className="ui-modal-header"><div><h2 id={`${id}-title`}>{title}</h2>{description && <p id={`${id}-description`}>{description}</p>}</div><button type="button" className="ui-icon-button" aria-label="Close dialog" onClick={onClose} disabled={!dismissible}><X size={18} aria-hidden="true" /></button></header>
         <div className="ui-modal-content">{children}</div>
+        {footer && <footer className="ui-modal-footer">{footer}</footer>}
       </section>
-    </div>
+    </dialog>
   );
 }

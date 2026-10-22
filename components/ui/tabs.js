@@ -1,12 +1,19 @@
 "use client";
 
-export default function Tabs({ items, value, onChange, idPrefix = "tabs", label }) {
+import { useId } from "react";
+
+export default function Tabs({ items, value, onChange, idPrefix, label = "Sections", className = "" }) {
+  const generatedId = useId();
+  const prefix = idPrefix || `tabs-${generatedId}`;
   function handleKeyDown(event, index) {
-    let nextIndex = index;
-    if (event.key === "ArrowRight") nextIndex = (index + 1) % items.length;
-    else if (event.key === "ArrowLeft") nextIndex = (index - 1 + items.length) % items.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = items.length - 1;
+    const enabled = items.map((item, position) => !item.disabled ? position : -1).filter(position => position >= 0);
+    if (!enabled.length) return;
+    const position = enabled.indexOf(index);
+    let nextIndex;
+    if (event.key === "ArrowRight") nextIndex = enabled[(position + 1) % enabled.length];
+    else if (event.key === "ArrowLeft") nextIndex = enabled[(position - 1 + enabled.length) % enabled.length];
+    else if (event.key === "Home") nextIndex = enabled[0];
+    else if (event.key === "End") nextIndex = enabled.at(-1);
     else return;
     event.preventDefault();
     onChange(items[nextIndex].id);
@@ -14,28 +21,27 @@ export default function Tabs({ items, value, onChange, idPrefix = "tabs", label 
   }
 
   return (
-    <div className="border-b border-line" role="tablist" aria-label={label}>
-      <div className="flex gap-5">
+    <div className={`ui-tabs ${className}`.trim()} role="tablist" aria-label={label}>
         {items.map((item, index) => {
           const selected = value === item.id;
           return (
             <button
               key={item.id}
               type="button"
-              id={`${idPrefix}-${item.id}-tab`}
+              id={`${prefix}-${item.id}-tab`}
               role="tab"
               aria-selected={selected}
-              aria-controls={`${idPrefix}-${item.id}-panel`}
+              aria-controls={`${prefix}-${item.id}-panel`}
+              disabled={item.disabled}
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(item.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className={`-mb-px min-h-11 border-b-2 px-1 text-sm font-medium transition-colors ${selected ? "border-brand text-brand" : "border-transparent text-ink-muted hover:text-ink"}`}
+              className="ui-tab"
             >
               {item.label}
             </button>
           );
         })}
-      </div>
     </div>
   );
 }

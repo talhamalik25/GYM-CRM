@@ -73,15 +73,15 @@ export default function AdminOverview() {
       <AnalyticsBarChart
         title="Gym status"
         description="Administrative access state across all workspaces"
-        categories={[{ key: "active", label: "Active", color: "#16834a" }, { key: "suspended", label: "Suspended", color: "#9e3b58" }]}
-        series={[{ key: "gyms", label: "Gyms", color: "#486b9b", values: overview.analytics.gymStatus }]}
+        categories={[{ key: "active", label: "Active", color: "var(--success)" }, { key: "suspended", label: "Suspended", color: "var(--danger)" }]}
+        series={[{ key: "gyms", label: "Gyms", color: "var(--brand)", values: overview.analytics.gymStatus }]}
         emptyMessage="No Gym workspaces have been registered yet."
       />
       <AnalyticsBarChart
         title="SaaS subscription status"
         description="Subscription state includes terms that have passed their end date"
-        categories={[{ key: "trialing", label: "Trialing", color: "#486b9b" }, { key: "active", label: "Active", color: "#16834a" }, { key: "past_due", label: "Past due", color: "#a96200" }, { key: "expired", label: "Expired", color: "#9e3b58" }, { key: "cancelled", label: "Cancelled", color: "#777680" }, { key: "unconfigured", label: "Unconfigured", color: "#929299" }]}
-        series={[{ key: "subscriptions", label: "Gyms", color: "#486b9b", values: overview.analytics.saasStatus }]}
+        categories={[{ key: "trialing", label: "Trialing", color: "var(--brand)" }, { key: "active", label: "Active", color: "var(--success)" }, { key: "past_due", label: "Past due", color: "var(--warning)" }, { key: "expired", label: "Expired", color: "var(--danger)" }, { key: "cancelled", label: "Cancelled", color: "var(--ink-subtle)" }, { key: "unconfigured", label: "Unconfigured", color: "var(--ink-subtle)" }]}
+        series={[{ key: "subscriptions", label: "Gyms", color: "var(--brand)", values: overview.analytics.saasStatus }]}
         emptyMessage="No Gym workspaces have been registered yet."
       />
       <AnalyticsBarChart
@@ -89,8 +89,8 @@ export default function AdminOverview() {
         description="Invoice amounts issued versus manually verified collections · last six months"
         categories={overview.analytics.months.map((month) => ({ key: month.month, label: monthLabel(month.month) }))}
         series={[
-          { key: "invoiced", label: "Invoiced", color: "#a96200", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.invoiced])) },
-          { key: "collected", label: "Collected", color: "#16834a", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.collected])) },
+          { key: "invoiced", label: "Invoiced", color: "var(--warning)", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.invoiced])) },
+          { key: "collected", label: "Collected", color: "var(--success)", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.collected])) },
         ]}
         formatValue={money}
         className="dashboard-chart-wide"
@@ -100,7 +100,7 @@ export default function AdminOverview() {
         title="Gym onboarding"
         description="New Gym workspaces by creation month · last six months"
         categories={overview.analytics.months.map((month) => ({ key: month.month, label: monthLabel(month.month) }))}
-        series={[{ key: "gyms-onboarded", label: "New Gyms", color: "#486b9b", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.gymsOnboarded])) }]}
+        series={[{ key: "gyms-onboarded", label: "New Gyms", color: "var(--brand)", values: Object.fromEntries(overview.analytics.months.map((month) => [month.month, month.gymsOnboarded])) }]}
         className="dashboard-chart-wide"
         emptyMessage="No Gym workspaces were created in this period."
       />

@@ -1,10 +1,10 @@
-export default function Input({ label, id, hint, error, className = "", ...props }) {
-  const inputId = id || props.name;
-  return (
-    <div className="ui-field">
-      {label && <label className="ui-label" htmlFor={inputId}>{label}</label>}
-      <input id={inputId} className={`ui-input ${error ? "ui-input-error" : ""} ${className}`.trim()} aria-invalid={error ? "true" : undefined} aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined} {...props} />
-      {error ? <span className="ui-field-error" id={`${inputId}-error`}>{error}</span> : hint ? <span className="ui-field-hint" id={`${inputId}-hint`}>{hint}</span> : null}
-    </div>
-  );
+"use client";
+
+import Field, { useField } from "./field";
+
+export default function Input({ label, id, hint, error, className = "", fieldClassName = "", ...props }) {
+  const field = useField({ ...props, id, hint, error });
+  return <Field {...field} label={label} hint={hint} error={error} className={fieldClassName}>
+    <input {...props} {...field} className={`ui-input ${error ? "ui-input-error" : ""} ${className}`.trim()} />
+  </Field>;
 }

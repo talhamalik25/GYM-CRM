@@ -1,1 +1,5 @@
-export default function PageHeading({eyebrow,title,description,action,children}){return <div className="page-heading"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{description&&<p>{description}</p>}</div><div className="heading-actions">{children}{action}</div></div>}
+import PageHeader from "./page-header";
+
+export default function PageHeading({ action, children, ...props }) {
+  return <PageHeader {...props} actions={action || children ? <>{children}{action}</> : undefined} />;
+}

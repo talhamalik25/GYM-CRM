@@ -5,13 +5,13 @@ import Button from "../ui/button";
 import Card from "../ui/card";
 import AnalyticsBarChart from "./analytics-bar-chart";
 
-const SERIES_COLORS = { attendance: "#c91c25", payments: "#16834a", memberships: "#486b9b" };
+const SERIES_COLORS = { attendance: "var(--brand)", payments: "var(--success)", memberships: "var(--brand)" };
 const MEMBERSHIP_LABELS = [
-  ["active", "Active", "#16834a"],
-  ["expiring", "Expiring", "#a96200"],
-  ["upcoming", "Upcoming", "#486b9b"],
-  ["expired", "Expired", "#9e3b58"],
-  ["cancelled", "Cancelled", "#777680"],
+  ["active", "Active", "var(--success)"],
+  ["expiring", "Expiring", "var(--warning)"],
+  ["upcoming", "Upcoming", "var(--brand)"],
+  ["expired", "Expired", "var(--danger)"],
+  ["cancelled", "Cancelled", "var(--ink-subtle)"],
 ];
 
 function monthLabel(value) {

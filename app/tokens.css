@@ -1,0 +1,171 @@
+/* Fitivo — approved Light + Indigo. All literal theme colors live here. */
+:root {
+  color-scheme: light;
+
+  /* Neutrals: 400 is decorative; use 500+ for text on light surfaces. */
+  --white: #FFFFFF;
+  --black: #000000;
+  --grey-50: #F8FAFC;
+  --grey-100: #F1F5F9;
+  --grey-200: #E5E7EB;
+  --grey-300: #CBD5E1;
+  --grey-400: #94A3B8;
+  --grey-500: #64748B;
+  --grey-600: #475569;
+  --grey-700: #334155;
+  --grey-800: #1E293B;
+  --grey-900: #0F172A;
+
+  /* Brand */
+  --brand: #4F46E5;
+  --brand-hover: #4338CA;
+  --brand-soft: #EEF2FF;
+  --brand-muted: #C7D2FE;
+  --on-brand: var(--white);
+
+  /* Ink (text) */
+  --ink: #0F172A;
+  --ink-muted: #475569;
+  --ink-subtle: #64748B;
+  --ink-inverse: var(--white);
+
+  /* Surfaces */
+  --surface:        var(--white);
+  --surface-raised: var(--grey-50);
+  --canvas: #FAFAFB;
+
+  /* Borders */
+  --line: #E5E7EB;
+  --line-strong: #E5E7EB;
+  --line-control: #E5E7EB;
+
+  /* Semantic colors are readable on their matching soft surfaces. */
+  --success: #166534;
+  --success-soft: #DCFCE7;
+  --warning: #92400E;
+  --warning-soft: #FEF3C7;
+  --danger: #991B1B;
+  --danger-hover: #991B1B;
+  --danger-soft: #FEE2E2;
+  --error:        var(--danger);
+  --error-soft:   var(--danger-soft);
+  --info: var(--brand-hover);
+  --info-soft: var(--brand-soft);
+
+  /* Presentation tokens only: these do not add statuses to application data. */
+  --status-active-bg: var(--success-soft); --status-active-fg: var(--success);
+  --status-expired-bg: var(--danger-soft); --status-expired-fg: var(--danger);
+  --status-pending-bg: var(--warning-soft); --status-pending-fg: var(--warning);
+  --status-paid-bg: var(--success-soft); --status-paid-fg: var(--success);
+  --status-overdue-bg: var(--danger-soft); --status-overdue-fg: var(--danger);
+  --status-present-bg: var(--success-soft); --status-present-fg: var(--success);
+  --status-absent-bg: var(--danger-soft); --status-absent-fg: var(--danger);
+  --status-inactive-bg: var(--grey-100); --status-inactive-fg: var(--ink-muted);
+  --status-partial-bg: var(--warning-soft); --status-partial-fg: var(--warning);
+  --status-expiring-bg: var(--warning-soft); --status-expiring-fg: var(--warning);
+  --status-upcoming-bg: var(--info-soft); --status-upcoming-fg: var(--info);
+  --status-cancelled-bg: var(--grey-100); --status-cancelled-fg: var(--ink-muted);
+
+  /* Spacing: 4px base with half-steps for compact controls. */
+  --space-0: 0px;
+  --space-0-5: 0.125rem;
+  --space-1: 0.25rem;
+  --space-1-5: 0.375rem;
+  --space-2: 0.5rem;
+  --space-2-5: 0.625rem;
+  --space-3: 0.75rem;
+  --space-3-5: 0.875rem;
+  --space-4: 1rem;
+  --space-4-5: 1.125rem;
+  --space-5: 1.25rem;
+  --space-5-5: 1.375rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --space-9: 2.25rem;
+  --space-10: 2.5rem;
+  --space-11: 2.75rem;
+  --space-12: 3rem;
+  --space-14: 3.5rem;
+  --space-16: 4rem;
+  --space-18: 4.5rem;
+  --space-20: 5rem;
+  --space-22: 5.5rem;
+  --space-24: 6rem;
+
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-pill: 9999px;
+  --radius-card: 16px;
+  --radius-input: 10px;
+  --radius-button: 10px;
+
+  /* Shadow */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: 0 4px 16px rgb(15 23 42 / 6%);
+  --shadow-lg: 0 12px 32px rgb(15 23 42 / 8%);
+
+  /* Focus and motion */
+  --focus-color: var(--brand);
+  --focus-width: 2px;
+  --focus-offset: 3px;
+  --focus-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent);
+  --motion-fast: 150ms;
+  --motion-normal: 200ms;
+
+  /* Sidebar */
+  --sidebar-bg: var(--surface);
+  --sidebar-border: var(--line);
+  --sidebar-width: 248px;
+  --topbar-height:   64px;
+
+  /* Next/font owns --font-inter; this stack remains stable across CSS order. */
+  --font-app: var(--font-inter, Inter), ui-sans-serif, system-ui, -apple-system, Arial, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --leading-xs: 1rem;
+  --leading-sm: 1.25rem;
+  --leading-base: 1.5rem;
+  --leading-lg: 1.75rem;
+  --leading-xl: 1.75rem;
+  --leading-2xl: 2rem;
+  --leading-3xl: 2.25rem;
+  --leading-4xl: 2.5rem;
+  --leading-body: 1.5;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 700;
+  --tracking-tight: -0.02em;
+  --tracking-label: 0.06em;
+
+  /* Approved Light + Indigo typography. */
+  --type-page: 26px;
+  --type-section: 16px;
+  --type-body: 14px;
+  --type-caption: 12px;
+  --type-stat: 32px;
+  --brand-soft-text: #4338CA;
+  --brand-soft-text-strong: #3730A3;
+  --chart-soft: #C7D2FE;
+  --divider: #F1F5F9;
+  --table-header: #F8FAFC;
+  --overlay: rgb(15 23 42 / 40%);
+  --page-padding-y: 28px;
+  --page-padding-x: 32px;
+  --card-padding: 20px;
+  --card-gap: 16px;
+  --section-gap: 24px;
+}
