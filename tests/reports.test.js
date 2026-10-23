@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { GET } from "../app/api/reports/route.js";
-import { buildGymReport, buildGymReportAnalytics, buildMembershipStatusDistribution, getGymReportMonths, gymDateStartUtc, resolveGymReportRange } from "../lib/reportRules.js";
+import { buildGymReport, buildGymReportAnalytics, buildMembershipStatusDistribution, formatReportCurrency, getGymReportMonths, gymDateStartUtc, resolveGymReportRange } from "../lib/reportRules.js";
 
 test("report windows cover six calendar months using the Gym timezone", () => {
   const months = getGymReportMonths(new Date("2026-10-20T20:30:00Z"), "Asia/Karachi");
@@ -58,6 +58,14 @@ test("gym-local date bounds account for daylight saving time", () => {
   assert.equal(gymDateStartUtc("2026-03-09", "America/New_York").toISOString(), "2026-03-09T04:00:00.000Z");
 });
 
+test("report ranges include the requested twelve-month window and currency formats in PKR", () => {
+  const annual = resolveGymReportRange({ range: "12m" }, new Date("2026-10-20T20:30:00Z"), "Asia/Karachi");
+  assert.equal(annual.data.days, 355);
+  assert.equal(annual.data.granularity, "month");
+  assert.equal(formatReportCurrency(125000), "PKR 125,000");
+  assert.equal(formatReportCurrency(0), "PKR 0");
+});
+
 test("filtered analytics aggregate real daily rows into buckets and compare equal prior periods", () => {
   const period = {
     range: "custom", startDate: "2026-10-01", endDate: "2026-10-03",
@@ -75,6 +83,9 @@ test("filtered analytics aggregate real daily rows into buckets and compare equa
     membershipStatuses: [{ _id: "active", count: 5 }, { _id: "expiring", count: 2 }, { _id: "expired", count: 4 }],
   });
   assert.deepEqual(report.series.map(({ key }) => key), ["2026-10-01", "2026-10-02", "2026-10-03"]);
+  assert.deepEqual(report.series.map(({ tooltipLabel }) => tooltipLabel), [
+    "1 Oct 2026", "2 Oct 2026", "3 Oct 2026",
+  ]);
   assert.deepEqual(report.attendanceDays, [
     { date: "2026-10-01", count: 6 },
     { date: "2026-10-02", count: 0 },
@@ -106,6 +117,7 @@ test("weekly report buckets start on Monday and retain partial boundary weeks", 
   });
   assert.deepEqual(report.series.map(({ key }) => key), ["2026-09-28", "2026-10-05"]);
   assert.deepEqual(report.series.map(({ attendanceCount }) => attendanceCount), [2, 5]);
+  assert.deepEqual(report.series.map(({ tooltipLabel }) => tooltipLabel), ["4 Oct 2026", "5 Oct 2026 – 6 Oct 2026"]);
 });
 
 test("reports API rejects unauthenticated access and aggregates only the trusted gym", async () => {
@@ -121,6 +133,8 @@ test("reports API rejects unauthenticated access and aggregates only the trusted
   assert.match(source, /Attendance\.aggregate\(\[\s*\{ \$match: \{ gymId,/);
   assert.match(source, /\$facet/);
   assert.match(source, /membershipCancelled/);
+  assert.match(source, /paymentDate: \{ \$gte: paymentsStart, \$lt: paymentsEnd \}/);
+  assert.match(source, /date: "\$paymentDate", timezone: period\.timezone/);
   assert.match(source, /gymId \}/);
   assert.match(source, /\$lte: \["\$expiryDate", expiringThrough\]/);
   assert.match(source, /Subscription\.countDocuments\(\{ gymId, status: \{ \$ne: "cancelled" \}/);
@@ -139,7 +153,15 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   assert.match(page, /ReportsManager/);
   assert.match(manager, /\/api\/reports/);
   assert.match(manager, /loadingLabel="member payment collections"/);
-  assert.match(manager, /range: "6m"/);
+  assert.match(manager, /range: "30d"/);
+  assert.match(manager, /title="Reports & Analytics"/);
+  assert.doesNotMatch(manager, /<section className="reports-kpis"/);
+  assert.match(manager, /<Bar dataKey="paymentCollected"/);
+  assert.match(manager, /value: "PKR"/);
+  assert.match(manager, /value: "Check-ins"/);
+  assert.match(manager, /Period/);
+  assert.match(manager, /tooltipLabel/);
+  assert.match(manager, /As of \$\{asOf/);
   assert.match(manager, /schedule baseline is stored for an attendance rate/);
   assert.match(manager, /Membership status/);
   assert.match(manager, /role="alert"/);

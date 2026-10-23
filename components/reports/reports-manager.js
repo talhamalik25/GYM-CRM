@@ -1,23 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart,
+  Bar, BarChart, CartesianGrid, Cell, Label, Line, LineChart, Pie, PieChart,
   Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { CalendarCheck2, CreditCard, Dumbbell, UsersRound } from "lucide-react";
 import ChartCard from "../ui/chart-card";
 import ErrorState from "../ui/error-state";
 import PageHeading from "../ui/page-heading";
-import StatCard from "../ui/stat-card";
+import { formatReportCurrency } from "../../lib/reportRules.js";
 
-const DEFAULT_FILTERS = { range: "6m", granularity: "month", startDate: "", endDate: "" };
+const DEFAULT_FILTERS = { range: "30d", granularity: "day", startDate: "", endDate: "" };
 const RANGE_OPTIONS = [
-  { value: "7d", label: "7 days" },
-  { value: "30d", label: "30 days" },
-  { value: "90d", label: "90 days" },
-  { value: "6m", label: "6 months" },
-  { value: "12m", label: "12 months" },
+  { value: "7d", label: "Last 7 Days" },
+  { value: "30d", label: "Last 30 Days" },
+  { value: "90d", label: "Last 90 Days" },
+  { value: "12m", label: "Last 12 Months" },
 ];
 const STATUS_COLORS = ["var(--success)", "var(--warning)", "var(--chart-plan-medium)", "var(--danger)", "var(--grey-400)"];
 const STATUS_LABELS = [
@@ -29,7 +27,7 @@ const STATUS_LABELS = [
 ];
 
 const number = (value) => Number(value || 0).toLocaleString("en-PK");
-const money = (value) => `PKR ${number(value)}`;
+const money = formatReportCurrency;
 
 function defaultGranularity(range) {
   if (range === "6m" || range === "12m") return "month";
@@ -54,10 +52,11 @@ function comparison(current, previous, metric = "") {
   };
 }
 
-function TooltipContent({ active, payload, label, formatValue, valueLabel }) {
+function TooltipContent({ active, payload, label, formatValue, valueLabel, dateContext = "" }) {
   if (!active || !payload?.length) return null;
+  const periodLabel = payload[0]?.payload?.tooltipLabel || label;
   return <div className="reports-tooltip">
-    <span>{label}</span>
+    <span>{dateContext ? `${periodLabel} · ${dateContext}` : periodLabel}</span>
     {payload.map((item) => <strong key={item.dataKey}>
       {payload.length > 1 ? `${item.name}: ` : `${valueLabel}: `}{formatValue(Number(item.value || 0))}
     </strong>)}
@@ -106,30 +105,29 @@ function DateRangeControls({ filters, report, onPreset, onCustomStart, onCustomE
   </section>;
 }
 
-function ChartFrame({ data, children, height = 300 }) {
-  const chartWidth = Math.min(1400, Math.max(360, data.length * 36));
+function ChartFrame({ children, height = 300 }) {
   return <div className="reports-chart-scroll">
-    <div className="reports-chart-frame" style={{ width: `${chartWidth}px`, minWidth: "100%", height }}>
+    <div className="reports-chart-frame" style={{ width: "100%", height }}>
       {children}
     </div>
   </div>;
 }
 
 function RevenueChart({ data }) {
-  const gradientId = useId().replaceAll(":", "");
   if (!data.some(({ paymentCollected }) => paymentCollected > 0)) {
     return <p className="reports-chart-empty" role="status">No member payments were recorded for this period.</p>;
   }
-  return <ChartFrame data={data}>
+  return <ChartFrame>
     <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 300 }}>
-      <AreaChart data={data} accessibilityLayer margin={{ top: 14, right: 10, left: 4, bottom: 0 }}>
-        <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--brand)" stopOpacity={0.24} /><stop offset="95%" stopColor="var(--brand)" stopOpacity={0.01} /></linearGradient></defs>
+      <BarChart data={data} accessibilityLayer margin={{ top: 14, right: 12, left: 8, bottom: 14 }}>
         <CartesianGrid vertical={false} stroke="var(--divider)" />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickMargin={12} interval="preserveStartEnd" minTickGap={20} />
-        <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickFormatter={(value) => Intl.NumberFormat("en-PK", { notation: "compact", maximumFractionDigits: 1 }).format(value)} width={48} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickMargin={12} interval="preserveStartEnd" minTickGap={20}>
+          <Label value="Period" position="insideBottom" offset={-8} className="reports-axis-label" />
+        </XAxis>
+        <YAxis domain={[0, "auto"]} axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickFormatter={(value) => Intl.NumberFormat("en-PK", { notation: "compact", maximumFractionDigits: 1 }).format(value)} width={58} label={{ value: "PKR", angle: -90, position: "insideLeft", fill: "var(--ink-subtle)", fontSize: 11 }} />
         <Tooltip content={<TooltipContent formatValue={money} valueLabel="Member payments" />} />
-        <Area type="monotone" dataKey="paymentCollected" name="Member payments" stroke="var(--brand)" strokeWidth={2.5} fill={`url(#${gradientId})`} activeDot={{ r: 5, strokeWidth: 2 }} isAnimationActive={false} />
-      </AreaChart>
+        <Bar dataKey="paymentCollected" name="Member payments" fill="var(--brand)" radius={[5, 5, 0, 0]} maxBarSize={38} isAnimationActive={false} />
+      </BarChart>
     </ResponsiveContainer>
   </ChartFrame>;
 }
@@ -138,12 +136,14 @@ function AttendanceChart({ data }) {
   if (!data.some(({ attendanceCount }) => attendanceCount > 0)) {
     return <p className="reports-chart-empty" role="status">No check-ins were recorded for this period.</p>;
   }
-  return <ChartFrame data={data} height={280}>
+  return <ChartFrame height={280}>
     <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 280 }}>
-      <BarChart data={data} accessibilityLayer margin={{ top: 14, right: 10, left: 4, bottom: 0 }}>
+      <BarChart data={data} accessibilityLayer margin={{ top: 14, right: 10, left: 4, bottom: 14 }}>
         <CartesianGrid vertical={false} stroke="var(--divider)" />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickMargin={12} interval="preserveStartEnd" minTickGap={20} />
-        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} width={36} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickMargin={12} interval="preserveStartEnd" minTickGap={20}>
+          <Label value="Period" position="insideBottom" offset={-8} className="reports-axis-label" />
+        </XAxis>
+        <YAxis domain={[0, "auto"]} allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} width={58} label={{ value: "Check-ins", angle: -90, position: "insideLeft", fill: "var(--ink-subtle)", fontSize: 11 }} />
         <Tooltip content={<TooltipContent formatValue={number} valueLabel="Check-ins" />} cursor={{ fill: "var(--brand-soft)" }} />
         <Bar dataKey="attendanceCount" name="Check-ins" fill="var(--chart-plan-medium)" radius={[5, 5, 0, 0]} maxBarSize={34} isAnimationActive={false} />
       </BarChart>
@@ -184,16 +184,18 @@ function GrowthChart({ data }) {
   if (!data.some(({ newMembers, renewals }) => newMembers > 0 || renewals > 0)) {
     return <p className="reports-chart-empty" role="status">No members were registered or renewed during this period.</p>;
   }
-  return <ChartFrame data={data} height={280}>
+  return <ChartFrame height={280}>
     <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 280 }}>
-      <LineChart data={data} accessibilityLayer margin={{ top: 14, right: 10, left: 4, bottom: 0 }}>
+      <LineChart data={data} accessibilityLayer margin={{ top: 14, right: 10, left: 4, bottom: 14 }}>
         <CartesianGrid vertical={false} stroke="var(--divider)" />
-        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickMargin={12} interval="preserveStartEnd" minTickGap={20} />
-        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} width={36} />
+        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} tickMargin={12} interval="preserveStartEnd" minTickGap={20}>
+          <Label value="Period" position="insideBottom" offset={-8} className="reports-axis-label" />
+        </XAxis>
+        <YAxis domain={[0, "auto"]} allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "var(--ink-subtle)", fontSize: 11 }} width={58} label={{ value: "Members / renewals", angle: -90, position: "insideLeft", fill: "var(--ink-subtle)", fontSize: 10 }} />
         <Tooltip content={<TooltipContent formatValue={number} valueLabel="Members" />} />
         <Legend wrapperStyle={{ color: "var(--ink-muted)", fontSize: 11 }} />
-        <Line type="monotone" dataKey="newMembers" name="New members" stroke="var(--success)" strokeWidth={2.25} dot={false} activeDot={{ r: 5, strokeWidth: 2 }} isAnimationActive={false} />
-        <Line type="monotone" dataKey="renewals" name="Renewals" stroke="var(--chart-plan-medium)" strokeWidth={2.25} dot={false} activeDot={{ r: 5, strokeWidth: 2 }} isAnimationActive={false} />
+        <Line type="linear" dataKey="newMembers" name="New members" stroke="var(--success)" strokeWidth={2.25} dot={data.length <= 31 ? { r: 2, strokeWidth: 0 } : false} activeDot={{ r: 5, strokeWidth: 2 }} isAnimationActive={false} />
+        <Line type="linear" dataKey="renewals" name="Renewals" stroke="var(--chart-plan-medium)" strokeWidth={2.25} dot={data.length <= 31 ? { r: 2, strokeWidth: 0 } : false} activeDot={{ r: 5, strokeWidth: 2 }} isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
   </ChartFrame>;
@@ -201,6 +203,7 @@ function GrowthChart({ data }) {
 
 function MembershipChart({ statuses, asOf, total }) {
   const data = STATUS_LABELS.map(([key, label], index) => ({ key, label, count: Number(statuses?.[key] || 0), color: STATUS_COLORS[index] }));
+  const activeMemberships = Number(statuses?.active || 0) + Number(statuses?.expiring || 0);
   const columns = [
     { key: "label", label: "Status" },
     { key: "count", label: "Members", render: (row) => number(row.count) },
@@ -208,7 +211,7 @@ function MembershipChart({ statuses, asOf, total }) {
   ];
   return <ChartCard
     title="Membership status"
-    description={`Current member records · As of ${asOf || "today"}`}
+    description={`Current snapshot, independent of the selected period · As of ${asOf || "today"}`}
     ariaLabel="Current membership status distribution"
     table={{ caption: "Current membership status distribution", columns, rows: data, getRowKey: (row) => row.key }}
   >
@@ -219,9 +222,9 @@ function MembershipChart({ statuses, asOf, total }) {
             <Pie data={data.filter(({ count }) => count > 0)} dataKey="count" nameKey="label" innerRadius="62%" outerRadius="84%" paddingAngle={2} stroke="var(--surface)" strokeWidth={2} isAnimationActive={false}>
               {data.filter(({ count }) => count > 0).map((item) => <Cell key={item.key} fill={item.color} />)}
             </Pie>
-            <Tooltip content={<TooltipContent formatValue={number} valueLabel="Members" />} />
-            <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" className="reports-donut-total">{number(total)}</text>
-            <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="reports-donut-caption">members</text>
+            <Tooltip content={<TooltipContent formatValue={number} valueLabel="Members" dateContext={`As of ${asOf || "today"}`} />} />
+            <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" className="reports-donut-total">{number(activeMemberships)}</text>
+            <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="reports-donut-caption">active / expiring</text>
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -234,10 +237,6 @@ function MembershipChart({ statuses, asOf, total }) {
     </div> : <p className="reports-chart-empty" role="status">No member records are available yet.</p>}
     <p className="reports-status-note">Statuses are mutually exclusive: cancelled, upcoming, expired, expiring within 7 days, then active. This snapshot is independent of the selected activity period.</p>
   </ChartCard>;
-}
-
-function MetricDetail({ detail }) {
-  return <span className="reports-metric-detail">{detail}</span>;
 }
 
 function useReport(query) {
@@ -328,7 +327,7 @@ export default function ReportsManager() {
   ];
 
   return <div className="reports-page">
-    <PageHeading eyebrow="INSIGHTS & ANALYTICS" title="Reports" description="Understand member growth, collections, attendance, and membership health." />
+    <PageHeading eyebrow="INSIGHTS & ANALYTICS" title="Reports & Analytics" description="Explore member registrations, payment collections, attendance, and current membership health." />
     <DateRangeControls
       filters={filters}
       report={report}
@@ -345,24 +344,12 @@ export default function ReportsManager() {
     {customError && <p className="reports-filter-error" role="alert">{customError}</p>}
     {error && <ErrorState title="Reports are temporarily unavailable" description={error} onRetry={retry} />}
 
-    <section className="reports-kpis" aria-label="Report overview" aria-busy={loading || undefined}>
-      <StatCard label="Total members" value={report ? number(report.summary.totalMembers) : "—"} icon={<UsersRound />} loading={loading && !report} description={<MetricDetail detail="Lifetime member records" />} />
-      <StatCard label="Active memberships" value={report ? number(report.summary.activeMemberships) : "—"} icon={<Dumbbell />} loading={loading && !report} description={<MetricDetail detail="Current active and expiring memberships" />} />
-      <StatCard label="Member collections" value={report ? money(report.summary.paymentCollected) : "—"} icon={<CreditCard />} loading={loading && !report}
-        trend={compare ? comparison(report.summary.paymentCollected, compare.paymentCollected) : undefined}
-        description={<MetricDetail detail="Member payments · selected period" />} />
-      <StatCard label="Average check-ins / day" value={report ? number(report.summary.averageAttendancePerDay) : "—"} icon={<CalendarCheck2 />} loading={loading && !report}
-        trend={compare ? comparison(report.summary.attendanceCount, compare.attendanceCount) : undefined}
-        description={<MetricDetail detail="No schedule baseline is stored for an attendance rate" />} />
-    </section>
-
     <p className="reports-comparison-note">Period comparisons use the immediately preceding range of equal length. Total members and membership status are current snapshots.</p>
 
     {(report || loading) && <section className="reports-chart-grid" aria-label="Analytics charts" aria-busy={loading || undefined}>
       <ChartCard
-        className="reports-chart-wide"
         title="Member payment collections"
-        description="Recorded member payments only · PKR · Fitivo SaaS subscription revenue is excluded"
+        description={report ? `Recorded member payments · ${money(report.summary.paymentCollected)} in this period · Fitivo SaaS subscription revenue is excluded` : "Loading member payment collections"}
         ariaLabel="Member payment collections by selected interval"
         loading={loading}
         loadingLabel="member payment collections"
@@ -372,7 +359,7 @@ export default function ReportsManager() {
       </ChartCard>
       <ChartCard
         title="Attendance activity"
-        description="Gym check-ins recorded per selected interval"
+        description={report ? `${number(report.summary.attendanceCount)} check-ins · ${number(report.summary.averageAttendancePerDay)} average per day · no schedule baseline is stored for an attendance rate` : "Loading attendance activity"}
         ariaLabel="Attendance check-ins by selected interval"
         loading={loading}
         loadingLabel="attendance activity"
@@ -384,8 +371,8 @@ export default function ReportsManager() {
         </>
       </ChartCard>
       <ChartCard
-        title="Member growth & renewals"
-        description={`New member records and subscription renewals · ${number(report?.summary?.newMembers)} registrations this period${compare ? ` · ${comparison(report.summary.newMembers, compare.newMembers, "registrations").label}` : ""}`}
+        title="Member registrations & renewals"
+        description={report ? `${number(report.summary.newMembers)} registrations in this period · ${number(report.summary.totalMembers)} member records currently · historical totals are not reconstructed${compare ? ` · ${comparison(report.summary.newMembers, compare.newMembers, "registrations").label}` : ""}` : "Loading member registrations"}
         ariaLabel="New member registrations and membership renewals by selected interval"
         loading={loading}
         loadingLabel="member registrations"
@@ -393,7 +380,7 @@ export default function ReportsManager() {
       >
         <GrowthChart data={series} />
       </ChartCard>
-      {report ? <MembershipChart statuses={report.summary.membershipStatuses} asOf={report.period.endDate} total={membershipTotal} /> : <ChartCard title="Membership status" description="Current member records" loading loadingLabel="membership status" />}
+      {report ? <MembershipChart statuses={report.summary.membershipStatuses} asOf={report.period.today} total={membershipTotal} /> : <ChartCard title="Membership status" description="Current member records" loading loadingLabel="membership status" />}
     </section>}
     <p className="reports-screen-reader" role="status" aria-live="polite">{loading ? "Updating report data." : report ? `Reports loaded for ${report.period.startDate} through ${report.period.endDate}.` : ""}</p>
   </div>;

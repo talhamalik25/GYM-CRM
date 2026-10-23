@@ -1424,25 +1424,16 @@ button.owner-text-link { border: 0; padding: 0; background: transparent; text-al
 .reports-apply:hover { background: var(--brand-hover); }
 .reports-period-note, .reports-comparison-note { margin: 0; color: var(--ink-subtle); font-size: 12px; line-height: 1.5; }
 .reports-filter-error { margin: -10px 0 0; color: var(--error); font-size: 12px; }
-.reports-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--card-gap); }
-.reports-kpis > .ui-stat-card { min-width: 0; padding: var(--card-padding); }
-.reports-kpis .ui-stat-heading { min-height: 38px; align-items: flex-start; }
-.reports-kpis .ui-stat-heading p { font-weight: 500; }
-.reports-kpis .ui-stat-icon { flex: 0 0 36px; width: 36px; height: 36px; padding: 8px; }
-.reports-kpis .ui-stat-icon svg { width: 19px; height: 19px; }
-.reports-kpis .ui-stat-value { font-variant-numeric: tabular-nums; }
-.reports-metric-detail { display: block; color: var(--ink-subtle); font-size: 11px; line-height: 1.5; }
 .reports-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--card-gap); align-items: start; }
-.reports-chart-wide { grid-column: 1 / -1; }
-.reports-chart-grid .ui-chart-card { min-height: 360px; }
-.reports-chart-grid .ui-chart-card:has(.reports-status-note) { min-height: 0; }
+.reports-chart-grid .ui-chart-card { min-height: 410px; }
 .reports-chart-grid .ui-chart-card-header { align-items: flex-start; }
 .reports-chart-grid .ui-chart-card-heading h2 { font-size: 16px; }
 .reports-chart-grid .ui-chart-card-heading p { max-width: 58ch; }
 .reports-chart-grid .ui-chart-card-actions { flex: 0 0 auto; }
 .reports-chart-grid .ui-chart-view-toggle button { min-width: 58px; }
 .reports-chart-scroll { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
-.reports-chart-frame { min-width: 360px; }
+.reports-chart-frame { min-width: 0; }
+.reports-axis-label { fill: var(--ink-subtle); font-size: 11px; }
 .reports-tooltip { display: grid; gap: 5px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-input); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-md); font-size: 12px; }
 .reports-tooltip span { color: var(--ink-subtle); }
 .reports-tooltip strong { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1472,12 +1463,8 @@ button.owner-text-link { border: 0; padding: 0; background: transparent; text-al
 .reports-status-legend small { margin-left: 5px; color: var(--ink-subtle); font-size: 10px; }
 .reports-status-note { margin: 12px 0 0; padding-top: 11px; border-top: 1px solid var(--divider); color: var(--ink-subtle); font-size: 11px; line-height: 1.5; }
 .reports-screen-reader { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 1100px) {
-  .reports-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 760px) {
   .reports-chart-grid { grid-template-columns: minmax(0, 1fr); }
-  .reports-chart-wide { grid-column: auto; }
   .reports-chart-grid .ui-chart-card { min-height: 0; }
   .reports-filter-main { align-items: flex-start; flex-direction: column; }
   .reports-presets { max-width: 100%; }

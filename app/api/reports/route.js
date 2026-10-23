@@ -1,7 +1,7 @@
 import connectToDatabase from "../../../lib/db.js";
 import { getRequestGymId, getRequestTenantContext, requireApiUser } from "../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse.js";
-import { addDays, dateOnly } from "../../../lib/subscriptionRules.js";
+import { addDays } from "../../../lib/subscriptionRules.js";
 import { buildGymReportAnalytics, gymDateStartUtc, resolveGymReportRange } from "../../../lib/reportRules.js";
 import Attendance from "../../../models/Attendance.js";
 import Member from "../../../models/Member.js";
@@ -33,8 +33,8 @@ export async function GET(request) {
     const gymId = getRequestGymId(request);
     const period = resolvedRange.data;
     const today = period.today;
-    const previousStart = dateOnly(period.previousStartDate);
-    const paymentsEnd = dateOnly(addDays(period.endDate, 1));
+    const paymentsStart = gymDateStartUtc(period.previousStartDate, period.timezone);
+    const paymentsEnd = gymDateStartUtc(addDays(period.endDate, 1), period.timezone);
     const memberStart = gymDateStartUtc(period.previousStartDate, period.timezone);
     const memberEnd = gymDateStartUtc(addDays(period.endDate, 1), period.timezone);
     const dashboardSignupStart = includeDashboard ? gymDateStartUtc(addDays(today, -14), period.timezone) : null;
@@ -44,9 +44,9 @@ export async function GET(request) {
     const expiringThrough = dateOnly(addDays(today, 7));
     const [payments, memberAnalytics, attendance, renewals, activeSubscriptions, totalSubscriptions] = await Promise.all([
       Payment.aggregate([
-        { $match: { gymId, paymentDate: { $gte: previousStart, $lt: paymentsEnd } } },
+        { $match: { gymId, paymentDate: { $gte: paymentsStart, $lt: paymentsEnd } } },
         { $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: "UTC" } },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: period.timezone } },
           total: { $sum: "$amountPaid" },
         } },
       ]),
