@@ -146,6 +146,7 @@ test("reports API rejects unauthenticated access and aggregates only the trusted
 test("Owner reports load real metrics, expose states, and navigation includes reports and settings", async () => {
   const page = await readFile(fileURLToPath(new URL("../app/(dashboard)/reports/page.js", import.meta.url)), "utf8");
   const manager = await readFile(fileURLToPath(new URL("../components/reports/reports-manager.js", import.meta.url)), "utf8");
+  const styles = await readFile(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8");
   const dashboard = await readFile(fileURLToPath(new URL("../components/dashboard/owner-dashboard-analytics.js", import.meta.url)), "utf8");
   const settingsPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/settings/page.js", import.meta.url)), "utf8");
   const settingsManager = await readFile(fileURLToPath(new URL("../components/settings/gym-settings.js", import.meta.url)), "utf8");
@@ -162,6 +163,12 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   assert.match(manager, /Period/);
   assert.match(manager, /tooltipLabel/);
   assert.match(manager, /As of \$\{asOf/);
+  assert.match(manager, /Last 7 Days/);
+  assert.match(manager, /Last 30 Days/);
+  assert.match(manager, /Last 90 Days/);
+  assert.match(manager, /Last 12 Months/);
+  assert.match(styles, /\.reports-chart-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 760px\) \{\s+\.reports-chart-grid \{ grid-template-columns: minmax\(0, 1fr\);/);
   assert.match(manager, /schedule baseline is stored for an attendance rate/);
   assert.match(manager, /Membership status/);
   assert.match(manager, /role="alert"/);

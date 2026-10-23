@@ -58,7 +58,7 @@ function TooltipContent({ active, payload, label, formatValue, valueLabel, dateC
   return <div className="reports-tooltip">
     <span>{dateContext ? `${periodLabel} · ${dateContext}` : periodLabel}</span>
     {payload.map((item) => <strong key={item.dataKey}>
-      {payload.length > 1 ? `${item.name}: ` : `${valueLabel}: `}{formatValue(Number(item.value || 0))}
+      {item.name || valueLabel}: {formatValue(Number(item.value || 0))}
     </strong>)}
   </div>;
 }
