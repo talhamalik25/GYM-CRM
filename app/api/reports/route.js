@@ -1,7 +1,7 @@
 import connectToDatabase from "../../../lib/db.js";
 import { getRequestGymId, getRequestTenantContext, requireApiUser } from "../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse.js";
-import { addDays } from "../../../lib/subscriptionRules.js";
+import { addDays, dateOnly } from "../../../lib/subscriptionRules.js";
 import { buildGymReportAnalytics, gymDateStartUtc, resolveGymReportRange } from "../../../lib/reportRules.js";
 import Attendance from "../../../models/Attendance.js";
 import Member from "../../../models/Member.js";

@@ -124,6 +124,7 @@ test("reports API rejects unauthenticated access and aggregates only the trusted
   const response = await GET(new Request("http://localhost/api/reports"));
   assert.equal(response.status, 401);
   const source = await readFile(fileURLToPath(new URL("../app/api/reports/route.js", import.meta.url)), "utf8");
+  assert.match(source, /import \{ addDays, dateOnly \} from "\.\.\/\.\.\/\.\.\/lib\/subscriptionRules\.js"/);
   assert.match(source, /requireApiUser\(request\)/);
   assert.match(source, /getRequestGymId\(request\)/);
   assert.match(source, /Payment\.aggregate/);
