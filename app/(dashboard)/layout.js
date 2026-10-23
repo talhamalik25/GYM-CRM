@@ -10,5 +10,5 @@ export default async function DashboardLayout({ children }) {
   const memberships = user.role === "staff" ? await GymMembership.find({ userId: user._id, status: "active" }).select("role").lean() : [];
   const canManageStaff = memberships.some(({ role }) => role === "gym_owner");
   const isTrainer = memberships.length === 1 && memberships[0].role === "trainer";
-  return <DashboardShell isSuperadmin={isSuperadmin(user)} canManageStaff={canManageStaff} isTrainer={isTrainer}>{children}</DashboardShell>;
+  return <DashboardShell isSuperadmin={isSuperadmin(user)} canManageStaff={canManageStaff} isTrainer={isTrainer} accountEmail={user.email}>{children}</DashboardShell>;
 }

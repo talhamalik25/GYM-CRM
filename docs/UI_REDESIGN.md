@@ -6,16 +6,30 @@ wait for the user's “continue” after each stage.
 
 ## Current checkpoint
 
-- Design foundations exist in `app/globals.css`, with the Tailwind bridge in
-  `tailwind.config.js` and Inter configured in `app/layout.js`.
+- Approved Light + Indigo tokens live in `app/tokens.css`, with global styles in
+  `app/globals.css`, the Tailwind bridge in `tailwind.config.js`, and Inter
+  configured in `app/layout.js`.
 - The shared JavaScript components live in `components/ui/`.
-- This pass completes missing shared styles and adds Dropdown and Toast.
-- App-shell work is partial. Desktop collapse, navigation grouping, and the
-  remaining top-bar design belong to the next stage.
-- Auth, owner modules, admin pages, and the final consistency pass remain.
+- Stages 2–3 are complete: theme foundations and shared components, including
+  Dropdown and Toast.
+- Stage 4 is complete: a fixed 248px white sidebar, indigo bolt brand, grouped
+  role-specific navigation, account card, shared account Dropdown, and mobile
+  Drawer below 1024px. Conflicting legacy shell CSS has been consolidated.
+- The account card receives the already-authenticated user's email for display
+  and its initial. No additional query or authentication change was needed.
+- Stage 5 (Gym Owner dashboard) is next, followed by owner modules, auth, admin
+  pages, and the final consistency pass.
 - Existing legacy module CSS remains until the corresponding module is migrated.
-- Browser checks at 375px, 768px, and 1280px are still required before visual
-  acceptance. A passing build alone does not establish visual acceptance.
+- Stage 4 validation: `npm run lint` and `npm run build` pass. The build required
+  network access to fetch the existing Google Inter font.
+- An isolated local preview of the real shell passed browser checks at 375px,
+  768px, and 1280px for owner, admin, staff, and trainer navigation. Checks covered
+  shell overflow, active nested links, modal keyboard containment, Escape,
+  backdrop dismissal, focus restoration, resizing to desktop, and sign-out
+  failure recovery. Owner/admin screenshots were visually inspected. The preview
+  used fallback typography; production Inter was verified by the build.
+- These checks do not validate authenticated data flows or the remaining page
+  layouts; those still need final responsive and functional acceptance.
 
 ## Shared component conventions
 
@@ -65,6 +79,9 @@ semantic status treatments. `PageHeader` supports breadcrumbs and actions.
 
 ## Next stage constraints
 
-Complete the app shell before auth pages. Global search and notifications may
-only use existing functionality; if that functionality is unavailable, ask
-before adding it. Do not add decorative controls that imply working features.
+Rebuild the Gym Owner dashboard using only metrics exposed by existing APIs.
+Keep page titles, descriptions, search, and page actions in the shared PageHeader
+at the page level; the shell top bar supplies route context and account actions.
+Only wire existing search and actions. Do not add a global search or decorative
+controls that imply working features. Preserve the approved fixed sidebar width;
+desktop collapse is not part of the current design.

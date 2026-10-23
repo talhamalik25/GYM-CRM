@@ -1,114 +1,97 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import { Activity, CalendarCheck2, ChartNoAxesColumn, ChevronDown, CreditCard, Dumbbell, Menu, Settings, Users, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Activity, CalendarCheck2, ChartNoAxesColumn, CreditCard, Dumbbell, LogOut, Menu, Settings, Users, UserRound, Zap } from 'lucide-react';
 
 import Avatar from '../ui/avatar';
+import Button from '../ui/button';
 import Drawer from '../ui/drawer';
+import Dropdown from '../ui/dropdown';
 
 const nav = [
-  { label: 'Dashboard', href: '/dashboard', Icon: Activity },
-  { label: 'Members', href: '/members', Icon: Users },
-  { label: 'Plans', href: '/memberships', Icon: Dumbbell },
-  { label: 'Payments', href: '/payments', Icon: CreditCard },
-  { label: 'Attendance', href: '/attendance', Icon: CalendarCheck2 },
-  { label: 'Trainers', href: '/trainers', Icon: UserRound },
-  { label: 'Reports', href: '/reports', Icon: ChartNoAxesColumn },
-  { label: 'Settings', href: '/settings', Icon: Settings },
-  { label: 'Fitivo plan', href: '/billing', Icon: CreditCard },
-  { label: 'Staff', href: '/staff', Icon: Users },
+  { label: 'Dashboard', href: '/dashboard', Icon: Activity, group: 'Overview' },
+  { label: 'Members', href: '/members', Icon: Users, group: 'Management' },
+  { label: 'Plans', href: '/memberships', Icon: Dumbbell, group: 'Management' },
+  { label: 'Attendance', href: '/attendance', Icon: CalendarCheck2, group: 'Management' },
+  { label: 'Trainers', href: '/trainers', Icon: UserRound, group: 'Management' },
+  { label: 'Staff', href: '/staff', Icon: Users, group: 'Management', ownerOnly: true },
+  { label: 'Payments', href: '/payments', Icon: CreditCard, group: 'Finance' },
+  { label: 'Reports', href: '/reports', Icon: ChartNoAxesColumn, group: 'Finance' },
+  { label: 'Fitivo plan', href: '/billing', Icon: CreditCard, group: 'Finance', ownerOnly: true },
+  { label: 'Settings', href: '/settings', Icon: Settings, group: 'Workspace', ownerOnly: true },
 ];
 const adminNav = [
-  { label: 'Platform overview', href: '/admin', Icon: Activity },
-  { label: 'Gym accounts', href: '/admin/gyms', Icon: Dumbbell },
-  { label: 'User accounts', href: '/admin/users', Icon: Users },
-  { label: 'Plans & billing', href: '/admin/billing', Icon: CreditCard },
+  { label: 'Platform overview', href: '/admin', Icon: Activity, group: 'Overview' },
+  { label: 'Gym accounts', href: '/admin/gyms', Icon: Dumbbell, group: 'Management' },
+  { label: 'User accounts', href: '/admin/users', Icon: Users, group: 'Management' },
+  { label: 'Plans & billing', href: '/admin/billing', Icon: CreditCard, group: 'Finance' },
 ];
-const trainerNav = [{ label: 'Trainer workspace', href: '/trainer', Icon: UserRound }];
+const trainerNav = [{ label: 'Trainer workspace', href: '/trainer', Icon: UserRound, group: 'Overview' }];
 
-function getPageTitle(pathname) {
-  if (pathname.startsWith('/memberships')) return 'Plans';
-  if (pathname.startsWith('/members')) return 'Members';
-  if (pathname.startsWith('/trainers')) return 'Trainers';
-  if (pathname.startsWith('/admin/gyms')) return 'Gym accounts';
-  if (pathname.startsWith('/admin/users')) return 'User accounts';
-  if (pathname.startsWith('/admin/billing')) return 'Plans & billing';
-  if (pathname.startsWith('/billing')) return 'Fitivo plan';
-  if (pathname.startsWith('/trainer')) return 'Trainer workspace';
-  if (pathname === '/profile') return 'Owner profile';
-  if (pathname.startsWith('/admin')) return 'Platform overview';
-  return nav.find(({ href }) => href === pathname)?.label || ({
-    '/reports': 'Reports',
-    '/settings': 'Settings',
-    '/trainers': 'Trainers',
-    '/workouts': 'Workouts',
-  '/admin/users': 'User accounts',
-    '/admin/gyms': 'Gym accounts',
-    '/admin': 'Platform overview',
-  }[pathname] || 'Dashboard');
+function isActive(pathname, href) {
+  return pathname === href || (href !== '/admin' && pathname.startsWith(`${href}/`));
 }
 
-function SidebarContent({ pathname, onNavigate, canManageStaff, isSuperadmin, isTrainer }) {
-  const links = isSuperadmin ? adminNav : isTrainer ? trainerNav : nav.filter(({ href }) => (href !== '/staff' || canManageStaff) && (href !== '/settings' || canManageStaff) && (href !== '/billing' || canManageStaff));
+function getPageTitle(pathname) {
+  if (pathname === '/profile') return 'Owner profile';
+  if (pathname === '/workouts') return 'Workouts';
+  return [...nav, ...adminNav, ...trainerNav].find(({ href }) => isActive(pathname, href))?.label || 'Dashboard';
+}
+
+function SidebarContent({ pathname, links, homeHref, roleName, accountEmail, profileHref, onNavigate, onLogout, loggingOut, logoutError }) {
+  const groups = [...new Set(links.map(({ group }) => group))];
   return <>
-    <Link href={isSuperadmin ? "/admin" : isTrainer ? "/trainer" : "/dashboard"} className="brand" onClick={onNavigate} aria-label="Fitivo home">
-      <span className="fitivo-wordmark">Fitivo</span>
+    <Link href={homeHref} className="brand" onClick={onNavigate} aria-label="Fitivo home">
+      <span className="brand-mark"><Zap size={22} strokeWidth={1.75} aria-hidden="true" /></span>
+      <span className="brand-copy"><span className="fitivo-wordmark">Fitivo</span><span className="workspace-caption">{roleName} workspace</span></span>
     </Link>
-    <div className="workspace-switcher"><span className="workspace-mark">{isSuperadmin ? 'F' : 'G'}</span><span><small>{isSuperadmin ? 'PLATFORM' : isTrainer ? 'TRAINER' : 'WORKSPACE'}</small><strong>{isSuperadmin ? 'Fitivo platform' : 'Gym workspace'}</strong></span></div>
-    <p className="nav-label">{isSuperadmin ? 'SUPERADMIN' : isTrainer ? 'TRAINER' : 'MANAGEMENT'}</p>
     <nav aria-label="Main navigation" className="side-nav">
-      {links.map(({ label, href, Icon }) => {
-        const active = pathname === href || (href !== '/admin' && pathname.startsWith(`${href}/`));
-        return <Link key={href} href={href} onClick={onNavigate} className={`nav-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
-          <Icon className="nav-icon" size={18} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span>
-        </Link>;
-      })}
+      {groups.map((group) => <div className="nav-group" key={group}>
+        <p className="nav-label">{group}</p>
+        <ul className="nav-items">
+          {links.filter((link) => link.group === group).map(({ label, href, Icon }) => {
+            const active = isActive(pathname, href);
+            return <li key={href}><Link href={href} onClick={onNavigate} className={`nav-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
+              <Icon className="nav-icon" size={18} strokeWidth={1.75} aria-hidden="true" /><span>{label}</span>
+            </Link></li>;
+          })}
+        </ul>
+      </div>)}
     </nav>
     <div className="sidebar-bottom">
-      <div className="sidebar-note"><span className="sidebar-note-mark">F</span><div><strong>Fitivo</strong><p>Gym management workspace</p></div></div>
-      <Link className="profile-button" href={isSuperadmin ? "/admin/users" : isTrainer ? "/trainer" : canManageStaff ? "/profile" : "/dashboard"} onClick={onNavigate}><Avatar size="sm" /><span className="profile-copy"><strong>{isTrainer ? "Trainer" : "Account"}</strong><small>Signed in</small></span><ChevronDown className="profile-chevron" size={15} aria-hidden="true" /></Link>
+      <div className="shell-account-card">
+        <Link className="profile-button" href={profileHref} onClick={onNavigate}>
+          <Avatar name={accountEmail} size="sm" />
+          <span className="profile-copy"><strong>{roleName}</strong><small title={accountEmail || undefined}>{accountEmail || 'Signed in'}</small></span>
+        </Link>
+        <Button type="button" variant="ghost" className="shell-signout" onClick={onLogout} loading={loggingOut} loadingLabel="Signing out…"><LogOut size={16} strokeWidth={1.75} aria-hidden="true" />Sign out</Button>
+        {logoutError && <p className="shell-account-error" role="alert">{logoutError}</p>}
+      </div>
     </div>
   </>;
 }
 
-export default function DashboardShell({ children, isSuperadmin = false, canManageStaff = false, isTrainer = false }) {
+export default function DashboardShell({ children, isSuperadmin = false, canManageStaff = false, isTrainer = false, accountEmail = '' }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
-  const accountRef = useRef(null);
-  const accountTriggerRef = useRef(null);
-  const current = getPageTitle(pathname);
+  const roleName = isSuperadmin ? 'Super Admin' : isTrainer ? 'Trainer' : canManageStaff ? 'Gym Owner' : 'Staff';
+  const homeHref = isSuperadmin ? '/admin' : isTrainer ? '/trainer' : '/dashboard';
+  const profileHref = isSuperadmin ? '/admin/users' : isTrainer ? '/trainer' : canManageStaff ? '/profile' : '/dashboard';
+  const links = isSuperadmin ? adminNav : isTrainer ? trainerNav : nav.filter(({ ownerOnly }) => !ownerOnly || canManageStaff);
+
   useEffect(() => {
     if (!menuOpen) return;
-    const desktop = window.matchMedia('(min-width: 761px)');
+    const desktop = window.matchMedia('(min-width: 1024px)');
     const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
     desktop.addEventListener('change', closeOnDesktop);
     return () => desktop.removeEventListener('change', closeOnDesktop);
   }, [menuOpen]);
-  useEffect(() => {
-    if (!accountMenuOpen) return;
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') {
-        setAccountMenuOpen(false);
-        accountTriggerRef.current?.focus();
-      }
-    };
-    const closeOutside = (event) => {
-      if (!accountRef.current?.contains(event.target)) setAccountMenuOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    document.addEventListener('pointerdown', closeOutside);
-    document.addEventListener('focusin', closeOutside);
-    return () => {
-      window.removeEventListener('keydown', closeOnEscape);
-      document.removeEventListener('pointerdown', closeOutside);
-      document.removeEventListener('focusin', closeOutside);
-    };
-  }, [accountMenuOpen]);
+
   async function handleLogout() {
     if (loggingOut) return;
     setLoggingOut(true);
@@ -116,7 +99,6 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
     try {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (!response.ok) throw new Error();
-      setAccountMenuOpen(false);
       router.replace('/login');
       router.refresh();
     } catch {
@@ -124,34 +106,33 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
       setLoggingOut(false);
     }
   }
+
+  const sidebarProps = { pathname, links, homeHref, roleName, accountEmail, profileHref, onLogout: handleLogout, loggingOut };
+  const accountItems = [
+    ...(!isSuperadmin && !isTrainer && canManageStaff ? [{ id: 'profile', label: 'Owner profile', href: '/profile' }] : []),
+    ...(isSuperadmin ? adminNav.map(({ href, label }) => ({ id: href, href, label })) : []),
+    { id: 'logout', label: loggingOut ? 'Signing out…' : 'Sign out', onSelect: handleLogout, disabled: loggingOut },
+  ];
+
   return <div className="app-shell">
     <a href="#main-content" className="shell-skip-link">Skip to content</a>
-    <aside className="sidebar desktop-sidebar"><SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} isTrainer={isTrainer} /></aside>
+    <aside className="sidebar desktop-sidebar" aria-label={`${roleName} workspace`}><SidebarContent {...sidebarProps} /></aside>
     <Drawer open={menuOpen} side="left" onClose={() => setMenuOpen(false)} title="Navigation" className="shell-navigation-drawer">
-      <div className="shell-drawer-content">
-        <SidebarContent pathname={pathname} canManageStaff={canManageStaff} isSuperadmin={isSuperadmin} isTrainer={isTrainer} onNavigate={() => setMenuOpen(false)} />
-      </div>
+      <div className="shell-drawer-content"><SidebarContent {...sidebarProps} logoutError={logoutError} onNavigate={() => setMenuOpen(false)} /></div>
     </Drawer>
     <div className="main-column">
       <header className="topbar">
-        <div className="topbar-left"><button className="menu-toggle" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => { setAccountMenuOpen(false); setMenuOpen(true); }}><Menu size={21} /></button><div className="topbar-title"><span>Fitivo</span><strong>{current}</strong></div></div>
-        <div className="topbar-actions"><span className="topbar-context">Fitivo</span><span className="topbar-divider" /><div className="relative" ref={accountRef}>
-          <button type="button" className="top-account border-0 bg-transparent p-0" ref={accountTriggerRef} aria-label="Account options" aria-controls={accountMenuOpen ? "account-options" : undefined} aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen((open) => !open)}><Avatar size="sm" /><span className="top-account-label">Account</span><ChevronDown size={15} aria-hidden="true" /></button>
-          {accountMenuOpen && <div className="absolute right-0 top-full z-50 mt-3 w-48 rounded-xl border border-line bg-white p-1.5 shadow-lg" id="account-options" aria-label="Account options">
-            {logoutError && <p className="px-3 py-2 text-xs text-error" role="alert">{logoutError}</p>}
-            {!isSuperadmin && !isTrainer && canManageStaff && <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/profile" onClick={() => setAccountMenuOpen(false)}>Owner profile</Link>}
-    {isSuperadmin && <>
-              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin" onClick={() => setAccountMenuOpen(false)}>Platform overview</Link>
-              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/gyms" onClick={() => setAccountMenuOpen(false)}>Gym accounts</Link>
-              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/users" onClick={() => setAccountMenuOpen(false)}>User accounts</Link>
-              <Link className="block rounded-lg px-3 py-2.5 text-sm text-ink hover:bg-canvas" href="/admin/billing" onClick={() => setAccountMenuOpen(false)}>Plans &amp; billing</Link>
-            </>}
-            <button type="button" className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-ink hover:bg-canvas" disabled={loggingOut} aria-busy={loggingOut} onClick={handleLogout}>{loggingOut ? "Logging out…" : "Log out"}</button>
-          </div>}
-        </div></div>
+        <div className="topbar-left">
+          <button type="button" className="menu-toggle" aria-label="Open navigation menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={20} strokeWidth={1.75} aria-hidden="true" /></button>
+          <span className="topbar-title">{getPageTitle(pathname)}</span>
+        </div>
+        <div className="topbar-actions"><span className="topbar-context">{roleName} workspace</span><Dropdown label="Account" items={accountItems} disabled={loggingOut} /></div>
       </header>
-      <main id="main-content" tabIndex={-1} className="main-content">{children}</main>
-      <footer className="app-footer"><span>Fitivo</span><span>Gym management</span></footer>
+      <main id="main-content" tabIndex={-1} className="main-content">
+        {logoutError && <p className="shell-logout-error" role="alert">{logoutError}</p>}
+        {children}
+      </main>
+      <footer className="app-footer"><span>Fitivo</span><span>Your gym, in sync.</span></footer>
     </div>
   </div>;
 }
