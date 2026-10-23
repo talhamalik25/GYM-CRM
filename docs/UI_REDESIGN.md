@@ -27,7 +27,13 @@ wait for the user's “continue” after each stage.
   filters, actions, pagination, and data contracts are preserved.
 - Stage 7 is complete: sign-in and the paused public registration screen share a
   responsive auth layout and shared controls. Public registration remains paused.
-- Stage 8 (admin pages) is next, followed by the final consistency pass.
+- Stage 8 is complete: platform overview, user accounts, Gym accounts and
+  details, and Fitivo billing use the shared admin surfaces and responsive
+  layouts. Existing role checks, forms, confirmations, and management actions
+  remain intact.
+- Stage 9 is complete: the final consistency pass confirmed shared token
+  references and admin table surfaces, and aligned the Payments summary icon
+  with its monthly metric. The redesign stages are complete.
 - Existing legacy module CSS remains until the corresponding module is migrated.
 - Stage 4 validation: `npm run lint` and `npm run build` pass. The build required
   network access to fetch the existing Google Inter font.
@@ -38,7 +44,7 @@ wait for the user's “continue” after each stage.
   failure recovery. Owner/admin screenshots were visually inspected. The preview
   used fallback typography; production Inter was verified by the build.
 - These checks do not validate authenticated data flows or the remaining page
-  layouts; those still need final responsive and functional acceptance.
+  layouts; those still need live responsive and functional acceptance.
 
 ## Stage 5 data and validation
 
@@ -133,10 +139,21 @@ dialog so it remains available while background content is inert.
 semantic status treatments. `PageHeader` supports breadcrumbs and actions.
 `EmptyState`, `ErrorState`, `Skeleton`, and `PageSkeleton` supply shared feedback.
 
-## Next stage constraints
+## Final acceptance notes
 
-Restyle admin pages using the shared components. Stage 7 auth pages and Stage 6
-(Members, Plans, Payments, and Attendance) are complete.
+Local acceptance after Stage 9: lint passes, and 39 admin, dashboard, billing,
+report, and test-database configuration checks pass. Two source assertions were
+updated to follow the shared `ErrorState` and current route configuration.
+
+Authenticated page layouts and live data flows still need responsive and
+functional acceptance in a browser. No browser automation tool or authenticated
+preview was available in this session. MongoDB integration suites were not run:
+the configured target is remote and those suites create and remove database
+fixtures.
+
+The final consistency pass reviewed Stages 4–8 for responsive layout, shared
+component use, empty/error/loading states, and visual token consistency without
+changing existing data contracts or actions.
 Keep page titles, descriptions, search, and page actions in the shared PageHeader
 at the page level; the shell top bar supplies route context and account actions.
 Only wire existing search and actions. Do not add a global search or decorative

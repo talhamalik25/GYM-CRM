@@ -5,8 +5,10 @@ import Link from "next/link";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
+import DataTable from "../ui/data-table";
 import Input from "../ui/input";
 import Modal from "../ui/modal";
+import SearchBar from "../ui/search-bar";
 import Select from "../ui/select";
 import { filterAdminGyms } from "../../lib/adminGymRules.js";
 
@@ -54,6 +56,15 @@ export default function AdminGymManager() {
   const [provisionOptionsError, setProvisionOptionsError] = useState("");
   const [provisionOptionsLoading, setProvisionOptionsLoading] = useState(true);
   const filteredGyms = filterAdminGyms(gyms, { query, status: statusFilter });
+
+  const columns = [
+    { key: "name", label: "Gym", render: (gym) => <div className="admin-gym-name"><Link href={`/admin/gyms/${encodeURIComponent(gym.id)}`}>{gym.name}</Link><span>{gym.slug}</span></div> },
+    { key: "owners", label: "Owner", render: (gym) => <div className="admin-gym-owners">{gym.owners.length ? gym.owners.map((owner) => <div key={owner.email || owner.name}><span>{owner.name}</span><small>{owner.email || "Email unavailable"}</small></div>) : <span className="admin-muted-copy">No active owner assigned</span>}<Button className="admin-owner-access-button" type="button" size="sm" variant="secondary" disabled={gym.status !== "active"} onClick={() => { setOwnerGym(gym); setOwnerEmail(gym.owners[0]?.email || ""); setOwnerError(""); }}>Assign or repair owner access</Button></div> },
+    { key: "status", label: "Status", render: (gym) => <Badge tone={gym.status === "active" ? "success" : "warning"}>{gym.status === "active" ? "Active" : "Suspended"}</Badge> },
+    { key: "timezone", label: "Timezone" },
+    { key: "createdAt", label: "Created", render: (gym) => dateLabel(gym.createdAt) },
+    { key: "access", label: "Access", render: (gym) => <Button type="button" size="sm" variant={gym.status === "active" ? "danger" : "secondary"} disabled={Boolean(changingId)} loading={changingId === gym.id} loadingLabel="Saving…" onClick={() => changeStatus(gym)}>{gym.status === "active" ? "Suspend" : "Activate"}</Button> },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -155,34 +166,21 @@ export default function AdminGymManager() {
     }
   }
 
-  return <Card className="mt-6 p-5 md:p-7">
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-      <h2 className="text-lg font-semibold text-ink">Gym workspaces</h2>
-      <p className="mt-1 text-sm text-ink-muted">Owner details come from active gym owner memberships. Missing owners are shown as unassigned.</p>
-      <Button type="button" onClick={() => { setProvisionErrors({}); setActionError(""); setProvisionOpen(true); }}>Provision Gym</Button>
+  return <Card className="admin-surface admin-gyms-panel">
+    <div className="admin-panel-heading">
+      <div><h2>Gym workspaces</h2><p>Owner details come from active gym owner memberships. Missing owners are shown as unassigned.</p></div>
+      <div className="admin-panel-tools">{!loading && !loadError && <span className="admin-count-pill">{filteredGyms.length.toLocaleString("en-PK")} {filteredGyms.length === 1 ? "gym" : "gyms"}</span>}<Button type="button" onClick={() => { setProvisionErrors({}); setActionError(""); setProvisionOpen(true); }}>Provision Gym</Button></div>
     </div>
-    {message && <p className="mb-4 rounded-lg border border-success/20 bg-success-soft p-3 text-sm text-success" role="status">{message}</p>}
-    {actionError && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{actionError}</p>}
-    {loadError && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{loadError}</p>}
-    {!loading && !loadError && gyms.length > 0 && <div className="mb-5 grid gap-4 sm:grid-cols-2">
-      <Input id="gym-search" label="Search gyms or owners" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, slug, owner, or email" />
+    {message && <p className="admin-success-message" role="status">{message}</p>}
+    {actionError && <p className="admin-error-message" role="alert">{actionError}</p>}
+    {loadError && <p className="admin-error-message" role="alert">{loadError}</p>}
+    {!loading && !loadError && gyms.length > 0 && <div className="admin-filter-grid">
+      <SearchBar id="gym-search" label="Search gyms or owners" value={query} onChange={(event) => setQuery(event.target.value)} onClear={() => setQuery("")} placeholder="Name, slug, owner, or email" />
       <Select id="gym-status-filter" label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
         <option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option>
       </Select>
     </div>}
-    {loading ? <p className="py-8 text-center text-sm text-ink-muted" role="status">Loading gym accounts…</p> : loadError ? null : gyms.length ? filteredGyms.length ? <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] text-left text-sm">
-        <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Gym</th><th className="px-3 py-3">Owner</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Timezone</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Access</th></tr></thead>
-        <tbody>{filteredGyms.map((gym) => <tr key={gym.id} className="border-b border-line last:border-0 align-top">
-          <td className="px-3 py-4"><Link className="block font-semibold text-brand hover:underline" href={`/admin/gyms/${encodeURIComponent(gym.id)}`}>{gym.name}</Link><span className="text-xs text-ink-muted">{gym.slug}</span></td>
-          <td className="px-3 py-4">{gym.owners.length ? <div className="space-y-2">{gym.owners.map((owner) => <div key={owner.email || owner.name}><span className="block text-ink">{owner.name}</span><span className="text-xs text-ink-muted">{owner.email || "Email unavailable"}</span></div>)}</div> : <span className="text-ink-muted">No active owner assigned</span>}<Button className="mt-3" type="button" size="sm" variant="secondary" disabled={gym.status !== "active"} onClick={() => { setOwnerGym(gym); setOwnerEmail(gym.owners[0]?.email || ""); setOwnerError(""); }}>Assign or repair owner access</Button></td>
-          <td className="px-3 py-4"><Badge tone={gym.status === "active" ? "success" : "warning"}>{gym.status === "active" ? "Active" : "Suspended"}</Badge></td>
-          <td className="px-3 py-4 text-ink-muted">{gym.timezone}</td>
-          <td className="px-3 py-4 text-ink-muted">{dateLabel(gym.createdAt)}</td>
-          <td className="px-3 py-4"><Button type="button" size="sm" variant={gym.status === "active" ? "danger" : "secondary"} disabled={Boolean(changingId)} aria-busy={changingId === gym.id} onClick={() => changeStatus(gym)}>{changingId === gym.id ? "Saving…" : gym.status === "active" ? "Suspend" : "Activate"}</Button></td>
-        </tr>)}</tbody>
-      </table>
-    </div> : <p className="py-8 text-center text-sm text-ink-muted" role="status">No gyms match the current search and status filters.</p> : <p className="py-8 text-center text-sm text-ink-muted">No gym accounts have been created.</p>}
+    {loading ? <div className="admin-loading-state" role="status">Loading gym accounts…</div> : loadError ? null : gyms.length ? filteredGyms.length ? <DataTable caption="Gym workspaces" columns={columns} rows={filteredGyms} getRowKey={(gym) => gym.id} className="admin-gyms-table" /> : <div className="admin-loading-state" role="status">No gyms match the current search and status filters.</div> : <div className="admin-loading-state">No gym accounts have been created.</div>}
     <Modal
       open={Boolean(ownerGym)}
       onClose={() => { if (!ownerSaving) setOwnerGym(null); }}

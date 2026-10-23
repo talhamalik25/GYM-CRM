@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Card from "../ui/card";
-import Button from "../ui/button";
+import ErrorState from "../ui/error-state";
+import StatCard from "../ui/stat-card";
 import AnalyticsBarChart from "../dashboard/analytics-bar-chart";
 
 function monthLabel(value) {
@@ -16,11 +17,7 @@ function money(value) {
 }
 
 function Metric({ label, value, detail }) {
-  return <Card className="dashboard-metric-card p-5">
-    <p className="dashboard-metric-label text-sm text-ink-muted">{label}</p>
-    <p className="dashboard-metric-value mt-3 text-3xl font-semibold tracking-tight text-ink">{value.toLocaleString()}</p>
-    <p className="dashboard-metric-detail mt-2 text-xs text-ink-subtle">{detail}</p>
-  </Card>;
+  return <StatCard label={label} value={Number(value).toLocaleString("en-PK")} description={detail} />;
 }
 
 export default function AdminOverview() {
@@ -48,7 +45,7 @@ export default function AdminOverview() {
     <section aria-label="Platform summary" className="dashboard-platform-section">
       <div className="dashboard-section-heading"><h2>Platform footprint</h2><p>Current Gym workspace and user account totals.</p></div>
       <div className="dashboard-metrics-grid dashboard-platform-metrics">
-      {loading ? ["Gyms", "Active gyms", "Suspended gyms", "User accounts", "Active accounts", "Inactive accounts", "Superadmin accounts"].map((label) => <Card key={label} className="dashboard-metric-card dashboard-metric-loading p-5"><p className="dashboard-metric-label text-sm text-ink-muted">{label}</p><p className="dashboard-metric-value mt-3 text-3xl font-semibold text-ink" aria-label={`Loading ${label.toLowerCase()}`}>—</p><p className="dashboard-metric-detail mt-2 text-xs text-ink-subtle" role="status">Loading platform counts…</p></Card>) : error ? <Card className="dashboard-state-card p-5"><p className="text-sm text-error" role="alert">{error}</p><Button className="mt-4" variant="secondary" onClick={() => { setError(""); setLoading(true); setRetryCount((count) => count + 1); }}>Try again</Button></Card> : <>
+      {loading ? ["Gyms", "Active gyms", "Suspended gyms", "User accounts", "Active accounts", "Inactive accounts", "Superadmin accounts"].map((label) => <StatCard key={label} label={label} loading description="Loading platform counts…" />) : error ? <Card className="dashboard-state-card p-5"><ErrorState title="Could not load platform overview" description={error} onRetry={() => { setError(""); setLoading(true); setRetryCount((count) => count + 1); }} loading={loading} /></Card> : <>
         <Metric label="Gyms" value={overview.gyms.total} detail="Registered Gym workspaces" />
         <Metric label="Active gyms" value={overview.gyms.active} detail="Workspaces not administratively suspended" />
         <Metric label="Suspended gyms" value={overview.gyms.suspended} detail="Workspaces with access suspended" />

@@ -86,8 +86,8 @@ test("gym list and status endpoints require platform superadmin authorization", 
   const dashboardShell = await readFile(fileURLToPath(new URL("../components/layout/dashboard-shell.js", import.meta.url)), "utf8");
   assert.match(gymPage, /if \(!isSuperadmin\(user\)\) redirect/);
   assert.match(userPage, /if \(!isSuperadmin\(user\)\) redirect/);
-  assert.match(dashboardShell, /href="\/admin\/gyms"/);
-  assert.match(dashboardShell, /isSuperadmin &&/);
+  assert.match(dashboardShell, /href: '\/admin\/gyms'/);
+  assert.match(dashboardShell, /const links = isSuperadmin \? adminNav/);
   const detailPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/gyms/[id]/page.js", import.meta.url)), "utf8");
   const detailComponent = await readFile(fileURLToPath(new URL("../components/admin/admin-gym-details.js", import.meta.url)), "utf8");
   const gymList = await readFile(fileURLToPath(new URL("../components/admin/admin-gym-manager.js", import.meta.url)), "utf8");
@@ -97,7 +97,8 @@ test("gym list and status endpoints require platform superadmin authorization", 
   assert.match(gymList, /access remains paused until a SaaS plan or trial is assigned/);
   assert.match(detailComponent, /Loading gym details/);
   assert.match(detailComponent, /gym account was not found/);
-  assert.match(detailComponent, /role="alert"/);
+  assert.match(detailComponent, /import ErrorState/);
+  assert.match(detailComponent, /<ErrorState/);
   assert.match(detailComponent, /No active owner assigned/);
-  assert.match(detailComponent, /Back to Gyms/);
+  assert.match(detailComponent, /Back to gyms/i);
 });

@@ -18,6 +18,8 @@ const config = {
         divider: token("divider"),
         "table-header": token("table-header"),
         "chart-soft": token("chart-soft"),
+        overlay: token("overlay"),
+        "auth-spinner-track": token("auth-spinner-track"),
         brand: {
           ...semanticColor("brand"),
           hover: token("brand-hover"),

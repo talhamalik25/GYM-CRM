@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, ReceiptText, Search, UsersRound } from "lucide-react";
+import { CalendarDays, CreditCard, ReceiptText, Search, UsersRound } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
@@ -105,7 +105,7 @@ export default function PaymentsManager() {
       <div className="payments-stats">
         <StatCard label="Collected this month" value={formatCurrency(summary.collected)} icon={<CreditCard size={18} strokeWidth={1.75} />} />
         <StatCard label="Pending dues" value={formatCurrency(summary.pendingDues)} icon={<ReceiptText size={18} strokeWidth={1.75} />} />
-        <StatCard label="Payments this month" value={summary.paymentCount.toLocaleString("en-PK")} icon={<UsersRound size={18} strokeWidth={1.75} />} />
+        <StatCard label="Payments this month" value={summary.paymentCount.toLocaleString("en-PK")} icon={<CalendarDays size={18} strokeWidth={1.75} />} />
       </div>
 
       <Card className="payments-filter-card">

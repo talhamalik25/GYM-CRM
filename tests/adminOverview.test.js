@@ -15,6 +15,7 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   const route = await readFile(fileURLToPath(new URL("../app/api/admin/overview/route.js", import.meta.url)), "utf8");
   const page = await readFile(fileURLToPath(new URL("../app/(dashboard)/admin/page.js", import.meta.url)), "utf8");
   const component = await readFile(fileURLToPath(new URL("../components/admin/admin-overview.js", import.meta.url)), "utf8");
+  const errorState = await readFile(fileURLToPath(new URL("../components/ui/error-state.js", import.meta.url)), "utf8");
   const shell = await readFile(fileURLToPath(new URL("../components/layout/dashboard-shell.js", import.meta.url)), "utf8");
   const dashboard = await readFile(fileURLToPath(new URL("../app/(dashboard)/dashboard/page.js", import.meta.url)), "utf8");
 
@@ -30,9 +31,11 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(route, /role: \{ \$in: \["superadmin", "platform_super_admin"\] \}/);
   assert.doesNotMatch(route, /Member\.countDocuments|Payment\.(?:countDocuments|aggregate)|Attendance\.(?:countDocuments|aggregate)/);
   assert.match(page, /if \(!isSuperadmin\(user\)\) redirect\("\/dashboard"\)/);
-  assert.match(component, /role="alert"/);
+  assert.match(component, /import ErrorState/);
+  assert.match(component, /<ErrorState/);
+  assert.match(errorState, /role="alert"/);
+  assert.match(errorState, /Try again/);
   assert.match(component, /Loading platform counts/);
-  assert.match(component, /Try again/);
   assert.match(component, /No Gym workspaces have been registered yet/);
   assert.match(component, /Superadmin accounts/);
   assert.match(component, /SaaS subscription status/);
@@ -41,9 +44,10 @@ test("platform overview uses supported superadmin roles and only aggregate Gym/a
   assert.match(shell, /const adminNav = \[/);
   assert.match(shell, /href: '\/admin\/gyms'/);
   assert.match(shell, /href: '\/admin\/users'/);
-  assert.match(shell, /isSuperadmin \? "\/admin\/users" : isTrainer \? "\/trainer" : canManageStaff \? "\/profile"/);
-  assert.match(shell, /href="\/profile" role="menuitem"/);
-  assert.match(shell, /pathname\.startsWith\('\/admin\/gyms'\)/);
+  assert.match(shell, /const profileHref = isSuperadmin \? '\/admin\/users' : isTrainer \? '\/trainer' : canManageStaff \? '\/profile'/);
+  assert.match(shell, /href=\{profileHref\}/);
+  assert.match(shell, /function isActive\(pathname, href\)/);
+  assert.match(shell, /href !== '\/admin' && pathname\.startsWith\(`\$\{href\}\//);
   assert.match(dashboard, /if \(isSuperadmin\(user\)\) redirect\("\/admin"\)/);
   assert.equal(isSuperadmin({ role: "superadmin" }), true);
   assert.equal(isSuperadmin({ role: "platform_super_admin" }), true);

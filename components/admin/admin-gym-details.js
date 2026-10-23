@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
-import PageHeading from "../ui/page-heading";
+import ErrorState from "../ui/error-state";
+import PageHeader from "../ui/page-header";
 
 async function getGym(gymId) {
   const response = await fetch(`/api/admin/gyms/${encodeURIComponent(gymId)}`, { cache: "no-store" });
@@ -44,23 +45,23 @@ export default function AdminGymDetails({ gymId }) {
     return () => { cancelled = true; };
   }, [gymId]);
 
-  return <>
-    <div className="mb-4"><Button href="/admin/gyms" variant="secondary" size="sm">← Back to Gyms</Button></div>
-    {loading ? <Card className="p-6"><p className="py-8 text-center text-sm text-ink-muted" role="status">Loading gym details…</p></Card> : missing ? <Card className="p-6">
-      <p className="text-sm text-ink-muted" role="status">This gym account was not found.</p>
-      <Link className="mt-3 inline-block text-sm font-medium text-brand" href="/admin/gyms">Return to Gym accounts</Link>
-    </Card> : error ? <Card className="p-6"><p className="text-sm text-error" role="alert">{error}</p></Card> : gym ? <>
-      <PageHeading eyebrow="GYM ACCOUNT" title={gym.name || "Gym details"} description={gym.slug || "Gym slug unavailable"} />
-      <Card className="mt-6 p-5 md:p-7">
-        <h2 className="text-lg font-semibold text-ink">Workspace details</h2>
-        <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-          <div><dt className="text-xs font-medium uppercase text-ink-subtle">Status</dt><dd className="mt-2"><Badge tone={gym.status === "active" ? "success" : "warning"}>{gym.status === "active" ? "Active" : gym.status === "suspended" ? "Suspended" : "Unavailable"}</Badge></dd></div>
-          <div><dt className="text-xs font-medium uppercase text-ink-subtle">Timezone</dt><dd className="mt-2 text-sm text-ink">{gym.timezone || "Not set"}</dd></div>
-          <div><dt className="text-xs font-medium uppercase text-ink-subtle">Created</dt><dd className="mt-2 text-sm text-ink">{dateLabel(gym.createdAt)}</dd></div>
-          <div><dt className="text-xs font-medium uppercase text-ink-subtle">Last updated</dt><dd className="mt-2 text-sm text-ink">{dateLabel(gym.updatedAt)}</dd></div>
-          <div className="sm:col-span-2"><dt className="text-xs font-medium uppercase text-ink-subtle">Active gym owners</dt><dd className="mt-2">{gym.owners?.length ? <ul className="space-y-3">{gym.owners.map((owner, index) => <li key={`${owner.email}-${index}`} className="text-sm text-ink"><span className="block font-medium">{owner.name || "Name unavailable"}</span><span className="text-ink-muted">{owner.email || "Email unavailable"}</span></li>)}</ul> : <span className="text-sm text-ink-muted">No active owner assigned</span>}</dd></div>
+  return <div className="admin-gym-detail-page">
+    <div className="admin-gym-back"><Button href="/admin/gyms" variant="secondary" size="sm">← Back to gyms</Button></div>
+    {loading ? <Card className="admin-surface admin-state-message"><p role="status">Loading gym details…</p></Card> : missing ? <Card className="admin-surface admin-state-message">
+      <p role="status">This gym account was not found.</p>
+      <Link href="/admin/gyms">Return to gym accounts</Link>
+    </Card> : error ? <Card className="admin-surface admin-inline-error"><ErrorState title="Could not load gym details" description={error} /></Card> : gym ? <>
+      <PageHeader eyebrow="GYM ACCOUNT" title={gym.name || "Gym details"} description={gym.slug || "Gym slug unavailable"} />
+      <Card className="admin-surface admin-gym-details-card">
+        <div className="admin-panel-heading admin-panel-heading-stacked"><div><h2>Workspace details</h2><p>Account status, timezone, and owner access.</p></div></div>
+        <dl className="admin-gym-detail-grid">
+          <div><dt>Status</dt><dd><Badge tone={gym.status === "active" ? "success" : "warning"}>{gym.status === "active" ? "Active" : gym.status === "suspended" ? "Suspended" : "Unavailable"}</Badge></dd></div>
+          <div><dt>Timezone</dt><dd>{gym.timezone || "Not set"}</dd></div>
+          <div><dt>Created</dt><dd>{dateLabel(gym.createdAt)}</dd></div>
+          <div><dt>Last updated</dt><dd>{dateLabel(gym.updatedAt)}</dd></div>
+          <div className="admin-gym-detail-owners"><dt>Active gym owners</dt><dd>{gym.owners?.length ? <ul>{gym.owners.map((owner, index) => <li key={`${owner.email}-${index}`}><span>{owner.name || "Name unavailable"}</span><small>{owner.email || "Email unavailable"}</small></li>)}</ul> : <span>No active owner assigned</span>}</dd></div>
         </dl>
       </Card>
-    </> : <Card className="p-6"><p className="text-sm text-ink-muted" role="status">Gym details are unavailable.</p></Card>}
-  </>;
+    </> : <Card className="admin-surface admin-state-message"><p role="status">Gym details are unavailable.</p></Card>}
+  </div>;
 }

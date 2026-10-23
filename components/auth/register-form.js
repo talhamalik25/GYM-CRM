@@ -111,7 +111,7 @@ export default function RegisterForm() {
               />
               {formError && <p className="rounded-lg border border-error/20 bg-error-soft px-3 py-2.5 text-sm text-error" role="alert">{formError}</p>}
               <Button type="submit" size="lg" className="w-full" disabled={loading} aria-busy={loading}>
-                {loading ? <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />Creating account…</> : <><UserPlus size={16} aria-hidden="true" />Create owner account</>}
+                {loading ? <><span className="size-4 animate-spin rounded-full border-2 border-auth-spinner-track border-t-white" aria-hidden="true" />Creating account…</> : <><UserPlus size={16} aria-hidden="true" />Create owner account</>}
               </Button>
               <p className="text-center text-sm text-ink-muted">Already have an account? <Link className="font-medium text-brand hover:underline" href="/login">Sign in</Link></p>
             </form>
@@ -121,16 +121,16 @@ export default function RegisterForm() {
       </section>
 
       <aside className="relative hidden min-h-screen flex-col justify-between overflow-hidden bg-ink p-12 text-white lg:flex xl:p-16">
-        <div className="absolute -right-24 -top-24 size-96 rounded-full border border-white/10" aria-hidden="true" />
-        <div className="absolute -right-10 -top-10 size-64 rounded-full border border-white/10" aria-hidden="true" />
+        <div className="auth-orbit absolute -right-24 -top-24 size-96 rounded-full" aria-hidden="true" />
+        <div className="auth-orbit absolute -right-10 -top-10 size-64 rounded-full" aria-hidden="true" />
         <div className="relative flex items-center gap-3 text-lg font-semibold tracking-tight">Fitivo<span className="size-2 rounded-full bg-brand" aria-hidden="true" /></div>
         <div className="relative max-w-lg pb-8">
           <div className="mb-6 h-1 w-12 rounded-full bg-brand" aria-hidden="true" />
           <Building2 size={28} className="mb-5 text-brand" aria-hidden="true" />
           <p className="text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">A better home for your gym.</p>
-          <p className="mt-4 max-w-md text-base leading-7 text-white/65">Create your owner workspace to manage members, plans, payments and attendance.</p>
+          <p className="auth-story-description">Create your owner workspace to manage members, plans, payments and attendance.</p>
         </div>
-        <p className="relative text-xs text-white/45">Fitivo gym management</p>
+        <p className="auth-story-footer">Fitivo gym management</p>
       </aside>
     </main>
   );

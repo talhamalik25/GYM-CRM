@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
+import DataTable from "../ui/data-table";
+import ErrorState from "../ui/error-state";
 import Input from "../ui/input";
 import { adminUserRoleLabel } from "../../lib/adminUserRules.js";
 
@@ -98,33 +101,36 @@ export default function AdminUserManager() {
     }
   }
 
-  return <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,.8fr)]">
-    <Card className="p-5 md:p-7">
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold text-ink">Workspace accounts</h2>
-        <p className="mt-1 text-sm text-ink-muted">Superadmins can create staff accounts. Passwords are stored as password hashes and are never shown here.</p>
+  const columns = [
+    { key: "fullName", label: "Name", render: (user) => user.fullName || "Name unavailable" },
+    { key: "email", label: "Email", render: (user) => <span className="admin-user-email">{user.email}</span> },
+    { key: "role", label: "Role", render: (user) => adminUserRoleLabel(user) },
+    { key: "status", label: "Status", render: (user) => <Badge tone={user.isActive ? "success" : "neutral"}>{user.isActive ? "Active" : "Inactive"}</Badge> },
+    { key: "createdAt", label: "Created", render: (user) => createdDate(user.createdAt) },
+    { key: "action", label: "Action", render: (user) => <Button type="button" variant="secondary" size="sm" onClick={() => toggleUser(user)}>{user.isActive ? "Deactivate" : "Reactivate"}</Button> },
+  ];
+
+  return <div className="admin-users-layout">
+    <Card className="admin-surface admin-users-list">
+      <div className="admin-panel-heading">
+        <div><h2>Workspace accounts</h2><p>Superadmins can create staff accounts. Passwords are stored as password hashes and are never shown here.</p></div>
+        {!loading && !loadError && <span className="admin-count-pill">{users.length.toLocaleString("en-PK")} {users.length === 1 ? "account" : "accounts"}</span>}
       </div>
-      {loadError && <p className="mb-4 rounded-lg border border-error/20 bg-error-soft p-3 text-sm text-error" role="alert">{loadError}</p>}
-      {loading ? <p className="py-8 text-center text-sm text-ink-muted" role="status">Loading accounts…</p> : loadError && !users.length ? null : users.length ? <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] text-left text-sm">
-          <thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Name</th><th className="px-3 py-3">Email</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Created</th><th className="px-3 py-3">Action</th></tr></thead>
-          <tbody>{users.map((user) => <tr key={user.id} className="border-b border-line last:border-0"><td className="px-3 py-3 text-ink">{user.fullName || "Name unavailable"}</td><td className="px-3 py-3 font-medium text-ink">{user.email}</td><td className="px-3 py-3 text-ink-muted">{adminUserRoleLabel(user)}</td><td className="px-3 py-3 text-ink-muted">{user.isActive ? "Active" : "Inactive"}</td><td className="px-3 py-3 text-ink-muted">{createdDate(user.createdAt)}</td><td className="px-3 py-3"><Button type="button" variant="secondary" onClick={() => toggleUser(user)}>{user.isActive ? "Deactivate" : "Reactivate"}</Button></td></tr>)}</tbody>
-        </table>
-      </div> : <p className="py-8 text-center text-sm text-ink-muted">No accounts found.</p>}
+      {loadError && <div className="admin-inline-error"><ErrorState title="Could not access user accounts" description={loadError} /></div>}
+      {loading ? <div className="admin-loading-state" role="status">Loading accounts…</div> : loadError && !users.length ? null : users.length ? <DataTable caption="Workspace accounts" columns={columns} rows={users} getRowKey={(user) => user.id} className="admin-users-table" /> : <div className="admin-loading-state">No accounts found.</div>}
     </Card>
 
-    <Card className="p-5 md:p-7">
-      <h2 className="text-lg font-semibold text-ink">Add a staff account</h2>
-      <p className="mb-5 mt-1 text-sm text-ink-muted">The new account needs an active Gym membership before it can open a workspace. Assign owner access under Gym accounts or invite it from an existing Gym Owner account.</p>
-      <form className="space-y-4" onSubmit={submit} noValidate>
+    <Card className="admin-surface admin-create-user">
+      <div className="admin-panel-heading admin-panel-heading-stacked"><div><h2>Add a staff account</h2><p>The new account needs an active Gym membership before it can open a workspace. Assign owner access under Gym accounts or invite it from an existing Gym Owner account.</p></div></div>
+      <form className="admin-create-user-form" onSubmit={submit} noValidate>
         <Input id="new-user-full-name" label="Full name" autoComplete="name" required maxLength={120} value={values.fullName} onChange={(event) => update("fullName", event.target.value)} error={errors.fullName} />
         <Input id="new-user-email" label="Email address" type="email" autoComplete="off" required value={values.email} onChange={(event) => update("email", event.target.value)} error={errors.email} />
         <Input id="new-user-password" label="Temporary password" type="password" autoComplete="new-password" required value={values.password} onChange={(event) => update("password", event.target.value)} error={errors.password} />
         <Input id="new-user-confirm-password" label="Confirm password" type="password" autoComplete="new-password" required value={values.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} error={errors.confirmPassword} />
-        <p className="text-xs leading-5 text-ink-muted">Use at least 12 characters. Give the temporary password to the account owner through a secure channel.</p>
-        {message && <p className="rounded-lg border border-success/20 bg-success-soft px-3 py-2.5 text-sm text-success" role="status">{message}</p>}
-        {loadError && users.length > 0 && <p className="rounded-lg border border-error/20 bg-error-soft px-3 py-2.5 text-sm text-error" role="alert">{loadError}</p>}
-        <div className="flex justify-end border-t border-line pt-4"><Button type="submit" disabled={saving} aria-busy={saving}>{saving ? "Creating account…" : "Create staff account"}</Button></div>
+        <p className="admin-form-hint">Use at least 12 characters. Give the temporary password to the account owner through a secure channel.</p>
+        {message && <p className="admin-success-message" role="status">{message}</p>}
+        {loadError && users.length > 0 && <p className="admin-error-message" role="alert">{loadError}</p>}
+        <div className="admin-form-actions"><Button type="submit" disabled={saving} aria-busy={saving}>{saving ? "Creating account…" : "Create staff account"}</Button></div>
       </form>
     </Card>
   </div>;
