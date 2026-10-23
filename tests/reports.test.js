@@ -68,10 +68,10 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   assert.match(manager, /Loading reports/);
   assert.match(manager, /role="alert"/);
   assert.match(dashboard, /\/api\/reports/);
-  assert.match(dashboard, /Attendance over time/);
-  assert.match(dashboard, /Member payment collections/);
-  assert.match(dashboard, /Membership status/);
-  assert.match(dashboard, /Try again/);
+  assert.match(dashboard, /title="Revenue"/);
+  assert.match(dashboard, /label="Active memberships"/);
+  assert.match(dashboard, /label="Today's check-ins"/);
+  assert.match(dashboard, /<ErrorState[^>]*onRetry=\{report.retry\}/);
   assert.match(settingsPage, /GymSettings/);
   assert.match(settingsManager, /\/api\/gym\/settings/);
   assert.match(settingsManager, /Gym settings saved/);

@@ -2,17 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck2, CreditCard, Dumbbell, Users, UserRound } from "lucide-react";
+import { ArrowRight, CalendarCheck2, Check, Circle, CreditCard, Dumbbell, Plus, Users, UserRound } from "lucide-react";
 import Button from "../ui/button";
 import Card from "../ui/card";
-import PageHeading from "../ui/page-heading";
-import StatusBadge from "../ui/status-badge";
+import EmptyState from "../ui/empty-state";
+import ErrorState from "../ui/error-state";
+import PageHeader from "../ui/page-header";
+import { PageSkeleton } from "../ui/skeleton";
+import StatusPill from "../ui/status-pill";
 import OwnerDashboardAnalytics from "./owner-dashboard-analytics";
 import { getOwnerSetupSteps } from "../../lib/ownerDashboardRules.js";
 
 const features = [
   { label: "Members", href: "/members", Icon: Users },
-  { label: "Plans and subscriptions", href: "/memberships", Icon: Dumbbell },
+  { label: "Plans", href: "/memberships", Icon: Dumbbell },
   { label: "Trainers", href: "/trainers", Icon: UserRound },
   { label: "Attendance", href: "/attendance", Icon: CalendarCheck2 },
   { label: "Payments", href: "/payments", Icon: CreditCard },
@@ -43,46 +46,36 @@ export default function OwnerDashboard() {
 
   function retry() {
     setLoading(true);
+    setError("");
     setRetryCount((count) => count + 1);
   }
 
-  if (loading) return <div className="loading-page" role="status" aria-label="Loading gym dashboard"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-content" /></div>;
-  if (error) return <Card className="p-6"><p className="text-sm text-error" role="alert">{error}</p><Button className="mt-4" variant="secondary" onClick={retry}>Try again</Button></Card>;
-  if (!data?.gym || !data?.counts) return <Card className="p-6"><p className="text-sm text-ink-muted" role="status">Your gym workspace could not be found. Ask your platform administrator to check your owner access.</p></Card>;
+  if (loading) return <PageSkeleton label="Loading gym dashboard" />;
+  if (error) return <ErrorState title="Could not load your dashboard" description={error} onRetry={retry} />;
+  if (!data?.gym || !data?.counts) return <Card className="owner-panel"><EmptyState title="Your gym workspace could not be found" description="Ask your platform administrator to check your owner access." /></Card>;
 
   const steps = getOwnerSetupSteps(data.counts);
   const setupComplete = steps.every(({ complete }) => complete);
-  const metrics = [
-    ["Members", data.counts.members, "/members"],
-    ["Membership plans", data.counts.plans, "/memberships"],
-    ["Trainers", data.counts.trainers, "/trainers"],
-  ];
 
-  return <div className="dashboard-page owner-dashboard">
-    <PageHeading eyebrow="GYM OWNER WORKSPACE" title={data.gym.name || "Your gym"} description={`${data.gym.slug || "Gym workspace"} · ${data.gym.timezone || "Timezone not set"}`} action={<StatusBadge>{data.gym.status === "active" ? "Active" : data.gym.status === "suspended" ? "Suspended" : "Unavailable"}</StatusBadge>} />
+  return <div className="owner-dashboard">
+    <PageHeader title="Dashboard" description={`${data.gym.name || "Your gym"} · Your daily overview of members, revenue, and attendance.`}
+      actions={<Button href="/members/new"><Plus size={16} strokeWidth={1.75} aria-hidden="true" />Add member</Button>} />
 
-    {!setupComplete && <Card className="p-5 md:p-6">
-      <h2 className="text-base font-semibold text-ink">Finish setting up your gym</h2>
-      <p className="mt-1 text-sm text-ink-muted">Complete these steps to start managing your membership workflow.</p>
-      <ol className="mt-4 grid gap-3 sm:grid-cols-3">
-        {steps.map((step) => <li key={step.key} className="rounded-lg border border-line p-4">
-          <p className="text-sm font-medium text-ink">{step.complete ? "✓ " : "○ "}{step.label}</p>
-          {step.complete ? <span className="mt-2 inline-block text-xs text-ink-muted">Complete</span> : <Link className="mt-2 inline-block text-sm font-medium text-brand hover:underline" href={step.href}>Start setup →</Link>}
+    <OwnerDashboardAnalytics counts={data.counts} />
+
+    {!setupComplete && <Card className="owner-panel owner-setup">
+      <div className="owner-panel-heading"><div><h2>Finish setting up your gym</h2><p>Complete these steps to start managing your membership workflow.</p></div></div>
+      <ol className="owner-setup-steps">
+        {steps.map((step) => <li key={step.key}>
+          <span className="owner-setup-icon" aria-hidden="true">{step.complete ? <Check size={18} strokeWidth={1.75} /> : <Circle size={18} strokeWidth={1.75} />}</span>
+          <div><p>{step.label}</p>{step.complete ? <span className="owner-muted">Complete</span> : <Link className="owner-text-link" href={step.href}>Start setup<ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" /></Link>}</div>
         </li>)}
       </ol>
     </Card>}
 
-    <section aria-label="Gym overview" className="dashboard-metrics-grid owner-metrics-grid">
-      {metrics.map(([label, value, href]) => <Link key={label} href={href} className="dashboard-metric-link block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"><Card className="dashboard-metric-card p-5"><p className="dashboard-metric-label text-sm text-ink-muted">{label}</p><p className="dashboard-metric-value mt-2 text-2xl font-semibold text-ink">{Number(value).toLocaleString("en-PK")}</p><span className="dashboard-metric-detail">View {label.toLowerCase()}</span></Card></Link>)}
-    </section>
-
-    <Card className="dashboard-section-card p-5 md:p-6">
-      <div className="dashboard-section-heading"><h2>Gym management</h2><p>Go to the tools for your workspace.</p></div>
-      <nav aria-label="Gym management" className="dashboard-owner-actions mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map(({ label, href, Icon }) => <Link key={href} href={href} className="dashboard-owner-action flex items-center gap-3 rounded-lg border border-line p-4 text-sm font-medium text-ink hover:border-brand hover:text-brand"><Icon size={19} aria-hidden="true" />{label}<span className="ml-auto" aria-hidden="true">→</span></Link>)}
-      </nav>
-    </Card>
-
-    <OwnerDashboardAnalytics />
+    <div className="owner-workspace-links">
+      <nav aria-label="Gym management">{features.map(({ label, href, Icon }) => <Link key={href} href={href}><Icon size={16} strokeWidth={1.75} aria-hidden="true" />{label}</Link>)}</nav>
+      <StatusPill status={data.gym.status}>{data.gym.status === "active" ? "Gym active" : data.gym.status === "suspended" ? "Gym suspended" : "Gym unavailable"}</StatusPill>
+    </div>
   </div>;
 }

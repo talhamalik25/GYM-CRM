@@ -38,9 +38,11 @@ test("owner dashboard endpoint requires authentication and gym owner membership"
 
 test("owner dashboard exposes loading, retry, missing-context, setup, and existing feature links", async () => {
   const source = await readFile(fileURLToPath(new URL("../components/dashboard/owner-dashboard.js", import.meta.url)), "utf8");
+  const errorState = await readFile(fileURLToPath(new URL("../components/ui/error-state.js", import.meta.url)), "utf8");
   assert.match(source, /Loading gym dashboard/);
-  assert.match(source, /role="alert"/);
-  assert.match(source, /Try again/);
+  assert.match(source, /<ErrorState[^>]*onRetry=\{retry\}/);
+  assert.match(errorState, /role="alert"/);
+  assert.match(errorState, /Try again/);
   assert.match(source, /Ask a platform superadmin to assign your staff account under Gym accounts/);
   assert.match(source, /could not be found/);
   assert.match(source, /Finish setting up your gym/);

@@ -1,7 +1,7 @@
 # Fitivo UI redesign
 
 The approved scope is visual-only. Keep existing routes, role protection, APIs,
-models, form payloads, and data fetching unchanged. Work one stage at a time and
+models, form payloads, and existing data contracts unchanged. Work one stage at a time and
 wait for the user's “continue” after each stage.
 
 ## Current checkpoint
@@ -17,8 +17,14 @@ wait for the user's “continue” after each stage.
   Drawer below 1024px. Conflicting legacy shell CSS has been consolidated.
 - The account card receives the already-authenticated user's email for display
   and its initial. No additional query or authentication change was needed.
-- Stage 5 (Gym Owner dashboard) is next, followed by owner modules, auth, admin
-  pages, and the final consistency pass.
+- Stage 5 is complete: four stat cards, a six-month revenue chart beside expiring
+  memberships, and recent payments beside members by plan. Setup guidance and
+  existing feature links remain below the main dashboard.
+- Stage 6 is underway. The Members directory now uses the shared header, search,
+  error, and data-table surfaces while retaining its API filters and load-more
+  behavior. Plans now use responsive shared cards and loading/error states while
+  retaining create, edit, and activation behavior. Payments is next, followed by
+  Attendance.
 - Existing legacy module CSS remains until the corresponding module is migrated.
 - Stage 4 validation: `npm run lint` and `npm run build` pass. The build required
   network access to fetch the existing Google Inter font.
@@ -30,6 +36,53 @@ wait for the user's “continue” after each stage.
   used fallback typography; production Inter was verified by the build.
 - These checks do not validate authenticated data flows or the remaining page
   layouts; those still need final responsive and functional acceptance.
+
+## Stage 5 data and validation
+
+The dashboard only reads existing endpoints; no API, database, auth, or business
+rule was changed. Each additional panel owns independent loading, error, and
+retry presentation through `components/dashboard/use-dashboard-resource.js`.
+
+- `/api/dashboard/owner`: gym context, existing setup counts, and total active
+  member accounts. The total card explicitly labels this scope.
+- `/api/reports`: active subscriptions and six ordered calendar months of
+  collected member payments. The final supplied month drives the revenue stat
+  and solid indigo bar; the earlier months use soft indigo. No growth percentage
+  is invented. The old dashboard attendance and membership-status charts are
+  replaced by the approved layout; monthly attendance remains available in the
+  existing Reports page.
+- `/api/attendance/summary`: today's check-ins and currently-inside count, using
+  the endpoint's existing date calculation.
+- `/api/members?status=expiring&accountStatus=active`: expiring member previews
+  and a paginated drawer. The endpoint can return cancelled terms within the
+  date window; the display honors its serialized status and excludes those.
+  Pagination retains the API's page boundaries, so a page may have fewer visible
+  entries. Empty copy distinguishes an empty page from an entirely empty list.
+- `/api/payments`: the latest five payments, preserving the existing
+  `derivePaymentStatus` Paid / Partial / Pending semantics. Overdue is not
+  supplied by this API and is not inferred.
+- `/api/plans?includeMemberCounts=true`: authoritative counts for all member
+  accounts assigned to each plan. Progress bars use the sum of these counts,
+  not the differently scoped active-account count.
+
+All four requested headline metrics are available. Dashboard search is omitted
+because there is no existing dashboard search flow. Add member uses `/members/new`.
+View all expiring opens a shared Drawer because the existing Members route does
+not consume a status query parameter. Existing routes and module filters are
+unchanged.
+
+Recharts is the only new direct dependency. The revenue chart has keyboard
+support, no animation, and an expandable list of exact monthly amounts.
+
+Validation: the nine existing dashboard/report tests pass, with obsolete UI
+expectations updated for the approved layout and shared ErrorState. Lint and the
+production build pass. Isolated browser checks at 375/768/1280px cover displayed
+API values, bar colors, table overflow containment, expiring drawer pagination and
+focus restoration, independent endpoint failures and retries, root retry recovery,
+zero-data states, and setup guidance. Fixture responses exist only in the ignored
+local preview; no sample records were added to production code or the database.
+Screenshots were visually inspected. Live authenticated API integration remains
+part of final acceptance.
 
 ## Shared component conventions
 
@@ -79,7 +132,8 @@ semantic status treatments. `PageHeader` supports breadcrumbs and actions.
 
 ## Next stage constraints
 
-Rebuild the Gym Owner dashboard using only metrics exposed by existing APIs.
+Restyle Payments using the shared components. Members and Plans are complete;
+Attendance follows one page at a time.
 Keep page titles, descriptions, search, and page actions in the shared PageHeader
 at the page level; the shell top bar supplies route context and account actions.
 Only wire existing search and actions. Do not add a global search or decorative

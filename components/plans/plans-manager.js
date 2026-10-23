@@ -6,10 +6,12 @@ import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
 import EmptyState from "../ui/empty-state";
+import ErrorState from "../ui/error-state";
 import Input from "../ui/input";
 import Modal from "../ui/modal";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
+import Skeleton from "../ui/skeleton";
 import { listPlans, createPlan, updatePlan, setPlanActive } from "../../lib/plansService";
 
 const blankValues = { name: "", price: "", duration: "1", unit: "months", description: "" };
@@ -139,44 +141,51 @@ export default function PlansManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="plans-page">
       <PageHeader
         title="Plans"
         description="Create and manage the membership plans available at your gym."
-        actions={<Button onClick={openNewPlan}><Plus size={16} aria-hidden="true" />Add Plan</Button>}
+        actions={<Button onClick={openNewPlan}><Plus size={16} strokeWidth={1.75} aria-hidden="true" />Add plan</Button>}
       />
 
       {actionError && <Card className="p-4 text-sm text-error" role="alert">{actionError}</Card>}
 
       {loading ? (
-        <Card className="p-6" aria-live="polite"><p className="text-sm text-ink-muted">Loading plans…</p></Card>
+        <div className="plans-grid" role="status" aria-label="Loading plans">
+          {Array.from({ length: 3 }, (_, index) => <Card className="plan-card-skeleton" key={index}>
+            <Skeleton className="plan-skeleton-title" /><Skeleton className="plan-skeleton-price" />
+            <Skeleton className="plan-skeleton-copy" /><Skeleton className="plan-skeleton-members" />
+          </Card>)}
+        </div>
       ) : loadError ? (
-        <Card className="space-y-3 p-6" role="alert"><p className="text-sm text-error">{loadError}</p><Button variant="secondary" onClick={loadPlans}>Try again</Button></Card>
+        <Card className="plans-state-card"><ErrorState title="Could not load plans" description={loadError} onRetry={loadPlans} loading={loading} /></Card>
       ) : plans.length === 0 ? (
-        <Card className="p-5 md:p-6">
+        <Card className="plans-state-card">
           <EmptyState
             icon={<UsersRound size={25} strokeWidth={1.7} />}
             title="No plans yet"
             description="Add a membership plan to make it available to your members."
-            action={<Button onClick={openNewPlan}><Plus size={15} aria-hidden="true" />Add Plan</Button>}
+            action={<Button onClick={openNewPlan}><Plus size={15} aria-hidden="true" />Add plan</Button>}
           />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="plans-grid">
           {plans.map((plan) => (
-            <Card key={plan.id} className="flex min-w-0 flex-col p-5 md:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-semibold text-ink">{plan.name}</h2>
+            <Card key={plan.id} className="plan-card-surface">
+              <div className="plan-card-heading">
+                <h2>{plan.name}</h2>
                 <Badge tone={plan.status === "Active" ? "success" : "neutral"}>{plan.status}</Badge>
               </div>
-              <p className="mt-4 text-2xl font-semibold tracking-tight text-ink">{formatCurrency(plan.price)}</p>
-              <p className="mt-1 text-sm text-ink-muted">{durationLabel(plan.durationDays)}</p>
-              {plan.description && <p className="mt-4 min-h-10 text-sm leading-6 text-ink-muted">{plan.description}</p>}
-              <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-muted">
-                <UsersRound size={16} aria-hidden="true" />
-                <span><strong className="font-semibold text-ink">{plan.memberCount ?? 0}</strong> {(plan.memberCount ?? 0) === 1 ? "member" : "members"}</span>
+              <div className="plan-price-block">
+                <p>{formatCurrency(plan.price)}</p>
+                <span>per {durationLabel(plan.durationDays)}</span>
               </div>
-              <div className="mt-auto flex flex-wrap gap-2 pt-5">
+              {plan.description && <p className="plan-description">{plan.description}</p>}
+              <div className="plan-member-count">
+                <UsersRound size={17} strokeWidth={1.75} aria-hidden="true" />
+                <span><strong>{(plan.memberCount ?? 0).toLocaleString("en-PK")}</strong> {(plan.memberCount ?? 0) === 1 ? "member" : "members"}</span>
+              </div>
+              <div className="plan-card-actions">
                 <Button variant="secondary" size="sm" onClick={() => openEditPlan(plan)}>Edit</Button>
                 <Button variant="secondary" size="sm" onClick={() => handleToggle(plan)}>{plan.status === "Active" ? "Deactivate" : "Activate"}</Button>
               </div>

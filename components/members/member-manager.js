@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, UserPlus, UsersRound } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
 import EmptyState from "../ui/empty-state";
-import Input from "../ui/input";
+import ErrorState from "../ui/error-state";
 import PageHeader from "../ui/page-header";
+import SearchBar from "../ui/search-bar";
 import Select from "../ui/select";
-import Table from "../ui/table";
+import DataTable from "../ui/data-table";
+import Skeleton from "../ui/skeleton";
 import { listMembersApi, setMemberActiveApi } from "../../lib/membersService";
 import { listPlans } from "../../lib/plansService";
 
@@ -108,9 +110,9 @@ export default function MemberManager() {
       key: "name",
       label: "Member",
       render: (member) => (
-        <div className="min-w-44">
-          <Link className="font-semibold text-ink hover:text-brand" href={"/members/" + member.id}>{member.name}</Link>
-          {member.email && <p className="mt-1 text-xs text-ink-subtle">{member.email}</p>}
+        <div>
+          <Link href={"/members/" + member.id}>{member.name}</Link>
+          {member.email && <p>{member.email}</p>}
         </div>
       ),
     },
@@ -124,35 +126,37 @@ export default function MemberManager() {
       key: "actions",
       label: "Actions",
       render: (member) => (
-        <div className="flex items-center gap-3">
-          <Link className="font-medium text-ink-muted hover:text-brand" href={"/members/" + member.id}>View</Link>
-          <Link className="font-medium text-ink-muted hover:text-brand" href={"/members/" + member.id + "/edit"}>Edit</Link>
-          <button className="font-medium text-ink-muted hover:text-brand" type="button" onClick={() => toggleMemberActive(member)}>{member.isActive ? "Deactivate" : "Reactivate"}</button>
+        <div className="members-row-actions">
+          <Link href={"/members/" + member.id}>View</Link>
+          <Link href={"/members/" + member.id + "/edit"}>Edit</Link>
+          <button type="button" onClick={() => toggleMemberActive(member)}>{member.isActive ? "Deactivate" : "Reactivate"}</button>
         </div>
       ),
     },
   ];
 
+  const hasFilters = Boolean(query || statusFilter !== "all" || planFilter);
+
   return (
-    <div className="space-y-6">
+    <div className="members-page">
       <PageHeader
         title="Members"
         description="Find and manage your gym members."
-        actions={<Button href="/members/new"><UserPlus size={16} aria-hidden="true" />Add Member</Button>}
+        actions={<Button href="/members/new"><UserPlus size={16} strokeWidth={1.75} aria-hidden="true" />Add member</Button>}
       />
 
-      <Card className="p-4 md:p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(15rem,1fr)_12rem_14rem] md:items-end">
-          <Input
+      <Card className="members-filter-card">
+        <div className="members-filter-grid">
+          <SearchBar
             id="member-search"
             label="Search members"
-            type="search"
             placeholder="Search by name or phone"
             value={query}
             onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+            onClear={() => { setQuery(""); setPage(1); }}
             autoComplete="off"
           />
-          <Select id="member-status" label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+          <Select id="member-status" label="Membership status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
             <option value="all">All statuses</option>
             <option value="upcoming">Upcoming</option>
             <option value="active">Active</option>
@@ -167,30 +171,39 @@ export default function MemberManager() {
       </Card>
 
       {loadError ? (
-        <Card className="space-y-3 p-6" role="alert"><p className="text-sm text-error">{loadError}</p><Button variant="secondary" onClick={() => setRefreshKey((key) => key + 1)}>Try again</Button></Card>
+        <Card className="members-state-card"><ErrorState title="Could not load members" description={loadError} onRetry={() => setRefreshKey((key) => key + 1)} /></Card>
       ) : loading && page === 1 ? (
-        <Card className="p-6" aria-live="polite"><p className="text-sm text-ink-muted">Loading members…</p></Card>
+        <Card className="members-state-card" role="status" aria-label="Loading members">
+          <div className="members-loading-heading"><Skeleton /><Skeleton /></div>
+          <div className="members-loading-rows">{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} />)}</div>
+        </Card>
       ) : total === 0 ? (
-        <Card className="p-5 md:p-6">
+        <Card className="members-state-card">
           <EmptyState
-            icon={query || statusFilter !== "all" || planFilter ? <Search size={25} strokeWidth={1.7} /> : <UsersRound size={25} strokeWidth={1.7} />}
-            title={query || statusFilter !== "all" || planFilter ? "No members match your search" : "No members yet"}
-            description={query || statusFilter !== "all" || planFilter ? "Try another name, phone number, status, or plan." : "Add a member to begin managing your gym roster."}
-            action={query || statusFilter !== "all" || planFilter
+            title={hasFilters ? "No members match these filters" : "No members yet"}
+            description={hasFilters ? "Try another search or adjust the membership status and plan." : "Add a member to begin managing your gym roster."}
+            action={hasFilters
               ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button>
-              : <Button href="/members/new"><UserPlus size={15} aria-hidden="true" />Add Member</Button>}
+              : <Button href="/members/new"><UserPlus size={15} aria-hidden="true" />Add member</Button>}
           />
         </Card>
       ) : (
-        <Card className="min-w-0 p-4 md:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-ink">All Members</h2>
-            <span className="text-xs text-ink-muted">{total} {total === 1 ? "member" : "members"}</span>
+        <Card className="members-results-card">
+          <div className="members-results-heading">
+            <div><h2>Member directory</h2><p>Review membership details and account access.</p></div>
+            <span className="members-result-count">{total.toLocaleString("en-PK")} {total === 1 ? "member" : "members"}</span>
           </div>
-          <Table columns={columns} rows={members} getRowKey={(member) => member.id} className="min-w-[900px]" />
+          <DataTable
+            caption="Member directory"
+            columns={columns}
+            rows={members}
+            getRowKey={(member) => member.id}
+            className="members-data-table"
+            emptyMessage="No members to show"
+          />
           {members.length < total && (
-            <div className="mt-4 flex justify-center">
-              <Button variant="secondary" disabled={loading} onClick={() => setPage((current) => current + 1)}>{loading ? "Loading…" : "Load more"}</Button>
+            <div className="members-load-more">
+              <Button variant="secondary" disabled={loading} loading={loading} loadingLabel="Loading members…" onClick={() => setPage((current) => current + 1)}>Load more</Button>
             </div>
           )}
         </Card>
