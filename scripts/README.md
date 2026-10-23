@@ -37,3 +37,11 @@ npm run user:promote -- --email owner@example.com
 ```
 
 After a superadmin can sign in, use **User accounts** in the account menu to create staff accounts. Promotion does not reset passwords or modify other accounts.
+
+If an existing account cannot sign in, reset its password from the project root with a hidden prompt:
+
+```sh
+npm run user:reset-password -- --email owner@example.com
+```
+
+The command updates only an existing active account. It does not create or reactivate accounts.

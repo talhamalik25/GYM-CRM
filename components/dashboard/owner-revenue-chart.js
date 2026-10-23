@@ -30,8 +30,7 @@ export default function OwnerRevenueChart({ months }) {
 
   if (!data.some(({ paymentCollected }) => paymentCollected > 0)) return <EmptyState title="No revenue recorded yet" description="Recorded member payments will appear here." />;
 
-  return <>
-    <div className="owner-revenue-plot">
+  return <div className="owner-revenue-plot">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 500, height: 240 }}>
         <BarChart data={data} accessibilityLayer margin={{ top: 16, right: 0, left: -12, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--divider)" />
@@ -41,7 +40,5 @@ export default function OwnerRevenueChart({ months }) {
           <Bar dataKey="paymentCollected" name="Revenue (PKR)" shape={RevenueBar} maxBarSize={40} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
-    </div>
-    <details className="owner-chart-values"><summary>View monthly amounts</summary><dl>{data.map((month) => <div key={month.month}><dt>{month.fullLabel}</dt><dd>{money(month.paymentCollected)}</dd></div>)}</dl></details>
-  </>;
+  </div>;
 }

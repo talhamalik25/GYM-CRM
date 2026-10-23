@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "node --env-file-if-exists=.env.test.local -e \"if (!process.env.MONGODB_TEST_URI) console.warn('WARNING: MONGODB_TEST_URI is missing; six MongoDB integration suites will be skipped.')\" && node --env-file-if-exists=.env.test.local --test",
     "user:create": "node scripts/create-user.js",
+    "user:reset-password": "node scripts/reset-user-password.js",
     "user:promote": "node scripts/promote-superadmin.js"
   },
   "dependencies": {

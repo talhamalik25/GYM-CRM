@@ -8,6 +8,10 @@ const invalidCredentials = () => Response.json({ success: false, error: { messag
   headers: { "Cache-Control": "no-store" },
 });
 
+function logDevelopmentRejection(reason) {
+  if (process.env.NODE_ENV !== "production") console.warn(`[auth:login] Rejected: ${reason}.`);
+}
+
 export async function POST(request) {
   const originError = validateRequestOrigin(request);
   if (originError) return originError;
@@ -26,7 +30,18 @@ export async function POST(request) {
   try {
     await connectToDatabase();
     const user = await User.findOne({ email }).select("+passwordHash isActive").lean();
-    if (!user || !user.isActive || !(await verifyPassword(body.password, user.passwordHash))) return invalidCredentials();
+    if (!user) {
+      logDevelopmentRejection("account not found in the configured database");
+      return invalidCredentials();
+    }
+    if (user.isActive === false) {
+      logDevelopmentRejection("account is inactive");
+      return invalidCredentials();
+    }
+    if (!(await verifyPassword(body.password, user.passwordHash))) {
+      logDevelopmentRejection("password did not match the stored hash");
+      return invalidCredentials();
+    }
     return await createSession(user._id);
   } catch {
     console.error("Authentication login failed.");

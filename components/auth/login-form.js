@@ -20,8 +20,6 @@ function validate(values) {
 
   if (values.password === "") {
     errors.password = "Enter your password.";
-  } else if (values.password.length < 6) {
-    errors.password = "Password must be at least 6 characters.";
   }
 
   return errors;
@@ -82,6 +80,7 @@ export default function LoginForm() {
               <div className="auth-field" aria-live="polite">
                 <Input
                   id="login-email"
+                  name="email"
                   label="Email address"
                   type="email"
                   autoComplete="username"
@@ -95,6 +94,7 @@ export default function LoginForm() {
               <div className="auth-password-field" aria-live="polite">
                 <Input
                   id="login-password"
+                  name="password"
                   label="Password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
