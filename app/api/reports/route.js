@@ -1,8 +1,8 @@
 import connectToDatabase from "../../../lib/db.js";
 import { getRequestGymId, getRequestTenantContext, requireApiUser } from "../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse.js";
-import { buildGymReport, getGymReportMonths } from "../../../lib/reportRules.js";
-import { dateOnly, gymToday } from "../../../lib/subscriptionRules.js";
+import { addDays, dateOnly } from "../../../lib/subscriptionRules.js";
+import { buildGymReportAnalytics, gymDateStartUtc, resolveGymReportRange } from "../../../lib/reportRules.js";
 import Attendance from "../../../models/Attendance.js";
 import Member from "../../../models/Member.js";
 import Payment from "../../../models/Payment.js";
@@ -14,31 +14,44 @@ export async function GET(request) {
   const context = getRequestTenantContext(request);
   if (!context?.gymId || !context?.gym) return errorResponse("Gym workspace could not be resolved.", 403);
 
+  const params = new URL(request.url).searchParams;
+  const resolvedRange = resolveGymReportRange({
+    range: params.get("range") || "6m",
+    startDate: params.get("startDate") || "",
+    endDate: params.get("endDate") || "",
+    granularity: params.get("granularity") || "",
+  }, new Date(), context.gym.timezone);
+  if (resolvedRange.error) return errorResponse(resolvedRange.error, 400);
+
   try {
     await connectToDatabase();
     const gymId = getRequestGymId(request);
-    const now = new Date();
-    const today = gymToday(now, context.gym.timezone);
-    const monthWindows = getGymReportMonths(now, context.gym.timezone);
-    const first = monthWindows[0];
-    const endOfToday = dateOnly(today);
-    endOfToday.setUTCDate(endOfToday.getUTCDate() + 1);
-    const monthExpression = { $dateToString: { format: "%Y-%m", date: "$paymentDate" } };
-    const memberMonthExpression = { $dateToString: { format: "%Y-%m", date: "$createdAt" } };
+    const period = resolvedRange.data;
+    const today = period.today;
+    const previousStart = dateOnly(period.previousStartDate);
+    const paymentsEnd = dateOnly(addDays(period.endDate, 1));
+    const memberStart = gymDateStartUtc(period.previousStartDate, period.timezone);
+    const memberEnd = gymDateStartUtc(addDays(period.endDate, 1), period.timezone);
+    const dateRange = { $gte: period.previousStartDate, $lte: period.endDate };
     const todayDate = dateOnly(today);
-    const expiringThrough = dateOnly(today);
-    expiringThrough.setUTCDate(expiringThrough.getUTCDate() + 7);
-    const [payments, members, attendance, activeSubscriptions] = await Promise.all([
+    const expiringThrough = dateOnly(addDays(today, 7));
+    const [payments, memberAnalytics, attendance, renewals, activeSubscriptions] = await Promise.all([
       Payment.aggregate([
-        { $match: { gymId, paymentDate: { $gte: first.start, $lt: endOfToday } } },
-        { $group: { _id: monthExpression, total: { $sum: "$amountPaid" } } },
+        { $match: { gymId, paymentDate: { $gte: previousStart, $lt: paymentsEnd } } },
+        { $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: "UTC" } },
+          total: { $sum: "$amountPaid" },
+        } },
       ]),
       Member.aggregate([
         { $match: { gymId } },
         { $facet: {
           growth: [
-            { $match: { createdAt: { $gte: first.start, $lte: now } } },
-            { $group: { _id: memberMonthExpression, count: { $sum: 1 } } },
+            { $match: { createdAt: { $gte: memberStart, $lt: memberEnd } } },
+            { $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: period.timezone } },
+              count: { $sum: 1 },
+            } },
           ],
           membershipStatuses: [
             { $group: { _id: { $switch: { branches: [
@@ -48,16 +61,36 @@ export async function GET(request) {
               { case: { $lte: ["$expiryDate", expiringThrough] }, then: "expiring" },
             ], default: "active" } }, count: { $sum: 1 } } },
           ],
+          total: [{ $count: "count" }],
         } },
       ]),
       Attendance.aggregate([
-        { $match: { gymId, date: { $gte: `${first.month}-01`, $lte: today } } },
-        { $group: { _id: { $substrBytes: ["$date", 0, 7] }, count: { $sum: 1 } } },
+        { $match: { gymId, date: dateRange } },
+        { $group: { _id: "$date", count: { $sum: 1 } } },
+      ]),
+      Subscription.aggregate([
+        { $match: { gymId, "renewalHistory.createdAt": { $gte: memberStart, $lt: memberEnd } } },
+        { $unwind: "$renewalHistory" },
+        { $match: { $expr: { $ne: ["$renewalHistory.renewalKey", "$createKey"] } } },
+        { $match: { "renewalHistory.createdAt": { $gte: memberStart, $lt: memberEnd } } },
+        { $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$renewalHistory.createdAt", timezone: period.timezone } },
+          count: { $sum: 1 },
+        } },
       ]),
       Subscription.countDocuments({ gymId, status: { $ne: "cancelled" }, startDate: { $lte: todayDate }, expiryDate: { $gte: todayDate } }),
     ]);
-    const memberAnalytics = members[0] || { growth: [], membershipStatuses: [] };
-    return successResponse(buildGymReport({ monthWindows, payments, members: memberAnalytics.growth, attendance, activeSubscriptions, membershipStatuses: memberAnalytics.membershipStatuses }));
+    const members = memberAnalytics[0] || { growth: [], membershipStatuses: [], total: [] };
+    return successResponse(buildGymReportAnalytics({
+      period,
+      payments,
+      members: members.growth,
+      attendance,
+      renewals,
+      totalMembers: members.total[0]?.count || 0,
+      activeSubscriptions,
+      membershipStatuses: members.membershipStatuses,
+    }));
   } catch {
     console.error("Gym reports could not be loaded.");
     return errorResponse("Could not load reports. Please try again.", 503);

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { GET } from "../app/api/reports/route.js";
-import { buildGymReport, buildMembershipStatusDistribution, getGymReportMonths } from "../lib/reportRules.js";
+import { buildGymReport, buildGymReportAnalytics, buildMembershipStatusDistribution, getGymReportMonths, gymDateStartUtc, resolveGymReportRange } from "../lib/reportRules.js";
 
 test("report windows cover six calendar months using the Gym timezone", () => {
   const months = getGymReportMonths(new Date("2026-10-20T20:30:00Z"), "Asia/Karachi");
@@ -39,6 +39,75 @@ test("membership status distribution fills empty states and ignores unsupported 
   });
 });
 
+test("report filters resolve gym-local presets and bound custom ranges", () => {
+  const now = new Date("2026-10-20T20:30:00Z");
+  const preset = resolveGymReportRange({ range: "7d" }, now, "Asia/Karachi");
+  assert.equal(preset.data.startDate, "2026-10-15");
+  assert.equal(preset.data.endDate, "2026-10-21");
+  assert.equal(preset.data.days, 7);
+  assert.equal(preset.data.granularity, "day");
+  assert.equal(preset.data.previousStartDate, "2026-10-08");
+  assert.equal(resolveGymReportRange({ range: "custom", startDate: "2025-01-01", endDate: "2026-10-21" }, now, "Asia/Karachi").error, "Reports can cover up to 366 calendar days.");
+  assert.match(resolveGymReportRange({ range: "custom", startDate: "2026-10-01", endDate: "2026-10-22" }, now, "Asia/Karachi").error, /future/);
+  assert.match(resolveGymReportRange({ range: "custom", startDate: "2026-10-10", endDate: "2026-10-01" }, now, "Asia/Karachi").error, /on or before/);
+  assert.match(resolveGymReportRange({ range: "30y" }, now, "Asia/Karachi").error, /supported/);
+});
+
+test("gym-local date bounds account for daylight saving time", () => {
+  assert.equal(gymDateStartUtc("2026-03-08", "America/New_York").toISOString(), "2026-03-08T05:00:00.000Z");
+  assert.equal(gymDateStartUtc("2026-03-09", "America/New_York").toISOString(), "2026-03-09T04:00:00.000Z");
+});
+
+test("filtered analytics aggregate real daily rows into buckets and compare equal prior periods", () => {
+  const period = {
+    range: "custom", startDate: "2026-10-01", endDate: "2026-10-03",
+    previousStartDate: "2026-09-28", previousEndDate: "2026-09-30",
+    days: 3, granularity: "day", timezone: "UTC", today: "2026-10-03",
+  };
+  const report = buildGymReportAnalytics({
+    period,
+    payments: [{ _id: "2026-10-01", total: 1000 }, { _id: "2026-09-28", total: 500 }],
+    members: [{ _id: "2026-10-02", count: 2 }, { _id: "2026-09-29", count: 1 }],
+    attendance: [{ _id: "2026-10-01", count: 6 }, { _id: "2026-09-28", count: 3 }],
+    renewals: [{ _id: "2026-10-03", count: 1 }, { _id: "2026-09-28", count: 2 }],
+    totalMembers: 20,
+    activeSubscriptions: 8,
+    membershipStatuses: [{ _id: "active", count: 5 }, { _id: "expiring", count: 2 }, { _id: "expired", count: 4 }],
+  });
+  assert.deepEqual(report.series.map(({ key }) => key), ["2026-10-01", "2026-10-02", "2026-10-03"]);
+  assert.deepEqual(report.attendanceDays, [
+    { date: "2026-10-01", count: 6 },
+    { date: "2026-10-02", count: 0 },
+    { date: "2026-10-03", count: 0 },
+  ]);
+  assert.equal(report.summary.paymentCollected, 1000);
+  assert.equal(report.summary.newMembers, 2);
+  assert.equal(report.summary.attendanceCount, 6);
+  assert.equal(report.summary.renewals, 1);
+  assert.equal(report.summary.averageAttendancePerDay, 2);
+  assert.equal(report.summary.activeMemberships, 7);
+  assert.equal(report.summary.totalMembers, 20);
+  assert.equal(report.summary.attendanceRate, null);
+  assert.equal(report.summary.periodComparison.paymentCollected, 500);
+  assert.equal(report.summary.periodComparison.paymentCollectedChangePercent, 100);
+  assert.equal(report.summary.periodComparison.newMembersChangePercent, 100);
+  assert.equal(report.summary.periodComparison.renewals, 2);
+  assert.deepEqual(report.summary.membershipStatuses, { active: 5, expiring: 2, upcoming: 0, expired: 4, cancelled: 0 });
+});
+
+test("weekly report buckets start on Monday and retain partial boundary weeks", () => {
+  const report = buildGymReportAnalytics({
+    period: {
+      range: "custom", startDate: "2026-10-04", endDate: "2026-10-06",
+      previousStartDate: "2026-10-01", previousEndDate: "2026-10-03",
+      days: 3, granularity: "week", timezone: "UTC", today: "2026-10-06",
+    },
+    attendance: [{ _id: "2026-10-04", count: 2 }, { _id: "2026-10-06", count: 5 }],
+  });
+  assert.deepEqual(report.series.map(({ key }) => key), ["2026-09-28", "2026-10-05"]);
+  assert.deepEqual(report.series.map(({ attendanceCount }) => attendanceCount), [2, 5]);
+});
+
 test("reports API rejects unauthenticated access and aggregates only the trusted gym", async () => {
   const response = await GET(new Request("http://localhost/api/reports"));
   assert.equal(response.status, 401);
@@ -48,11 +117,15 @@ test("reports API rejects unauthenticated access and aggregates only the trusted
   assert.match(source, /Payment\.aggregate/);
   assert.match(source, /Member\.aggregate/);
   assert.match(source, /Attendance\.aggregate/);
+  assert.match(source, /Payment\.aggregate\(\[\s*\{ \$match: \{ gymId,/);
+  assert.match(source, /Attendance\.aggregate\(\[\s*\{ \$match: \{ gymId,/);
   assert.match(source, /\$facet/);
   assert.match(source, /membershipCancelled/);
   assert.match(source, /gymId \}/);
   assert.match(source, /\$lte: \["\$expiryDate", expiringThrough\]/);
   assert.match(source, /Subscription\.countDocuments\(\{ gymId, status: \{ \$ne: "cancelled" \}/);
+  assert.match(source, /Subscription\.aggregate\(\[\s*\{ \$match: \{ gymId, "renewalHistory\.createdAt": \{ \$gte: memberStart, \$lt: memberEnd \} \} \}/);
+  assert.match(source, /renewalHistory\.renewalKey", "\$createKey/);
   assert.doesNotMatch(source, /request\.json|searchParams\.get\("gymId"\)/);
 });
 
@@ -65,7 +138,10 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   const shell = await readFile(fileURLToPath(new URL("../components/layout/dashboard-shell.js", import.meta.url)), "utf8");
   assert.match(page, /ReportsManager/);
   assert.match(manager, /\/api\/reports/);
-  assert.match(manager, /Loading reports/);
+  assert.match(manager, /loadingLabel="member payment collections"/);
+  assert.match(manager, /range: "6m"/);
+  assert.match(manager, /schedule baseline is stored for an attendance rate/);
+  assert.match(manager, /Membership status/);
   assert.match(manager, /role="alert"/);
   assert.match(dashboard, /\/api\/reports/);
   assert.match(dashboard, /title="Revenue"/);
