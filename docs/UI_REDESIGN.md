@@ -20,11 +20,14 @@ wait for the user's “continue” after each stage.
 - Stage 5 is complete: four stat cards, a six-month revenue chart beside expiring
   memberships, and recent payments beside members by plan. Setup guidance and
   existing feature links remain below the main dashboard.
-- Stage 6 is underway. The Members directory now uses the shared header, search,
-  error, and data-table surfaces while retaining its API filters and load-more
-  behavior. Plans now use responsive shared cards and loading/error states while
-  retaining create, edit, and activation behavior. Payments is next, followed by
-  Attendance.
+- Stage 6 is complete: Members uses the shared header, search, error, and
+  data-table surfaces; Plans uses responsive shared cards and loading/error
+  states; Payments uses shared metric, search, error, and table components; and
+  Attendance uses shared metric, search, error, and table components. Existing
+  filters, actions, pagination, and data contracts are preserved.
+- Stage 7 is complete: sign-in and the paused public registration screen share a
+  responsive auth layout and shared controls. Public registration remains paused.
+- Stage 8 (admin pages) is next, followed by the final consistency pass.
 - Existing legacy module CSS remains until the corresponding module is migrated.
 - Stage 4 validation: `npm run lint` and `npm run build` pass. The build required
   network access to fetch the existing Google Inter font.
@@ -132,8 +135,8 @@ semantic status treatments. `PageHeader` supports breadcrumbs and actions.
 
 ## Next stage constraints
 
-Restyle Payments using the shared components. Members and Plans are complete;
-Attendance follows one page at a time.
+Restyle admin pages using the shared components. Stage 7 auth pages and Stage 6
+(Members, Plans, Payments, and Attendance) are complete.
 Keep page titles, descriptions, search, and page actions in the shared PageHeader
 at the page level; the shell top bar supplies route context and account actions.
 Only wire existing search and actions. Do not add a global search or decorative

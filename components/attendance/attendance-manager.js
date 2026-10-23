@@ -5,10 +5,13 @@ import { AlertTriangle, CalendarCheck2, Clock3, LogIn, LogOut, Search, UsersRoun
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
+import DataTable from "../ui/data-table";
 import EmptyState from "../ui/empty-state";
+import ErrorState from "../ui/error-state";
 import Input from "../ui/input";
 import PageHeader from "../ui/page-header";
-import Table from "../ui/table";
+import SearchBar from "../ui/search-bar";
+import StatCard from "../ui/stat-card";
 import {
   checkInMember,
   checkOutMember,
@@ -35,18 +38,6 @@ function membershipTone(status) {
   if (status === "Active") return "success";
   if (status === "Expiring") return "warning";
   return "neutral";
-}
-
-function StatCard({ label, value, icon: Icon, highlight = false }) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-ink-muted">{label}</p>
-        <Icon size={17} className={highlight ? "text-brand" : "text-ink-muted"} aria-hidden="true" />
-      </div>
-      <p className={`mt-2 text-2xl font-semibold tracking-tight ${highlight ? "text-brand" : "text-ink"}`}>{value}</p>
-    </Card>
-  );
 }
 
 export default function AttendanceManager() {
@@ -174,48 +165,47 @@ export default function AttendanceManager() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="attendance-page">
       <PageHeader title="Attendance" description="Check members in quickly and review their attendance history." eyebrow={formatDate(today)} />
 
-      <Card className="overflow-hidden border-brand/20 p-5 md:p-7">
-        <div className="mb-5 flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><LogIn size={19} aria-hidden="true" /></span>
-          <div><h2 className="text-lg font-semibold text-ink">Member check-in</h2><p className="mt-1 text-sm text-ink-muted">Search by name or phone number to check a member in.</p></div>
+      <Card className="attendance-checkin-card">
+        <div className="attendance-checkin-heading">
+          <span><LogIn size={19} strokeWidth={1.75} aria-hidden="true" /></span>
+          <div><h2>Member check-in</h2><p>Search by name or phone number to check a member in.</p></div>
         </div>
-        <Input
+        <SearchBar
           id="attendance-member-search"
           label="Find a member"
-          type="search"
           placeholder="Type a member name or phone number"
           value={search}
           onChange={(event) => { setSearch(event.target.value); setConfirmMemberId(null); setActionError(""); }}
+          onClear={() => { setSearch(""); setConfirmMemberId(null); setActionError(""); }}
           autoComplete="off"
-          className="h-12 text-base"
         />
-        {actionError && <p className="mt-3 text-sm text-error" role="alert">{actionError}</p>}
-        {loadError && <p className="mt-3 text-sm text-error" role="alert">{loadError}</p>}
+        {actionError && <ErrorState className="attendance-inline-error" title="Check-in action needs attention" description={actionError} />}
+        {loadError && <ErrorState className="attendance-inline-error" title="Could not load attendance" description={loadError} />}
         {search.trim() && (
-          <div className="mt-4 divide-y divide-line overflow-hidden rounded-xl border border-line">
+          <div className="attendance-member-results">
             {members.length ? members.map((member) => {
               const checkedRecord = todayRecords.find((record) => record.memberId === member.id);
               const confirming = confirmMemberId === member.id;
               return (
-                <div key={member.id} className="flex flex-col gap-4 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-ink">{member.name}</p><Badge tone={membershipTone(member.status)}>{member.status}</Badge></div>
-                    <p className="mt-1 text-sm text-ink-muted">{member.planName} <span className="px-1 text-line-strong">·</span> {member.phone}</p>
-                    {member.status === "Expired" && <p className="mt-2 text-sm font-medium text-warning">Membership expired {member.expiryDate ? `on ${formatDate(member.expiryDate)}` : ""}. Front desk approval is required to continue.</p>}
-                    {confirming && member.status === "Expired" && <div className="mt-3 flex items-center gap-2 rounded-lg bg-warning-soft p-3 text-sm text-warning"><AlertTriangle size={17} className="shrink-0" aria-hidden="true" /><span>Confirm that you want to check in this member with an expired membership.</span></div>}
+                <div key={member.id} className="attendance-member-result">
+                  <div className="attendance-member-copy">
+                    <div className="attendance-member-heading"><p>{member.name}</p><Badge tone={membershipTone(member.status)}>{member.status}</Badge></div>
+                    <p className="attendance-member-meta">{member.planName} <span aria-hidden="true">·</span> {member.phone}</p>
+                    {member.status === "Expired" && <p className="attendance-expired-note">Membership expired {member.expiryDate ? `on ${formatDate(member.expiryDate)}` : ""}. Front desk approval is required to continue.</p>}
+                    {confirming && member.status === "Expired" && <div className="attendance-expired-confirm"><AlertTriangle size={17} aria-hidden="true" /><span>Confirm that you want to check in this member with an expired membership.</span></div>}
                   </div>
                   {checkedRecord ? (
-              <Button type="button" variant="secondary" disabled className="min-h-11 shrink-0">Checked in at {formatTime(checkedRecord.checkInAt, summary.timeZone)}</Button>
+                    <Button type="button" variant="secondary" disabled className="attendance-member-action">Checked in at {formatTime(checkedRecord.checkInAt, summary.timeZone)}</Button>
                   ) : confirming ? (
-                    <div className="flex shrink-0 gap-2">
-                      <Button type="button" variant="secondary" className="min-h-11" onClick={() => setConfirmMemberId(null)}>Cancel</Button>
-                      <Button type="button" className="min-h-11" onClick={() => handleCheckIn(member)}>Confirm check-in</Button>
+                    <div className="attendance-confirm-actions">
+                      <Button type="button" variant="secondary" onClick={() => setConfirmMemberId(null)}>Cancel</Button>
+                      <Button type="button" onClick={() => handleCheckIn(member)}>Confirm check-in</Button>
                     </div>
                   ) : (
-                    <Button type="button" className="min-h-11 shrink-0" onClick={() => handleCheckIn(member)}><LogIn size={16} aria-hidden="true" />Check in</Button>
+                    <Button type="button" className="attendance-member-action" onClick={() => handleCheckIn(member)}><LogIn size={16} aria-hidden="true" />Check in</Button>
                   )}
                 </div>
               );
@@ -224,32 +214,32 @@ export default function AttendanceManager() {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Checked in today" value={summary.checkedInToday.toLocaleString("en-PK")} icon={UsersRound} highlight />
-        <StatCard label="Currently inside" value={summary.currentlyInside.toLocaleString("en-PK")} icon={Clock3} />
-        <StatCard label="Average check-ins this week" value={summary.averageThisWeek.toLocaleString("en-PK", { maximumFractionDigits: 1 })} icon={CalendarCheck2} />
+      <div className="attendance-stats">
+        <StatCard className="attendance-stat-card" label="Checked in today" value={summary.checkedInToday.toLocaleString("en-PK")} icon={<UsersRound size={18} strokeWidth={1.75} />} />
+        <StatCard className="attendance-stat-card" label="Currently inside" value={summary.currentlyInside.toLocaleString("en-PK")} icon={<Clock3 size={18} strokeWidth={1.75} />} />
+        <StatCard className="attendance-stat-card" label="Average check-ins this week" value={summary.averageThisWeek.toLocaleString("en-PK", { maximumFractionDigits: 1 })} icon={<CalendarCheck2 size={18} strokeWidth={1.75} />} />
       </div>
 
-      <Card className="min-w-0 p-4 md:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-semibold text-ink">Today&apos;s attendance</h2><span className="text-xs text-ink-muted">{formatDate(today)}</span></div>
-        {todayRecords.length ? <Table columns={todayColumns} rows={todayRecords} getRowKey={(record) => record.id} className="min-w-[780px]" /> : (
+      <Card className="attendance-section-card">
+        <div className="attendance-section-heading"><div><h2>Today&apos;s attendance</h2><p>Members checked in for {formatDate(today)}.</p></div><span>{todayRecords.length.toLocaleString("en-PK")} {todayRecords.length === 1 ? "check-in" : "check-ins"}</span></div>
+        {todayRecords.length ? <DataTable caption="Today's attendance" columns={todayColumns} rows={todayRecords} getRowKey={(record) => record.id} className="attendance-today-table" /> : (
           <EmptyState icon={<CalendarCheck2 size={25} strokeWidth={1.7} />} title="Nobody checked in yet" description="Search for a member above to record the first check-in today." />
         )}
       </Card>
 
-      <Card className="min-w-0 p-4 md:p-5">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div><h2 className="text-base font-semibold text-ink">Attendance history</h2><p className="mt-1 text-sm text-ink-muted">Review check-ins for a selected day.</p></div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+      <Card className="attendance-section-card">
+        <div className="attendance-history-heading">
+          <div><h2>Attendance history</h2><p>Review check-ins for a selected day.</p></div>
+          <div className="attendance-history-filters">
             <Input id="attendance-history-date" label={historyTo ? "From" : "Date / from"} type="date" value={historyFrom || (historyTo ? "" : today)} onChange={(event) => { setHistoryFrom(event.target.value); setHistoryPage(1); }} />
             <Input id="attendance-history-to" label="To (optional)" type="date" value={historyTo} onChange={(event) => { setHistoryTo(event.target.value); setHistoryPage(1); }} />
-            <Input id="attendance-history-search" label="Search member" type="search" placeholder="Name" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} />
+            <SearchBar id="attendance-history-search" label="Search member" placeholder="Name" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} onClear={() => setHistorySearch("")} />
           </div>
         </div>
-        {historyRecords.length ? <Table columns={historyColumns} rows={historyRecords} getRowKey={(record) => record.id} className="min-w-[700px]" /> : (
+        {historyRecords.length ? <DataTable caption="Attendance history" columns={historyColumns} rows={historyRecords} getRowKey={(record) => record.id} className="attendance-history-table" /> : (
           <EmptyState icon={<Search size={25} strokeWidth={1.7} />} title={historySearch ? "No matching history" : "No attendance for this date"} description={historySearch ? "Try another member name." : "Choose another date to review attendance."} />
         )}
-        {historyRecords.length < historyTotal && <div className="mt-4 flex justify-center"><Button variant="secondary" onClick={() => setHistoryPage((page) => page + 1)}>Load more</Button></div>}
+        {historyRecords.length < historyTotal && <div className="attendance-load-more"><Button variant="secondary" onClick={() => setHistoryPage((page) => page + 1)}>Load more</Button></div>}
       </Card>
     </div>
   );

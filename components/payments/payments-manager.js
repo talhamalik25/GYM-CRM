@@ -5,11 +5,14 @@ import { CreditCard, ReceiptText, Search, UsersRound } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
+import DataTable from "../ui/data-table";
 import EmptyState from "../ui/empty-state";
+import ErrorState from "../ui/error-state";
 import Input from "../ui/input";
 import PageHeader from "../ui/page-header";
+import SearchBar from "../ui/search-bar";
 import Select from "../ui/select";
-import Table from "../ui/table";
+import StatCard from "../ui/stat-card";
 import PaymentReceiptModal from "./payment-receipt-modal";
 import RecordPaymentModal from "./record-payment-modal";
 import {
@@ -92,31 +95,22 @@ export default function PaymentsManager() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="payments-page">
       <PageHeader
         title="Payments"
         description="Record member payments and keep track of outstanding balances."
-        actions={<Button onClick={openForm}><CreditCard size={16} aria-hidden="true" />Record Payment</Button>}
+        actions={<Button onClick={openForm}><CreditCard size={16} strokeWidth={1.75} aria-hidden="true" />Record payment</Button>}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-5">
-          <p className="text-sm text-ink-muted">Collected This Month</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{formatCurrency(summary.collected)}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-ink-muted">Pending Dues</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{formatCurrency(summary.pendingDues)}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm text-ink-muted">Payments This Month</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">{summary.paymentCount.toLocaleString("en-PK")}</p>
-        </Card>
+      <div className="payments-stats">
+        <StatCard label="Collected this month" value={formatCurrency(summary.collected)} icon={<CreditCard size={18} strokeWidth={1.75} />} />
+        <StatCard label="Pending dues" value={formatCurrency(summary.pendingDues)} icon={<ReceiptText size={18} strokeWidth={1.75} />} />
+        <StatCard label="Payments this month" value={summary.paymentCount.toLocaleString("en-PK")} icon={<UsersRound size={18} strokeWidth={1.75} />} />
       </div>
 
-      <Card className="p-4 md:p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(13rem,1fr)_10rem_13rem_12rem] md:items-end">
-          <Input id="payment-search" label="Search members" type="search" placeholder="Search by member name" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} autoComplete="off" />
+      <Card className="payments-filter-card">
+        <div className="payments-filter-grid">
+          <SearchBar id="payment-search" label="Search members" placeholder="Search by member name" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} onClear={() => { setQuery(""); setPage(1); }} autoComplete="off" />
           <Select id="payment-status-filter" label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
             <option value="All">All statuses</option><option value="Paid">Paid</option><option value="Partial">Partial</option><option value="Pending">Pending</option>
           </Select>
@@ -127,19 +121,19 @@ export default function PaymentsManager() {
         </div>
       </Card>
 
-      {loadError && <p role="alert" className="text-sm text-error">{loadError}</p>}
+      {loadError && <Card className="payments-error-card"><ErrorState title="Could not load payment data" description={loadError} onRetry={() => setRefreshKey((key) => key + 1)} /></Card>}
 
       {total === 0 ? (
-        <Card className="p-5 md:p-6">
+        <Card className="payments-state-card">
           <EmptyState
             icon={<CreditCard size={25} strokeWidth={1.7} />}
             title="No payments yet"
             description="Record a member payment to start the payment history."
-            action={<Button onClick={openForm}><CreditCard size={15} aria-hidden="true" />Record Payment</Button>}
+            action={<Button onClick={openForm}><CreditCard size={15} aria-hidden="true" />Record payment</Button>}
           />
         </Card>
       ) : payments.length === 0 ? (
-        <Card className="p-5 md:p-6">
+        <Card className="payments-state-card">
           <EmptyState
             icon={<Search size={25} strokeWidth={1.7} />}
             title="No payments match these filters"
@@ -148,31 +142,30 @@ export default function PaymentsManager() {
           />
         </Card>
       ) : (
-        <Card className="min-w-0 p-4 md:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-ink">Payment History</h2>
-            <span className="text-xs text-ink-muted">{total} {total === 1 ? "payment" : "payments"}</span>
+        <Card className="payments-results-card">
+          <div className="payments-section-heading">
+            <div><h2>Payment history</h2><p>View recorded member payments and receipts.</p></div>
+            <span className="payments-result-count">{total.toLocaleString("en-PK")} {total === 1 ? "payment" : "payments"}</span>
           </div>
-          <Table columns={columns} rows={payments} getRowKey={(payment) => payment.id} className="min-w-[760px]" />
-          {total > 10 && <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span className="self-center text-sm text-ink-muted">Page {page} of {Math.ceil(total / 10)}</span><Button variant="secondary" disabled={page >= Math.ceil(total / 10)} onClick={() => setPage((value) => value + 1)}>Next</Button></div>}
+          <DataTable caption="Payment history" columns={columns} rows={payments} getRowKey={(payment) => payment.id} className="payments-data-table" pagination={total > 10 ? { page, pageSize: 10, total, onPageChange: setPage } : undefined} />
         </Card>
       )}
 
-      <Card className="p-4 md:p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <UsersRound size={18} className="text-ink-muted" aria-hidden="true" />
-          <h2 className="text-base font-semibold text-ink">Members with Dues</h2>
+      <Card className="payments-dues-card">
+        <div className="payments-section-heading">
+          <div><h2>Members with dues</h2><p>Outstanding balances across member accounts.</p></div>
+          <UsersRound size={19} strokeWidth={1.75} aria-hidden="true" />
         </div>
         {dues.length ? (
-          <ul className="divide-y divide-line">
+          <ul className="payments-dues-list">
             {dues.map((member) => (
               <li key={member.memberId} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
-                <div><p className="font-medium text-ink">{member.memberName}</p><p className="mt-1 text-xs text-ink-muted">{member.paymentCount} outstanding {member.paymentCount === 1 ? "payment" : "payments"}</p></div>
-                <strong className="text-sm font-semibold text-ink">{formatCurrency(member.balance)}</strong>
+                <div><p>{member.memberName}</p><small>{member.paymentCount} outstanding {member.paymentCount === 1 ? "payment" : "payments"}</small></div>
+                <strong>{formatCurrency(member.balance)}</strong>
               </li>
             ))}
           </ul>
-        ) : <p className="text-sm text-ink-muted">No members have outstanding dues.</p>}
+        ) : <p className="payments-no-dues">No members have outstanding dues.</p>}
       </Card>
 
       <RecordPaymentModal

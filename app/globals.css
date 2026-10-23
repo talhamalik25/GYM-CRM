@@ -1085,3 +1085,163 @@ button.owner-text-link { border: 0; padding: 0; background: transparent; text-al
   .plan-card-surface, .plans-state-card { padding: 18px; }
   .plan-card-surface { min-height: 250px; }
 }
+
+/* Stage 6: payment history, filters, and member dues. */
+.payments-page { display: grid; gap: var(--section-gap); min-width: 0; }
+.payments-page > .ui-page-header { margin-bottom: 0; }
+.payments-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); }
+.payments-stats > .ui-stat-card { min-width: 0; padding: var(--card-padding); }
+.payments-stats .ui-stat-heading p { font-weight: 500; }
+.payments-stats .ui-stat-icon { color: var(--brand-soft-text); }
+.payments-stats .ui-stat-value { font-size: clamp(20px, 2vw, 26px); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.payments-filter-card { padding: var(--card-padding); }
+.payments-filter-grid { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(9rem, .7fr) minmax(11rem, .9fr) minmax(10rem, .8fr); gap: 14px; align-items: end; }
+.payments-filter-grid .ui-field { min-width: 0; }
+.payments-filter-grid .ui-label { font-weight: 500; }
+.payments-error-card, .payments-state-card, .payments-dues-card { padding: var(--card-padding); }
+.payments-results-card { min-width: 0; padding: 0; overflow: hidden; }
+.payments-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.payments-section-heading h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.payments-section-heading p { margin: 5px 0 0; color: var(--ink-subtle); font-size: 13px; }
+.payments-results-card > .payments-section-heading { padding: 22px 24px; }
+.payments-result-count { flex-shrink: 0; padding: 6px 10px; border-radius: var(--radius-pill); background: var(--canvas); color: var(--ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.payments-data-table { min-width: 810px; }
+.payments-data-table th { height: 44px; padding: 0 14px; background: var(--table-header); color: var(--ink-subtle); font-size: 12px; font-weight: 600; }
+.payments-data-table td { height: 64px; padding: 10px 14px; font-size: 13px; border-bottom-color: var(--divider); }
+.payments-data-table .ui-badge { font-size: 12px; }
+.payments-page .ui-pagination { padding: 16px 24px 20px; }
+.payments-dues-card > .payments-section-heading { margin-bottom: 18px; }
+.payments-dues-card > .payments-section-heading > svg { color: var(--brand-soft-text); }
+.payments-dues-list { list-style: none; margin: 0; padding: 0; }
+.payments-dues-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--divider); }
+.payments-dues-list li:first-child { padding-top: 0; }
+.payments-dues-list li:last-child { padding-bottom: 0; border-bottom: 0; }
+.payments-dues-list li > div { min-width: 0; }
+.payments-dues-list p { margin: 0; color: var(--ink); font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.payments-dues-list small { display: block; margin-top: 4px; color: var(--ink-subtle); font-size: 12px; }
+.payments-dues-list strong { flex-shrink: 0; color: var(--ink); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.payments-no-dues { margin: 0; color: var(--ink-subtle); font-size: 13px; }
+@media (max-width: 1000px) {
+  .payments-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px) {
+  .payments-stats { grid-template-columns: minmax(0, 1fr); }
+  .payments-filter-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .payments-filter-card, .payments-error-card, .payments-state-card, .payments-dues-card { padding: 18px; }
+  .payments-results-card > .payments-section-heading { align-items: flex-start; padding: 18px; }
+  .payments-result-count { padding: 5px 8px; }
+  .payments-page .ui-pagination { padding: 14px 18px 18px; }
+}
+
+/* Stage 6: attendance check-in and history. */
+.attendance-page { display: grid; gap: var(--section-gap); min-width: 0; }
+.attendance-page > .ui-page-header { margin-bottom: 0; }
+.attendance-checkin-card { padding: var(--card-padding); border-color: var(--brand-muted); }
+.attendance-checkin-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.attendance-checkin-heading > span { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 11px; background: var(--brand-soft); color: var(--brand); }
+.attendance-checkin-heading h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.attendance-checkin-heading p { margin: 5px 0 0; color: var(--ink-subtle); font-size: 13px; line-height: 1.5; }
+.attendance-checkin-card .ui-field { max-width: 680px; }
+.attendance-checkin-card .ui-input { min-height: 46px; font-size: 15px; }
+.attendance-inline-error { margin-top: 14px; }
+.attendance-member-results { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-card); }
+.attendance-member-result { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px; background: var(--surface); border-bottom: 1px solid var(--divider); }
+.attendance-member-result:last-child { border-bottom: 0; }
+.attendance-member-copy { min-width: 0; }
+.attendance-member-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.attendance-member-heading p { margin: 0; color: var(--ink); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.attendance-member-heading .ui-badge { font-size: 12px; }
+.attendance-member-meta { margin: 5px 0 0; color: var(--ink-subtle); font-size: 13px; overflow-wrap: anywhere; }
+.attendance-expired-note { margin: 10px 0 0; color: var(--warning); font-size: 13px; font-weight: 500; line-height: 1.5; }
+.attendance-expired-confirm { display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; padding: 12px; border-radius: var(--radius-input); background: var(--warning-soft); color: var(--warning); font-size: 13px; line-height: 1.5; }
+.attendance-expired-confirm svg { flex: 0 0 auto; margin-top: 1px; }
+.attendance-member-action { flex: 0 0 auto; min-height: 42px; }
+.attendance-confirm-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; }
+.attendance-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap); }
+.attendance-stats > .ui-stat-card { min-width: 0; padding: var(--card-padding); }
+.attendance-stats .ui-stat-heading p { font-weight: 500; }
+.attendance-stats .ui-stat-icon { color: var(--brand-soft-text); }
+.attendance-stats .ui-stat-value { font-variant-numeric: tabular-nums; }
+.attendance-section-card { min-width: 0; padding: 0; overflow: hidden; }
+.attendance-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 22px 24px; }
+.attendance-section-heading h2, .attendance-history-heading h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.attendance-section-heading p, .attendance-history-heading p { margin: 5px 0 0; color: var(--ink-subtle); font-size: 13px; }
+.attendance-section-heading > span { flex-shrink: 0; padding: 6px 10px; border-radius: var(--radius-pill); background: var(--canvas); color: var(--ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.attendance-today-table, .attendance-history-table { min-width: 780px; }
+.attendance-page .ui-table-wrap { border-top: 1px solid var(--divider); }
+.attendance-page .ui-table th { height: 44px; padding: 0 14px; background: var(--table-header); color: var(--ink-subtle); font-size: 12px; font-weight: 600; }
+.attendance-page .ui-table td { height: 62px; padding: 10px 14px; font-size: 13px; border-bottom-color: var(--divider); }
+.attendance-page .ui-empty-state { padding: 26px 20px; }
+.attendance-history-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 22px 24px; }
+.attendance-history-filters { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 12px; align-items: end; width: min(680px, 68%); }
+.attendance-history-filters .ui-field { min-width: 0; }
+.attendance-history-filters .ui-label { font-weight: 500; }
+.attendance-load-more { display: flex; justify-content: center; padding: 18px 24px 22px; }
+@media (max-width: 1000px) {
+  .attendance-history-heading { align-items: stretch; flex-direction: column; }
+  .attendance-history-filters { width: 100%; }
+}
+@media (max-width: 680px) {
+  .attendance-checkin-card { padding: 18px; }
+  .attendance-member-result { align-items: stretch; flex-direction: column; gap: 14px; padding: 14px; }
+  .attendance-member-action, .attendance-confirm-actions { width: 100%; }
+  .attendance-confirm-actions > .ui-button { flex: 1; }
+  .attendance-stats { grid-template-columns: minmax(0, 1fr); }
+  .attendance-section-heading, .attendance-history-heading { padding: 18px; }
+  .attendance-section-heading { align-items: flex-start; }
+  .attendance-history-filters { grid-template-columns: minmax(0, 1fr); }
+  .attendance-load-more { padding: 16px 18px 18px; }
+}
+
+/* Stage 7: sign-in and registration access screens. */
+.auth-shell { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; background: var(--canvas); }
+.auth-main { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 40px 20px; }
+.auth-main-inner { width: min(100%, 440px); }
+.auth-brand { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 28px; color: var(--ink); font-size: 24px; font-weight: 700; letter-spacing: -.04em; }
+.auth-brand span, .auth-story-brand span { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+.auth-card { padding: 32px; border-color: var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-md); }
+.auth-card-header { margin-bottom: 26px; }
+.auth-card-header h1, .auth-paused-card h1 { margin: 0; color: var(--ink); font-size: 26px; font-weight: 600; letter-spacing: -.035em; line-height: 1.25; }
+.auth-card-header p, .auth-paused-card > p:not(.auth-account-link) { margin: 9px 0 0; color: var(--ink-muted); font-size: 14px; line-height: 1.6; }
+.auth-form { display: grid; gap: 20px; }
+.auth-field .ui-label, .auth-password-field .ui-label { font-weight: 500; }
+.auth-password-field { position: relative; }
+.auth-password-input { padding-right: 48px; }
+.auth-password-toggle { position: absolute; top: 26px; right: 7px; display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: var(--radius-input); background: transparent; color: var(--ink-subtle); cursor: pointer; }
+.auth-password-toggle:hover { background: var(--canvas); color: var(--ink); }
+.auth-password-toggle:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: 2px; }
+.auth-forgot-row { display: flex; justify-content: flex-end; margin-top: -8px; }
+.auth-forgot-row span { color: var(--ink-subtle); font-size: 12px; cursor: not-allowed; }
+.auth-forgot-row span span { text-decoration: underline; text-underline-offset: 2px; }
+.auth-form-error { margin: -2px 0 0; padding: 11px 12px; border: 1px solid var(--error-soft); border-radius: var(--radius-input); background: var(--error-soft); color: var(--error); font-size: 13px; line-height: 1.5; }
+.auth-submit { width: 100%; min-height: 44px; }
+.auth-account-link { margin: 0; color: var(--ink-muted); font-size: 13px; text-align: center; }
+.auth-account-link a { color: var(--brand-soft-text); font-weight: 600; text-underline-offset: 3px; }
+.auth-account-link a:hover { text-decoration: underline; }
+.auth-account-link a:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: 3px; border-radius: 2px; }
+.auth-footer-note { margin: 20px 0 0; color: var(--ink-subtle); font-size: 12px; text-align: center; }
+.auth-paused-card { display: grid; gap: 12px; }
+.auth-paused-card h1 { font-size: 24px; }
+.auth-paused-card .auth-account-link { margin-top: 6px; }
+.auth-notice-badge { width: fit-content; padding: 6px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand-soft-text); font-size: 12px; font-weight: 600; }
+.auth-story { position: relative; display: none; min-width: 0; min-height: 100vh; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 52px; background: var(--ink); color: white; }
+.auth-orbit { position: absolute; border: 1px solid rgb(255 255 255 / 10%); border-radius: 50%; pointer-events: none; }
+.auth-orbit-large { top: -112px; right: -112px; width: 390px; height: 390px; }
+.auth-orbit-small { top: -38px; right: -38px; width: 245px; height: 245px; }
+.auth-story-brand { position: relative; display: inline-flex; align-items: center; gap: 10px; width: fit-content; font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+.auth-story-copy { position: relative; max-width: 500px; padding-bottom: 30px; }
+.auth-story-rule { width: 44px; height: 4px; margin-bottom: 24px; border-radius: var(--radius-pill); background: var(--brand); }
+.auth-story-title { margin: 0; font-size: clamp(32px, 3.3vw, 44px); font-weight: 600; letter-spacing: -.04em; line-height: 1.12; }
+.auth-story-description { max-width: 430px; margin: 16px 0 0; color: rgb(255 255 255 / 68%); font-size: 16px; line-height: 1.75; }
+.auth-story-footer { position: relative; margin: 0; color: rgb(255 255 255 / 48%); font-size: 12px; }
+@media (min-width: 1024px) {
+  .auth-shell { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
+  .auth-main { padding-inline: 44px; }
+  .auth-card { padding: 36px; }
+  .auth-story { display: flex; padding: 52px; }
+}
+@media (max-width: 480px) {
+  .auth-main { align-items: flex-start; padding: 30px 16px; }
+  .auth-card { padding: 24px 20px; }
+  .auth-card-header h1 { font-size: 24px; }
+}
