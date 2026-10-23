@@ -1,10 +1,10 @@
 # MongoDB integration tests
 
-Six integration suites are skipped unless `MONGODB_TEST_URI` is explicitly set:
+Seven integration suites are skipped unless `MONGODB_TEST_URI` is explicitly set:
 `adminGymDetails`, `adminOverview`, `paymentLedger`, `staffInvitations`,
-`tenantIsolation`, and `userProfile`. They exercise real MongoDB operations; the
+`tenantIsolation`, `userProfile`, and `gymOwnerRegistration`. They exercise real MongoDB operations; the
 payment ledger, Gym provisioning, staff invitations, owner profile, and tenant
-isolation suites require replica-set transactions.
+isolation and public registration suites require replica-set transactions.
 
 Use a dedicated disposable MongoDB instance, never a production or shared
 application database. For a local MongoDB installation, start a separate

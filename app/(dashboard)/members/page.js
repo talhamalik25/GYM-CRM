@@ -1,2 +1,4 @@
+import { requirePublicGymOperationalPage } from "../../../lib/ownerPageAccess.js";
 import MemberManager from '../../../components/members/member-manager';
-export default function MembersPage() { return <MemberManager/>; }
+export default async function MembersPage() {
+  await requirePublicGymOperationalPage(); return <MemberManager/>; }

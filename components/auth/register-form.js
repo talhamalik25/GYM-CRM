@@ -57,7 +57,7 @@ export default function RegisterForm() {
           <Card className="p-6 sm:p-9">
             <div className="mb-7">
               <h1 className="text-2xl font-semibold tracking-tight text-ink">Create your gym account</h1>
-              <p className="mt-2 text-sm leading-6 text-ink-muted">Set up your owner account and gym workspace.</p>
+              <p className="mt-2 text-sm leading-6 text-ink-muted">Start your free 7-day trial. After 7 days, a verified paid subscription is required to keep using your gym workspace. Your data stays saved.</p>
             </div>
             <form className="space-y-5" onSubmit={handleSubmit}>
               <Input
@@ -75,6 +75,7 @@ export default function RegisterForm() {
                 id="register-gym-name"
                 name="gymName"
                 label="Gym name"
+                hint="One public trial per account email and gym URL name. Existing gyms should sign in or contact support."
                 autoComplete="organization"
                 maxLength={120}
                 value={values.gymName}

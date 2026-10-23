@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarCheck2, CalendarClock, Dumbbell, ReceiptText, Users } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarCheck2, CalendarClock, Dumbbell, Minus, ReceiptText, Users } from "lucide-react";
 import Avatar from "../ui/avatar";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
@@ -13,15 +13,57 @@ import Drawer from "../ui/drawer";
 import EmptyState from "../ui/empty-state";
 import ErrorState from "../ui/error-state";
 import Skeleton from "../ui/skeleton";
-import StatCard from "../ui/stat-card";
 import StatusPill from "../ui/status-pill";
 import { derivePaymentStatus } from "../../lib/paymentHelpers";
+import { buildDashboardTimeSeries, buildDuesChart } from "../../lib/dashboardChartRules.js";
 import OwnerRevenueChart from "./owner-revenue-chart";
 import useDashboardResource from "./use-dashboard-resource";
 
 const number = (value) => Number.isFinite(value) ? value.toLocaleString("en-PK") : "—";
 const money = (value) => Number.isFinite(value) ? `PKR ${number(value)}` : "—";
 const dateLabel = (value) => value ? new Date(`${value}T00:00:00Z`).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—";
+
+function MiniBarChart({ points, label, tone = "brand", categories = false }) {
+  if (!points.length) return <div className="owner-kpi-chart-empty" role="img" aria-label={`${label}: no data`}>No data yet</div>;
+  const chartLabel = `${label}: ${points.map(({ tooltip }) => tooltip).join("; ")}`;
+  return <div className={`owner-kpi-chart is-${tone}`} role="img" aria-label={chartLabel}>
+    <div className="owner-kpi-bars" aria-hidden="true">{points.map((point) => <span className="owner-kpi-bar-slot" key={point.key} title={point.tooltip}>
+      <i style={{ height: `${point.heightPercent}%` }} />
+    </span>)}</div>
+    <div className="owner-kpi-axis" style={{ gridTemplateColumns: `repeat(${points.length}, minmax(0, 1fr))` }} aria-hidden="true">{points.map((point, index) => <span key={point.key} title={point.label}>{categories ? (point.label === "Other members" ? "Other" : index + 1) : point.label}</span>)}</div>
+  </div>;
+}
+
+function KpiTrend({ comparison, periodLabel }) {
+  if (!comparison) return <span className="owner-kpi-trend neutral"><Minus size={14} aria-hidden="true" />No comparable period</span>;
+  const direction = comparison.direction || (comparison.difference > 0 ? "up" : comparison.difference < 0 ? "down" : "neutral");
+  const Icon = direction === "up" ? ArrowUpRight : direction === "down" ? ArrowDownRight : Minus;
+  const percent = comparison.percent;
+  const tone = direction === "up" ? "positive" : direction === "down" ? "negative" : "neutral";
+  const change = percent == null ? `${number(Math.abs(comparison.difference))} ${comparison.difference >= 0 ? "more" : "fewer"}` : `${Math.abs(percent)}% ${direction === "up" ? "up" : "down"}`;
+  return <span className={`owner-kpi-trend ${tone}`}><Icon size={14} aria-hidden="true" />{direction === "neutral" ? "No change" : change}<span> · {periodLabel}</span></span>;
+}
+
+function OwnerKpiCard({ label, value, icon: Icon, visual, trend, description, tone = "violet", loading, error }) {
+  return <Card className={`owner-kpi-card tone-${tone}`} aria-busy={loading || undefined}>
+    <div className="owner-kpi-top"><div className="owner-kpi-label">{label}</div><span className="owner-kpi-icon" aria-hidden="true"><Icon size={19} strokeWidth={1.8} /></span></div>
+    {loading ? <><Skeleton className="owner-kpi-skeleton" /><span className="sr-only">Loading {label}</span></> : <>
+      <div className="owner-kpi-value">{value}</div>
+      <div className="owner-kpi-visual-row">{visual}</div>
+      {!error && trend?.comparison && <div className="owner-kpi-meta"><KpiTrend comparison={trend.comparison} periodLabel={trend.periodLabel} /></div>}
+      <div className="owner-kpi-description">{error ? "Analytics unavailable" : description}</div>
+    </>}
+  </Card>;
+}
+
+function MembershipRing({ active, total }) {
+  const ratio = total > 0 ? Math.min(100, active / total * 100) : 0;
+  return <div className="owner-kpi-ring" style={{ "--kpi-progress": `${ratio}%` }} role="img" aria-label={`${number(active)} active subscriptions out of ${number(total)} total subscriptions`}><span>{total ? `${Math.round(ratio)}%` : "—"}</span></div>;
+}
+
+function DuesBars({ members }) {
+  return <MiniBarChart points={buildDuesChart(members)} tone="amber" categories label="Outstanding dues by member balance; top four members plus the remaining balance" />;
+}
 
 function PanelHeading({ title, description, action }) {
   return <div className="owner-panel-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{action}</div>;
@@ -96,28 +138,33 @@ function MembersByPlan({ resource }) {
 }
 
 export default function OwnerDashboardAnalytics({ counts }) {
-  const report = useDashboardResource("/api/reports");
+  const report = useDashboardResource("/api/reports?dashboard=1");
   const attendance = useDashboardResource("/api/attendance/summary");
   const expiring = useDashboardResource("/api/members?status=expiring&accountStatus=active&limit=5&page=1");
   const payments = useDashboardResource("/api/payments?limit=5&page=1");
   const dues = useDashboardResource("/api/payments/dues");
   const plans = useDashboardResource("/api/plans?includeMemberCounts=true");
   const [expiringOpen, setExpiringOpen] = useState(false);
-  const currentMonth = report.data?.months.at(-1);
-  const outstandingMembers = (dues.data || []).filter(({ balance }) => balance > 0);
+  const outstandingMembers = (dues.data || []).filter(({ balance }) => Number.isFinite(balance) && balance > 0);
   const pendingDuesTotal = outstandingMembers.reduce((sum, member) => sum + member.balance, 0);
+  const signupKpi = report.data?.dashboardKpis?.signups;
+  const signupPoints = buildDashboardTimeSeries(signupKpi?.series || [], { dateKey: "date", valueKey: "count", unit: "new members" });
+  const attendancePoints = buildDashboardTimeSeries(attendance.data?.history || [], { dateKey: "date", valueKey: "count", unit: "check-ins" });
+  const membershipTotal = report.data?.dashboardKpis?.totalSubscriptions;
 
   return <>
-    <section className="owner-stats" aria-label="Gym overview">
-      <StatCard label="Total members" value={number(counts.members)} icon={<Users strokeWidth={1.75} />} loading={report.loading}
-        sparkline={report.data?.months.map(({ newMembers }) => newMembers)} sparklineLabel="New member signups per month over the last six months"
-        description={!report.loading && <Badge tone={report.error ? "warning" : "success"}>{report.error ? "Growth unavailable" : `+${number(currentMonth?.newMembers || 0)} this month`}</Badge>} />
-      <StatCard label="Active memberships" value={number(report.data?.summary.activeSubscriptions)} icon={<Dumbbell strokeWidth={1.75} />} loading={report.loading || expiring.loading}
-        description={!report.loading && !expiring.loading && <Badge tone="warning">{report.error || expiring.error ? "Expiry count unavailable" : `${number(expiring.data?.total || 0)} expiring this week`}</Badge>} />
-      <StatCard label="Today's check-ins" value={number(attendance.data?.checkedInToday)} icon={<CalendarCheck2 strokeWidth={1.75} />} loading={attendance.loading}
-        description={!attendance.loading && <Badge tone={attendance.error ? "warning" : "info"}>{attendance.error ? "Unavailable" : `${number(attendance.data?.currentlyInside)} currently inside`}</Badge>} />
-      <StatCard label="Pending dues" value={dues.error ? "—" : <><span className="owner-currency">PKR</span>{number(pendingDuesTotal)}</>} icon={<ReceiptText strokeWidth={1.75} />} loading={dues.loading}
-        description={!dues.loading && <Badge tone="warning">{dues.error ? "Unavailable" : `${number(outstandingMembers.length)} members`}</Badge>} />
+    <section className="owner-stats" aria-label="Gym overview" aria-busy={report.loading || attendance.loading || dues.loading || undefined}>
+      <OwnerKpiCard label="Total members" value={number(counts.members)} icon={Users} tone="violet" loading={report.loading} error={report.error}
+        visual={<MiniBarChart points={signupPoints} label="New member signups per day · Last 7 complete days" />}
+        trend={{ comparison: signupKpi?.comparison, periodLabel: "vs previous 7 days" }} description="New signups · Last 7 complete days" />
+      <OwnerKpiCard label="Active memberships" value={number(report.data?.summary.activeSubscriptions)} icon={Dumbbell} tone="blue" loading={report.loading} error={report.error}
+        visual={<MembershipRing active={report.data?.summary.activeSubscriptions || 0} total={membershipTotal || 0} />}
+        description={`${number(membershipTotal || 0)} total subscriptions · current status`} />
+      <OwnerKpiCard label="Today's check-ins" value={number(attendance.data?.checkedInToday)} icon={CalendarCheck2} tone="green" loading={attendance.loading} error={attendance.error}
+        visual={<MiniBarChart points={attendancePoints} label="Daily check-ins · Last 7 gym-local days" tone="green" />}
+        trend={{ comparison: attendance.data?.comparison, periodLabel: "vs same time yesterday" }} description={`${number(attendance.data?.currentlyInside)} currently inside · gym local`} />
+      <OwnerKpiCard label="Pending dues" value={dues.error ? "—" : <><span className="owner-currency">PKR</span>{number(pendingDuesTotal)}</>} icon={ReceiptText} tone="amber" loading={dues.loading} error={dues.error}
+        visual={<DuesBars members={outstandingMembers} />} description={`${number(outstandingMembers.length)} members · largest balances`} />
     </section>
     {attendance.error && <ErrorState title="Could not load today's check-ins" description={attendance.error} onRetry={attendance.retry} />}
     {dues.error && <ErrorState title="Could not load pending dues" description={dues.error} onRetry={dues.retry} />}

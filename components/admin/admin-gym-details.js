@@ -62,6 +62,16 @@ export default function AdminGymDetails({ gymId }) {
           <div className="admin-gym-detail-owners"><dt>Active gym owners</dt><dd>{gym.owners?.length ? <ul>{gym.owners.map((owner, index) => <li key={`${owner.email}-${index}`}><span>{owner.name || "Name unavailable"}</span><small>{owner.email || "Email unavailable"}</small></li>)}</ul> : <span>No active owner assigned</span>}</dd></div>
         </dl>
       </Card>
+      {gym.trial && <Card className="admin-surface p-6">
+        <h2 className="font-semibold">Trial details</h2>
+        <dl className="admin-gym-detail-grid">
+          <div><dt>Status</dt><dd>{gym.trial.status}</dd></div>
+          <div><dt>Started (UTC)</dt><dd>{new Date(gym.trial.startedAt).toISOString()}</dd></div>
+          <div><dt>Expires (UTC)</dt><dd>{new Date(gym.trial.endsAt).toISOString()}</dd></div>
+          <div><dt>Days remaining (rounded up)</dt><dd>{gym.trial.remainingDays}</dd></div>
+        </dl>
+        <Link href="/admin/billing" className="mt-4 inline-block text-brand">Manage trial, subscription &amp; invoices →</Link>
+      </Card>}
     </> : <Card className="admin-surface admin-state-message"><p role="status">Gym details are unavailable.</p></Card>}
   </div>;
 }

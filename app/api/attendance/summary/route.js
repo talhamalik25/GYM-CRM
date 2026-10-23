@@ -1,38 +1,33 @@
-import connectToDatabase from "../../../../lib/db";
-import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
-import { handleAttendanceError } from "../../../../lib/attendanceApiHelpers";
-import { getGymDate } from "../../../../lib/gymDate";
-import Attendance from "../../../../models/Attendance";
-import { requireApiUser, getRequestGymId } from "../../../../lib/auth";
-import { resolveGymTimezone } from "../../../../lib/subscriptionRules.js";
+import connectToDatabase from "../../../../lib/db.js";
+import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
+import Attendance from "../../../../models/Attendance.js";
+import { requireApiUser, getRequestGymId, getRequestTenantContext } from "../../../../lib/auth.js";
+import { attendanceKpiWindow, buildAttendanceKpi } from "../../../../lib/dashboardKpiRules.js";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
   if (authResponse) return authResponse;
   try {
     await connectToDatabase();
-    const today = getGymDate();
-    // “This week” means the last 7 gym calendar days, including today; divide by 7 for average check-ins per gym day.
-    const weekStart = getGymDate(new Date(), 6);
-    const [result] = await Attendance.aggregate([
-      { $match: { gymId: getRequestGymId(request), date: { $gte: weekStart, $lte: today } } },
+    const window = attendanceKpiWindow(new Date(), getRequestTenantContext(request).gym.timezone);
+    // Same bounded seven-day query, at most seven aggregate rows. Yesterday's
+    // comparator stops at the same elapsed duration from its gym-local midnight.
+    const rows = await Attendance.aggregate([
+      { $match: { gymId: getRequestGymId(request), date: { $gte: window.weekStart, $lte: window.today }, checkInAt: { $lte: window.now } } },
       { $group: {
-        _id: null,
-        checkedInToday: { $sum: { $cond: [{ $eq: ["$date", today] }, 1, 0] } },
-        currentlyInside: { $sum: { $cond: [{ $and: [{ $eq: ["$date", today] }, { $eq: ["$checkOutAt", null] }] }, 1, 0] } },
-        checkInsThisWeek: { $sum: 1 },
+        _id: "$date", count: { $sum: 1 },
+        inside: { $sum: { $cond: [{ $eq: ["$checkOutAt", null] }, 1, 0] } },
+        elapsedCount: { $sum: { $cond: [{ $and: [
+          { $gte: ["$checkInAt", window.yesterdayStart] },
+          { $lte: ["$checkInAt", window.yesterdayCutoff] },
+        ] }, 1, 0] } },
       } },
     ]);
-    return successResponse({
-      date: today,
-      timeZone: resolveGymTimezone(),
-      checkedInToday: result?.checkedInToday || 0,
-      currentlyInside: result?.currentlyInside || 0,
-      averageCheckInsThisWeek: Math.round(((result?.checkInsThisWeek || 0) / 7) * 10) / 10,
-    });
+    return successResponse(buildAttendanceKpi(rows, window));
   } catch (error) {
     if (error?.name === "ValidationError") return errorResponse("Attendance summary could not be calculated.", 400);
-    return handleAttendanceError(error);
+    console.error("Attendance summary could not be loaded.");
+    return errorResponse("Attendance summary is temporarily unavailable.", 503);
   }
 }
 

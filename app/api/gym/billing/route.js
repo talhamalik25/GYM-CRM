@@ -1,7 +1,8 @@
 import connectToDatabase from "../../../../lib/db.js";
 import { getRequestGymId, getRequestTenantContext, requireApiUser } from "../../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
-import { serializeGymSaaSSubscription, serializePlatformInvoice } from "../../../../lib/platformBillingRules.js";
+import { serializeGymSaaSSubscription, serializeSaaSPlan } from "../../../../lib/platformBillingRules.js";
+import SaaSPlan from "../../../../models/SaaSPlan.js";
 import PlatformInvoice from "../../../../models/PlatformInvoice.js";
 import PlatformSetting from "../../../../models/PlatformSetting.js";
 
@@ -21,6 +22,7 @@ export async function GET(request) {
       billingMode: "manual",
       paymentProviderConfigured: false,
       manualBillingInstructions: settings?.manualBillingInstructions || "",
+      plans: (await SaaSPlan.find({ isActive: true, price: { $gt: 0 } }).sort({ price: 1, _id: 1 }).lean()).map(serializeSaaSPlan),
     });
   } catch {
     console.error("Gym SaaS billing details could not be loaded.");

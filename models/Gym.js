@@ -14,6 +14,16 @@ const gymSchema = new mongoose.Schema({
   // Newly provisioned workspaces can explicitly require a SaaS term while
   // legacy gyms without this flag retain their established access behavior.
   saasAccessRequired: { type: Boolean, default: false, required: true },
+  // Absent on existing/admin-provisioned gyms. Never backfill this marker.
+  publicTrial: {
+    type: new mongoose.Schema({
+      version: { type: Number, enum: [1], required: true },
+      startedAt: { type: Date, required: true },
+      endsAt: { type: Date, required: true },
+    }, { _id: false }),
+    immutable: true,
+    default: undefined,
+  },
   timezone: { type: String, required: true, default: "Asia/Karachi", trim: true, maxlength: 100 },
   saasSubscription: {
     type: new mongoose.Schema({

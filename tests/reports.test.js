@@ -147,7 +147,15 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   assert.match(dashboard, /title="Revenue"/);
   assert.match(dashboard, /label="Active memberships"/);
   assert.match(dashboard, /label="Today's check-ins"/);
+  assert.match(dashboard, /buildDashboardTimeSeries\(signupKpi\?\.series/);
+  assert.match(dashboard, /buildDashboardTimeSeries\(attendance\.data\?\.history/);
+  assert.match(dashboard, /buildDuesChart\(members\)/);
+  assert.match(dashboard, /MembershipRing active=\{report\.data\?\.summary\.activeSubscriptions/);
   assert.match(dashboard, /<ErrorState[^>]*onRetry=\{report.retry\}/);
+  const reportsRoute = await readFile(fileURLToPath(new URL("../app/api/reports/route.js", import.meta.url)), "utf8");
+  assert.match(reportsRoute, /dashboardSignups/);
+  assert.match(reportsRoute, /isActive: \{ \$ne: false \}, createdAt: \{ \$gte: dashboardSignupStart, \$lt: dashboardTodayStart \}/);
+  assert.match(reportsRoute, /buildSignupKpi\(members\.dashboardSignups \|\| \[\], today\)/);
   assert.match(settingsPage, /GymSettings/);
   assert.match(settingsManager, /\/api\/gym\/settings/);
   assert.match(settingsManager, /Gym settings saved/);

@@ -1,5 +1,5 @@
-import { clearSessionCookie, revokeSession, validateRequestOrigin } from "../../../../lib/auth";
-import { NextResponse } from "next/server";
+import { clearSessionCookie, revokeSession, validateRequestOrigin } from "../../../../lib/auth.js";
+import { NextResponse } from "next/server.js";
 
 export async function POST(request) {
   const originError = validateRequestOrigin(request);

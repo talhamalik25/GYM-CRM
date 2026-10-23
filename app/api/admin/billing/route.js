@@ -101,7 +101,8 @@ export async function POST(request) {
   if (!actorId) return errorResponse("The superadmin session could not be verified.", 401);
 
   if (body.action === "assign_plan") {
-    const validation = validatePlanAssignment(body);
+    const payload = { ...body }; delete payload.action;
+    const validation = validatePlanAssignment(payload);
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
     try {
       const [gym, plan] = await Promise.all([
@@ -110,6 +111,9 @@ export async function POST(request) {
       ]);
       if (!gym) return errorResponse("Active Gym was not found.", 404);
       if (!plan) return errorResponse("An active SaaS plan is required.", 400, { planId: "Choose an active plan." });
+      if (gym.publicTrial?.version === 1 && validation.mode === "invoice" && plan.price === 0) {
+        return errorResponse("Public trial gyms require a paid plan and verified invoice reconciliation.", 400);
+      }
       if (gym.saasSubscription?.pendingInvoiceId && await PlatformInvoice.exists({ _id: gym.saasSubscription.pendingInvoiceId, status: "open" })) {
         return errorResponse("Reconcile or void the existing open invoice before changing this subscription.", 409);
       }
@@ -192,11 +196,21 @@ export async function POST(request) {
         if (!gym || !invoiceMatchesPendingSubscription(gym.saasSubscription, invoice)) throw new Error("Invoice does not match the Gym's pending subscription.");
         invoice.status = "paid";
         invoice.paidAt = new Date();
+        // New public gyms receive a usable paid term even when manual payment
+        // verification happens long after issuance. Preserve legacy terms.
+        if (gym.publicTrial?.version === 1) {
+          invoice.periodStart = new Date(Math.max(invoice.periodStart.getTime(), invoice.paidAt.getTime()));
+          invoice.periodEnd = addBillingInterval(invoice.periodStart, invoice.planSnapshot.interval);
+        }
+        const current = gym.saasSubscription;
+        const accessStart = gym.publicTrial?.version === 1 && current.status === "active"
+          && current.periodStart <= invoice.paidAt && current.periodEnd > invoice.paidAt
+          && current.periodEnd >= invoice.periodStart ? current.periodStart : invoice.periodStart;
         invoice.paymentReference = validation.paymentReference;
         invoice.reconciledBy = actorId;
         await invoice.save({ session });
         const subscriptionUpdate = await Gym.updateOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: {
-          "saasSubscription.status": "active", "saasSubscription.periodStart": invoice.periodStart,
+          "saasSubscription.status": "active", "saasSubscription.periodStart": accessStart,
           "saasSubscription.periodEnd": invoice.periodEnd, "saasSubscription.renewalDate": invoice.periodEnd,
           "saasSubscription.trialStartedAt": null, "saasSubscription.trialEndsAt": null,
           "saasSubscription.pendingInvoiceId": null,

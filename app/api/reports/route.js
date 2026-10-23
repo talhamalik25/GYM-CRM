@@ -7,6 +7,7 @@ import Attendance from "../../../models/Attendance.js";
 import Member from "../../../models/Member.js";
 import Payment from "../../../models/Payment.js";
 import Subscription from "../../../models/Subscription.js";
+import { buildSignupKpi } from "../../../lib/dashboardKpiRules.js";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -15,6 +16,10 @@ export async function GET(request) {
   if (!context?.gymId || !context?.gym) return errorResponse("Gym workspace could not be resolved.", 403);
 
   const params = new URL(request.url).searchParams;
+  const includeDashboard = params.get("dashboard") === "1";
+  if (includeDashboard && params.has("range") && params.get("range") !== "6m") {
+    return errorResponse("Dashboard analytics require the six-month report window.", 400);
+  }
   const resolvedRange = resolveGymReportRange({
     range: params.get("range") || "6m",
     startDate: params.get("startDate") || "",
@@ -32,10 +37,12 @@ export async function GET(request) {
     const paymentsEnd = dateOnly(addDays(period.endDate, 1));
     const memberStart = gymDateStartUtc(period.previousStartDate, period.timezone);
     const memberEnd = gymDateStartUtc(addDays(period.endDate, 1), period.timezone);
+    const dashboardSignupStart = includeDashboard ? gymDateStartUtc(addDays(today, -14), period.timezone) : null;
+    const dashboardTodayStart = includeDashboard ? gymDateStartUtc(today, period.timezone) : null;
     const dateRange = { $gte: period.previousStartDate, $lte: period.endDate };
     const todayDate = dateOnly(today);
     const expiringThrough = dateOnly(addDays(today, 7));
-    const [payments, memberAnalytics, attendance, renewals, activeSubscriptions] = await Promise.all([
+    const [payments, memberAnalytics, attendance, renewals, activeSubscriptions, totalSubscriptions] = await Promise.all([
       Payment.aggregate([
         { $match: { gymId, paymentDate: { $gte: previousStart, $lt: paymentsEnd } } },
         { $group: {
@@ -53,6 +60,13 @@ export async function GET(request) {
               count: { $sum: 1 },
             } },
           ],
+          ...(includeDashboard ? { dashboardSignups: [
+            { $match: { isActive: { $ne: false }, createdAt: { $gte: dashboardSignupStart, $lt: dashboardTodayStart } } },
+            { $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: period.timezone } },
+              count: { $sum: 1 },
+            } },
+          ] } : {}),
           membershipStatuses: [
             { $group: { _id: { $switch: { branches: [
               { case: { $eq: ["$membershipCancelled", true] }, then: "cancelled" },
@@ -79,9 +93,10 @@ export async function GET(request) {
         } },
       ]),
       Subscription.countDocuments({ gymId, status: { $ne: "cancelled" }, startDate: { $lte: todayDate }, expiryDate: { $gte: todayDate } }),
+      includeDashboard ? Subscription.countDocuments({ gymId }) : Promise.resolve(null),
     ]);
     const members = memberAnalytics[0] || { growth: [], membershipStatuses: [], total: [] };
-    return successResponse(buildGymReportAnalytics({
+    const report = buildGymReportAnalytics({
       period,
       payments,
       members: members.growth,
@@ -90,7 +105,9 @@ export async function GET(request) {
       totalMembers: members.total[0]?.count || 0,
       activeSubscriptions,
       membershipStatuses: members.membershipStatuses,
-    }));
+    });
+    if (includeDashboard) report.dashboardKpis = { signups: buildSignupKpi(members.dashboardSignups || [], today), totalSubscriptions };
+    return successResponse(report);
   } catch {
     console.error("Gym reports could not be loaded.");
     return errorResponse("Could not load reports. Please try again.", 503);

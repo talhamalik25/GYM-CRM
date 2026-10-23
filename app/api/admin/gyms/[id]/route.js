@@ -5,6 +5,7 @@ import { requireSuperadminUser } from "../../../../../lib/auth.js";
 import { serializeAdminGym, validateGymStatusUpdate } from "../../../../../lib/adminGymRules.js";
 import Gym from "../../../../../models/Gym.js";
 import GymMembership from "../../../../../models/GymMembership.js";
+import { trialSummary } from "../../../../../lib/publicTrialAccess.js";
 
 async function readGymId(context) {
   const { id } = await context.params;
@@ -23,11 +24,12 @@ export async function GET(request, context) {
 
   try {
     await connectToDatabase();
-    const gym = await Gym.findById(id).select("name slug status timezone createdAt updatedAt").lean();
+    const gym = await Gym.findById(id).select("name slug status timezone createdAt updatedAt publicTrial saasSubscription").lean();
     if (!gym) return errorResponse("Gym was not found.", 404);
     const memberships = await GymMembership.find({ gymId: gym._id, role: "gym_owner", status: "active" })
       .select("gymId userId").populate({ path: "userId", match: { isActive: { $ne: false } }, select: "fullName email" }).lean();
-    return successResponse(serializeAdminGym(gym, memberships));
+    const trial = trialSummary(gym);
+    return successResponse({ ...serializeAdminGym(gym, memberships), ...(trial ? { trial } : {}) });
   } catch {
     console.error("Admin gym details could not be loaded.");
     return errorResponse("Could not load gym details. Please try again.", 503);

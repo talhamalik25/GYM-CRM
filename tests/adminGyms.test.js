@@ -70,9 +70,9 @@ test("gym list and status endpoints require platform superadmin authorization", 
   const listSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/route.js", import.meta.url)), "utf8");
   const updateSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/[id]/route.js", import.meta.url)), "utf8");
   assert.equal((updateSource.match(/await requireSuperadminUser\(request\)/g) || []).length, 2);
-  assert.match(updateSource, /Gym\.findById\(id\)\.select\("name slug status timezone createdAt updatedAt"\)/);
+  assert.match(updateSource, /Gym\.findById\(id\)\.select\("name slug status timezone createdAt updatedAt publicTrial saasSubscription"\)/);
   assert.match(updateSource, /populate\(\{ path: "userId", match: \{ isActive: \{ \$ne: false \} \}, select: "fullName email" \}\)/);
-  assert.doesNotMatch(updateSource, /Payment|Subscription|Member\.find/);
+  assert.doesNotMatch(updateSource, /models\/(?:Payment|Subscription|Member)\.js|Member\.find/);
   assert.match(listSource, /await requireSuperadminUser\(request\)/);
   assert.match(updateSource, /await requireSuperadminUser\(request\)/);
   assert.match(listSource, /role: "gym_owner", status: "active"/);
