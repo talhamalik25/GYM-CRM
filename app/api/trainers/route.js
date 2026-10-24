@@ -2,10 +2,9 @@ import { withCapacityTransaction } from "../../../lib/entitlements.js";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handleTrainerError, serializeTrainer, validateTrainerBody } from "../../../lib/trainerApiHelpers";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 import Trainer from "../../../models/Trainer";
 import Member from "../../../models/Member";
-import { enforceSaaSCapacity } from "../../../lib/saasCapacity.js";
 
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -26,7 +25,7 @@ export async function GET(request) {
     if (search) { const expression = new RegExp(escapeRegex(search), "i"); filter.$or = [{ fullName: expression }, { email: expression }, { phone: expression }, { specialization: expression }]; }
     const limit = Math.min(requestedLimit, 50); const skip = (page - 1) * limit;
     const [trainers, total, specializations] = await Promise.all([Trainer.find(tenantFilter(request, filter)).sort({ fullName: 1, _id: 1 }).skip(skip).limit(limit).lean(), Trainer.countDocuments(tenantFilter(request, filter)), Trainer.distinct("specialization", tenantFilter(request))]);
-    const counts = trainers.length ? await Member.aggregate([{ $match: { gymId: getRequestGymId(request), trainerId: { $in: trainers.map(item => item._id) } } }, { $group: { _id: "$trainerId", count: { $sum: 1 } } }]) : [];
+    const counts = trainers.length ? await Member.aggregate([{ $match: { ...getRequestScope(request), trainerId: { $in: trainers.map(item => item._id) } } }, { $group: { _id: "$trainerId", count: { $sum: 1 } } }]) : [];
     const countByTrainer = new Map(counts.map(item => [String(item._id), item.count]));
     return successResponse({ items: trainers.map(item => serializeTrainer(item, countByTrainer.get(String(item._id)) || 0)), specializations: specializations.sort((a, b) => a.localeCompare(b)), total, page, limit });
   } catch (error) { return handleTrainerError(error); }
@@ -38,10 +37,8 @@ async function handlePOST(request) {
     const body = await request.json(); const validation = validateTrainerBody(body);
     if (validation) return errorResponse(validation.message, 400, validation.fields);
     await connectToDatabase();
-    const limitResponse = await enforceSaaSCapacity(request, "trainers", Trainer);
-    if (limitResponse) return limitResponse;
     await Trainer.init();
-    const trainer = await Trainer.create({ gymId: getRequestGymId(request), fullName: body.fullName.trim(), email: body.email.trim().toLowerCase(), phone: normalizePhone(body.phone), specialization: body.specialization.trim(), joiningDate: new Date(`${body.joiningDate}T00:00:00.000Z`), status: body.status || "active", profileImage: body.profileImage?.trim() || "", notes: body.notes?.trim() || "" });
+    const trainer = await Trainer.create({ gymId: getRequestGymId(request), branchId: getRequestBranchId(request), fullName: body.fullName.trim(), email: body.email.trim().toLowerCase(), phone: normalizePhone(body.phone), specialization: body.specialization.trim(), joiningDate: new Date(`${body.joiningDate}T00:00:00.000Z`), status: body.status || "active", profileImage: body.profileImage?.trim() || "", notes: body.notes?.trim() || "" });
     return successResponse(serializeTrainer(trainer), 201);
   } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }
 }

@@ -61,7 +61,7 @@ export default function OwnerDashboard() {
     <PageHeader title="Dashboard" description={`${data.gym.name || "Your gym"} · Your daily overview of members, revenue, and attendance.`}
       actions={<Button href="/members/new"><Plus size={16} strokeWidth={1.75} aria-hidden="true" />Add member</Button>} />
 
-    <OwnerDashboardAnalytics counts={data.counts} />
+    {data.entitlements?.features?.advancedAnalytics ? <OwnerDashboardAnalytics counts={data.counts} /> : <><div className="grid gap-4 sm:grid-cols-3">{Object.entries(data.counts).map(([label, count]) => <Card key={label} className="p-5"><p className="capitalize text-ink-muted">{label}</p><p className="mt-2 text-3xl font-semibold">{count}</p></Card>)}</div><Card className="p-5"><p>Advanced analytics are available with Pro and Professional.</p><Link href="/billing" className="text-brand">Compare plans</Link></Card></>}
 
     {!setupComplete && <Card className="owner-panel owner-setup">
       <div className="owner-panel-heading"><div><h2>Finish setting up your gym</h2><p>Complete these steps to start managing your membership workflow.</p></div></div>

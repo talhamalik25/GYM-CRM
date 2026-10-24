@@ -1,7 +1,7 @@
 import { requirePublicGymOperationalPage } from "../../../lib/ownerPageAccess.js";
-import ReportsManager from "../../../components/reports/reports-manager";
+import EntitledReports from "../../../components/reports/entitled-reports";
 
 export default async function ReportsPage() {
   await requirePublicGymOperationalPage();
-  return <ReportsManager />;
+  return <EntitledReports />;
 }

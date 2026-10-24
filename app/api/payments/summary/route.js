@@ -2,7 +2,7 @@ import connectToDatabase from "../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
 import { handlePaymentError } from "../../../../lib/paymentApiHelpers";
 import Payment from "../../../../models/Payment";
-import { requireApiUser, getRequestGymId } from "../../../../lib/auth";
+import { requireApiUser, getRequestScope, } from "../../../../lib/auth";
 import { currentGymPaymentMonthRange } from "../../../../lib/paymentRules";
 import Subscription from "../../../../models/Subscription";
 
@@ -13,11 +13,11 @@ export async function GET(request) {
     await connectToDatabase();
     const { start, end } = currentGymPaymentMonthRange();
     const [month, dues] = await Promise.all([
-      Payment.aggregate([{ $match: { gymId: getRequestGymId(request), paymentDate: { $gte: start, $lt: end } } }, { $group: { _id: null, collectedThisMonth: { $sum: "$amountPaid" }, paymentsThisMonth: { $sum: 1 } } }]),
-      Payment.aggregate([{ $match: { gymId: getRequestGymId(request), subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } }, { $group: { _id: null, pendingDues: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } } } }]),
+      Payment.aggregate([{ $match: { ...getRequestScope(request), paymentDate: { $gte: start, $lt: end } } }, { $group: { _id: null, collectedThisMonth: { $sum: "$amountPaid" }, paymentsThisMonth: { $sum: 1 } } }]),
+      Payment.aggregate([{ $match: { ...getRequestScope(request), subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } }, { $group: { _id: null, pendingDues: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } } } }]),
     ]);
     const subscriptionBalances = await Subscription.aggregate([
-      { $match: { gymId: getRequestGymId(request) } },
+      { $match: { ...getRequestScope(request) } },
       { $unwind: "$renewalHistory" },
       { $group: { _id: "$_id", gymId: { $first: "$gymId" }, amountDue: { $sum: "$renewalHistory.planSnapshot.agreedPrice" } } },
       { $lookup: { from: "payments", let: { subscriptionId: "$_id", gymId: "$gymId" }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$subscriptionId", "$$subscriptionId"] }, { $eq: ["$gymId", "$$gymId"] }] } } }], as: "payments" } },

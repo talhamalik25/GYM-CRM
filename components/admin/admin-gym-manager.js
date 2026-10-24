@@ -149,12 +149,12 @@ export default function AdminGymManager() {
     setProvisionErrors({});
     setActionError("");
     try {
-      const payload = { ...provisionValues, ...(provisionValues.accessMode === "trial" ? { trialDays: Number(provisionValues.trialDays || trialDefault) } : {}) };
+      const payload = { ...provisionValues, ...(provisionValues.accessMode === "trial" ? { trialDays: 7 } : {}) };
       if (provisionValues.accessMode !== "trial") delete payload.trialDays;
       if (provisionValues.accessMode === "none") delete payload.planId;
       const data = await requestGyms(null, { method: "POST", body: JSON.stringify(payload) });
       setGyms((current) => [data.gym, ...current.filter((gym) => gym.id !== data.gym.id)]);
-      const accessMessage = provisionValues.accessMode === "trial" ? `a ${payload.trialDays}-day trial was assigned` : provisionValues.accessMode === "invoice" ? data.invoice ? "an open manual invoice was issued; access awaits verified payment" : "the free plan was assigned" : "access remains paused until a SaaS plan or trial is assigned";
+      const accessMessage = provisionValues.accessMode === "trial" ? "a seven-day trial was assigned" : provisionValues.accessMode === "invoice" ? data.invoice ? "a seven-day trial and manual invoice were created; paid access awaits verified payment" : "the free plan was assigned" : "access remains paused until a SaaS plan or trial is assigned";
       setMessage(`${data.gym.name} was created with its initial owner; ${accessMessage}.`);
       setProvisionOpen(false);
       setProvisionValues({ name: "", slug: "", timezone: "Asia/Karachi", ownerEmail: "", accessMode: "trial", planId: eligiblePlans[0]?.id || "", trialDays: String(trialDefault || "") });
@@ -206,12 +206,12 @@ export default function AdminGymManager() {
         <Input id="provision-gym-timezone" label="IANA timezone" required maxLength={100} value={provisionValues.timezone} onChange={(event) => setProvisionValues({ ...provisionValues, timezone: event.target.value })} error={provisionErrors.timezone} />
         <Input id="provision-gym-owner" label="Initial owner: existing staff email" type="email" required value={provisionValues.ownerEmail} onChange={(event) => setProvisionValues({ ...provisionValues, ownerEmail: event.target.value })} error={provisionErrors.ownerEmail} />
         <Select id="provision-access-mode" label="Initial SaaS access" value={provisionValues.accessMode} onChange={(event) => setProvisionValues({ ...provisionValues, accessMode: event.target.value })} error={provisionErrors.accessMode}>
-          <option value="trial">Start a trial</option><option value="invoice">Assign plan and issue manual invoice</option><option value="none">Provision with access paused</option>
+          <option value="trial">Start a trial</option><option value="invoice">Assign plan and issue manual invoice</option>
         </Select>
         {provisionValues.accessMode !== "none" && <Select id="provision-plan" label="Eligible active SaaS plan" value={provisionValues.planId} onChange={(event) => setProvisionValues({ ...provisionValues, planId: event.target.value })} error={provisionErrors.planId}>
           <option value="">Select a plan</option>{eligiblePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · PKR {plan.price.toLocaleString("en-PK")} / {plan.interval}</option>)}
         </Select>}
-        {provisionValues.accessMode === "trial" && <Input id="provision-trial-days" label="Trial length in days" type="number" min="1" max="90" required value={provisionValues.trialDays || String(trialDefault || "")} onChange={(event) => setProvisionValues({ ...provisionValues, trialDays: event.target.value })} error={provisionErrors.trialDays} />}
+        <p className="text-sm text-ink-muted">Every new gym receives one seven-day trial of the selected plan. An invoice does not activate paid access.</p>
         {provisionOptionsLoading && <p className="text-sm text-ink-muted" role="status">Loading active SaaS plans and trial settings…</p>}
         {provisionOptionsError && <p className="text-sm text-warning" role="status">{provisionOptionsError}</p>}
         <p className="text-xs leading-5 text-ink-muted">The owner must be an active staff account with no active Gym assignment. Trial access starts immediately. Paid plans remain restricted until a Superadmin reconciles the manual invoice with a verified payment reference. Paused access can be enabled later by assigning a plan under Plans &amp; billing.</p>

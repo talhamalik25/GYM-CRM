@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Activity, CalendarCheck2, ChartNoAxesColumn, CreditCard, Dumbbell, LogOut, Menu, Settings, Users, UserRound, Zap } from 'lucide-react';
 
+import BranchSwitcher from '../branches/branch-switcher';
 import Avatar from '../ui/avatar';
 import Button from '../ui/button';
 import Drawer from '../ui/drawer';
@@ -126,7 +127,7 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
           <button type="button" className="menu-toggle" aria-label="Open navigation menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={20} strokeWidth={1.75} aria-hidden="true" /></button>
           <span className="topbar-title">{getPageTitle(pathname)}</span>
         </div>
-        <div className="topbar-actions"><span className="topbar-context">{roleName} workspace</span><Dropdown label="Account" items={accountItems} disabled={loggingOut} /></div>
+        <div className="topbar-actions">{!isSuperadmin && <BranchSwitcher />}<span className="topbar-context">{roleName} workspace</span><Dropdown label="Account" items={accountItems} disabled={loggingOut} /></div>
       </header>
       <main id="main-content" tabIndex={-1} className="main-content">
         {logoutError && <p className="shell-logout-error" role="alert">{logoutError}</p>}

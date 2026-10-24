@@ -1,7 +1,7 @@
 import connectToDatabase from "../../../../lib/db.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
 import Attendance from "../../../../models/Attendance.js";
-import { requireApiUser, getRequestGymId, getRequestTenantContext } from "../../../../lib/auth.js";
+import { requireApiUser, getRequestTenantContext, getRequestScope, } from "../../../../lib/auth.js";
 import { attendanceKpiWindow, buildAttendanceKpi } from "../../../../lib/dashboardKpiRules.js";
 
 export async function GET(request) {
@@ -13,7 +13,7 @@ export async function GET(request) {
     // Same bounded seven-day query, at most seven aggregate rows. Yesterday's
     // comparator stops at the same elapsed duration from its gym-local midnight.
     const rows = await Attendance.aggregate([
-      { $match: { gymId: getRequestGymId(request), date: { $gte: window.weekStart, $lte: window.today }, checkInAt: { $lte: window.now } } },
+      { $match: { ...getRequestScope(request), date: { $gte: window.weekStart, $lte: window.today }, checkInAt: { $lte: window.now } } },
       { $group: {
         _id: "$date", count: { $sum: 1 },
         inside: { $sum: { $cond: [{ $eq: ["$checkOutAt", null] }, 1, 0] } },

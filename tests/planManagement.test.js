@@ -26,7 +26,7 @@ test("plan list keeps its existing response by default and can return Gym-scoped
   assert.match(route, /Plan\.find\(tenantFilter\(request/);
   assert.match(route, /params\.get\("includeMemberCounts"\) === "true"/);
   assert.match(route, /Member\.aggregate\(\[/);
-  assert.match(route, /gymId: getRequestGymId\(request\), planId: \{ \$in: plans\.map/);
+  assert.match(route, /\.\.\.getRequestScope\(request\), planId: \{ \$in: plans\.map/);
   assert.match(route, /return successResponse\(plans\);/);
   assert.match(service, /includeMemberCounts = false/);
   assert.match(manager, /listPlans\(\{ includeMemberCounts: true \}\)/);
@@ -44,9 +44,9 @@ test("plan edit and active status remain tenant-scoped and subscription flows re
   assert.match(route, /requireApiUser\(request\)/);
   assert.match(route, /findOneAndUpdate\(tenantFilter\(request, \{ _id: id \}\)/);
   assert.match(route, /validatePlanBody\(body, \{ partial: true \}\)/);
-  assert.match(createSubscription, /Plan\.findOne\(\{ _id: body\.planId, gymId \}\)/);
+  assert.match(createSubscription, /Plan\.findOne\(\{ _id: body\.planId, \.\.\.scope \}\)/);
   assert.match(createSubscription, /!plan\.isActive/);
-  assert.match(renewSubscription, /Plan\.findOne\(\{ _id: body\.planId \|\| subscription\.planId, gymId \}\)/);
+  assert.match(renewSubscription, /Plan\.findOne\(\{ _id: body\.planId \|\| subscription\.planId, \.\.\.scope \}\)/);
   assert.match(renewSubscription, /!plan\.isActive/);
 });
 

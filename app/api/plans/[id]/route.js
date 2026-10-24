@@ -37,6 +37,7 @@ export async function PATCH(request, context) {
     await connectToDatabase();
     const update = { ...body };
     delete update.gymId;
+    delete update.branchId;
     if (typeof update.name === "string") update.name = update.name.trim();
     if (typeof update.description === "string") update.description = update.description.trim();
     const plan = await Plan.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { new: true, runValidators: true }).lean();

@@ -31,6 +31,7 @@ async function handlePATCH(request, { params }) {
     await connectToDatabase();
     const update = { ...body };
     delete update.gymId;
+    delete update.branchId;
     if (typeof update.fullName === "string") update.fullName = update.fullName.trim();
     if (typeof update.email === "string") update.email = update.email.trim().toLowerCase();
     if (typeof update.phone === "string") update.phone = `${update.phone.trim().startsWith("+") ? "+" : ""}${update.phone.replace(/\D/g, "")}`;

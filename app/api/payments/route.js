@@ -4,7 +4,7 @@ import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handlePaymentError, isDateOnly, paymentStatusMatch, serializePayment } from "../../../lib/paymentApiHelpers";
 import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 import { isValidIdempotencyKey, makePaymentFingerprint, paymentMonthRange } from "../../../lib/paymentRules";
 import { gymToday } from "../../../lib/subscriptionRules.js";
 import { paymentLedgerErrorResponse, recordMemberPayment, runLedgerTransaction } from "../../../lib/paymentLedger";
@@ -44,13 +44,13 @@ export async function POST(request) {
     await connectToDatabase();
     await Payment.init();
     const result = await runLedgerTransaction((session) => recordMemberPayment(session, {
-      gymId: getRequestGymId(request),
+      gymId: getRequestGymId(request), branchId: getRequestBranchId(request), scope: getRequestScope(request),
       memberId: body.memberId, subscriptionId: body.subscriptionId || "", renewalKey: body.renewalKey || "",
       amountPaid: body.amountPaid, method: body.method, paymentDate: paymentDateAt,
       paymentDateLabel: paymentDate, idempotencyKey, notes,
     }));
     const payment = result.payment;
-    await payment.populate([{ path: "memberId", match: { gymId: getRequestGymId(request) }, select: "fullName" }, { path: "planId", match: { gymId: getRequestGymId(request) }, select: "name" }]);
+    await payment.populate([{ path: "memberId", match: { ...getRequestScope(request) }, select: "fullName" }, { path: "planId", match: { ...getRequestScope(request) }, select: "name" }]);
     return successResponse(serializePayment(payment), result.duplicate ? 200 : 201);
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
@@ -58,7 +58,7 @@ export async function POST(request) {
       try {
         const existing = await Payment.findOne(tenantFilter(request, { idempotencyKey })).select("+requestFingerprint");
         if (existing && existing.requestFingerprint === fingerprint) {
-          await existing.populate([{ path: "memberId", match: { gymId: getRequestGymId(request) }, select: "fullName" }, { path: "planId", match: { gymId: getRequestGymId(request) }, select: "name" }]);
+          await existing.populate([{ path: "memberId", match: { ...getRequestScope(request) }, select: "fullName" }, { path: "planId", match: { ...getRequestScope(request) }, select: "name" }]);
           return successResponse(serializePayment(existing), 200);
         }
         if (existing) return errorResponse("This payment request key was already used for different details.", 409);

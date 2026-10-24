@@ -1,5 +1,5 @@
 import connectToDatabase from "../../../../lib/db.js";
-import { getRequestGymId, getRequestTenantContext, requireApiUser, tenantFilter } from "../../../../lib/auth.js";
+import { getRequestTenantContext, requireApiUser, tenantFilter, getRequestScope, } from "../../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
 import { gymToday, deriveMembershipStatus } from "../../../../lib/subscriptionRules.js";
 import Attendance from "../../../../models/Attendance.js";
@@ -13,7 +13,7 @@ export async function GET(request) {
   try {
     await connectToDatabase();
     const context = getRequestTenantContext(request);
-    const trainer = await Trainer.findOne({ gymId: getRequestGymId(request), email: context.user.email, status: "active" }).select("_id fullName specialization").lean();
+    const trainer = await Trainer.findOne({ ...getRequestScope(request), email: context.user.email, status: "active" }).select("_id fullName specialization").lean();
     if (!trainer) return errorResponse("An active trainer profile is required for this workspace.", 403);
     const today = gymToday(new Date(), context.gym.timezone);
     const members = await Member.find(tenantFilter(request, { trainerId: trainer._id, isActive: { $ne: false } }))

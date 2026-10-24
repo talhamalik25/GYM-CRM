@@ -1,3 +1,6 @@
+import Branch from "../../../../models/Branch.js";
+import PublicTrialClaim from "../../../../models/PublicTrialClaim.js";
+import { publicTrialSubscription } from "../../../../lib/gymOwnerRegistration.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
@@ -8,7 +11,7 @@ import { ensureNoConflictingGymMembership, GymProvisioningError, lockOwnerAccoun
 import Gym from "../../../../models/Gym.js";
 import GymMembership from "../../../../models/GymMembership.js";
 import PlatformInvoice from "../../../../models/PlatformInvoice.js";
-import PlatformSetting from "../../../../models/PlatformSetting.js";
+
 import SaaSPlan from "../../../../models/SaaSPlan.js";
 import User from "../../../../models/User.js";
 
@@ -43,8 +46,8 @@ export async function POST(request) {
   let session;
   try {
     await connectToDatabase();
-    const platformSettings = await PlatformSetting.findById("fitivo").select("defaultTrialDays").lean();
-    const validation = validateGymProvisioning(body, { defaultTrialDays: platformSettings?.defaultTrialDays ?? 0 });
+    await PublicTrialClaim.init();
+    const validation = validateGymProvisioning(body, { defaultTrialDays: 7 });
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
     const actor = await getAuthenticatedUserFromRequest(request);
     session = await mongoose.startSession();
@@ -57,40 +60,17 @@ export async function POST(request) {
       await lockOwnerAccountForAssignment(owner, session, User);
       await ensureNoConflictingGymMembership(owner._id, session, GymMembership);
       const now = new Date();
-      let saasSubscription;
-      let invoiceTerms = null;
-      if (validation.accessMode !== "none") {
-        const plan = await SaaSPlan.findOne({ _id: validation.planId, isActive: true }).session(session).lean();
-        if (!plan) throw new GymProvisioningError("An active SaaS plan was not found.", 400, { planId: "Choose an active SaaS plan." });
-        const snapshot = planSnapshot(plan);
-        if (validation.accessMode === "trial") {
-          const trialEndsAt = new Date(now.getTime() + validation.trialDays * 86400000);
-          saasSubscription = {
-            planId: plan._id, planSnapshot: snapshot, status: "trialing", trialStartedAt: now,
-            trialEndsAt, renewalDate: trialEndsAt, periodStart: null, periodEnd: null,
-            pendingInvoiceId: null, autoRenew: false,
-          };
-        } else if (plan.price === 0) {
-          const periodEnd = addBillingInterval(now, plan.interval);
-          saasSubscription = {
-            planId: plan._id, planSnapshot: snapshot, status: "active", trialStartedAt: null,
-            trialEndsAt: null, periodStart: now, periodEnd, renewalDate: periodEnd,
-            pendingInvoiceId: null, autoRenew: false,
-          };
-        } else {
-          const periodEnd = addBillingInterval(now, plan.interval);
-          invoiceTerms = { planId: plan._id, snapshot, periodStart: now, periodEnd };
-          saasSubscription = {
-            planId: plan._id, planSnapshot: snapshot, status: "past_due", trialStartedAt: null,
-            trialEndsAt: null, periodStart: now, periodEnd, renewalDate: periodEnd,
-            pendingInvoiceId: null, autoRenew: false,
-          };
-        }
-      }
+      const plan = await SaaSPlan.findOne(validation.planId ? { _id: validation.planId, isActive: true } : { key: "basic", isActive: true }).session(session).lean();
+      if (!plan) throw new GymProvisioningError("Initialize the launch catalog and choose an active trial plan.", 400);
+      const saasSubscription = publicTrialSubscription(plan, now);
+      const invoiceTerms = validation.accessMode === "invoice" && plan.price > 0 ? { planId: plan._id, snapshot: planSnapshot(plan), periodStart: now, periodEnd: addBillingInterval(now, plan.interval) } : null;
       const [gym] = await Gym.create([{
         name: validation.name, slug: validation.slug, timezone: validation.timezone, status: "active",
+        trialUsedAt: now, publicTrial: { version: 1, startedAt: now, endsAt: saasSubscription.trialEndsAt },
         saasAccessRequired: true, ...(saasSubscription ? { saasSubscription } : {}),
       }], { session });
+      await PublicTrialClaim.create([{ email: owner.email, gymSlug: gym.slug, userId: owner._id, gymId: gym._id, claimedAt: now }], { session });
+      await Branch.create([{ _id: gym._id, gymId: gym._id, name: "Main branch", isDefault: true }], { session });
       if (invoiceTerms) {
         [createdInvoice] = await PlatformInvoice.create([{
           invoiceNumber: createPlatformInvoiceNumber(), gymId: gym._id, planId: invoiceTerms.planId,

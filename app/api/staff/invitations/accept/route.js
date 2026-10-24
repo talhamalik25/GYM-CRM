@@ -1,3 +1,5 @@
+import { assertGymLimit, EntitlementError, entitlementErrorResponse } from "../../../../../lib/entitlements.js";
+import Branch from "../../../../../models/Branch.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db.js";
 import { createSession, getAuthenticatedUserFromRequest, validateRequestOrigin } from "../../../../../lib/auth.js";
@@ -47,6 +49,8 @@ export async function POST(request) {
     let response;
     try {
       await mongoSession.withTransaction(async () => {
+        await assertGymLimit(invitation.gymId, "staff", { session: mongoSession });
+        if (invitation.branchId && String(invitation.branchId) !== String(invitation.gymId) && !await Branch.exists({ _id: invitation.branchId, gymId: invitation.gymId, status: "active" }).session(mongoSession)) throw new Error("BRANCH_UNAVAILABLE");
         let memberId = userId;
         if (!memberId) {
           const [createdUser] = await User.create([{ fullName: body.fullName.trim(), email: invitation.email, passwordHash, role: "staff", isActive: true }], { session: mongoSession });
@@ -70,13 +74,14 @@ export async function POST(request) {
           { $set: { status: "accepted" } }, { new: true, session: mongoSession },
         );
         if (!claimed) throw new Error("INVITATION_ALREADY_USED");
-        await GymMembership.create([{ userId: memberId, gymId: invitation.gymId, role: invitation.role, status: "active" }], { session: mongoSession });
+        await GymMembership.create([{ userId: memberId, gymId: invitation.gymId, branchId: invitation.branchId || invitation.gymId, role: invitation.role, status: "active" }], { session: mongoSession });
         await StaffInvitation.updateOne({ _id: invitation._id }, { $set: { acceptedBy: memberId } }, { session: mongoSession });
         if (!existingUser) response = await createSession(memberId, { session: mongoSession });
       });
     } finally { await mongoSession.endSession(); }
     return response || json({ success: true, data: { redirectTo: "/dashboard" } });
   } catch (error) {
+    if (error instanceof EntitlementError) return entitlementErrorResponse(error);
     const duplicate = error?.code === 11000;
     if (error?.message === "OTHER_ACTIVE_MEMBERSHIP") return json({ success: false, error: { message: "This account already belongs to another gym. Contact the gym owner for help." } }, 409);
     if (error?.message === "TRAINER_PROFILE_MISSING") return json({ success: false, error: { message: "The active trainer profile for this invitation is no longer available." } }, 409);

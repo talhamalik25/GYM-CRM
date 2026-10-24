@@ -81,5 +81,6 @@ test("platform billing requires superadmin and owner billing uses the authentica
   assert.match(ownerSource, /allowedRoles: \["gym_owner"\]/);
   assert.match(ownerSource, /allowSaaSInactive: true, allowSuspendedGym: true/);
   assert.match(ownerSource, /getRequestGymId\(request\)/);
-  assert.doesNotMatch(ownerSource, /request\.json|searchParams|get\("gymId"\)/);
+  assert.doesNotMatch(ownerSource, /body\.gymId|searchParams|get\("gymId"\)/);
+  assert.match(ownerSource, /Object\.keys\(body\)\.some\(\(key\) => key !== "planId"\)/);
 });

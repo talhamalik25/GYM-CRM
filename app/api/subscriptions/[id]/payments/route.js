@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../../lib/planApiResponse";
 import { dateOnly, gymToday, isDateOnly } from "../../../../../lib/subscriptionRules";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../../../lib/auth";
 import Subscription from "../../../../../models/Subscription";
 import Payment from "../../../../../models/Payment";
 import { createTermPayment, paymentLedgerErrorResponse, runLedgerTransaction } from "../../../../../lib/paymentLedger";
@@ -35,20 +35,21 @@ export async function POST(request, { params }) {
     await connectToDatabase();
     await Payment.init();
     const gymId = getRequestGymId(request);
+    const scope = getRequestScope(request);
     const paymentDate = body.paymentDate || gymToday();
-    const renewalKey = body.renewalKey || (await Subscription.findOne({ _id: id, gymId }).select("renewalHistory").lean())?.renewalHistory?.at(-1)?.renewalKey;
+    const renewalKey = body.renewalKey || (await Subscription.findOne({ _id: id, ...scope }).select("renewalHistory").lean())?.renewalHistory?.at(-1)?.renewalKey;
     if (!renewalKey) return errorResponse("Subscription term was not found.", 404, { renewalKey: "Choose a valid term." });
     fingerprint = JSON.stringify({ subscriptionId: id, renewalKey, amountPaid: body.amountPaid, method: body.method, paymentDate });
 
     const result = await runLedgerTransaction(async (session) => {
-      const subscription = await Subscription.findOne({ _id: id, gymId }).session(session);
+      const subscription = await Subscription.findOne({ _id: id, ...scope }).session(session);
       if (!subscription) return { missing: true };
       const term = subscription.renewalHistory.find((entry) => entry.renewalKey === renewalKey);
       if (!term) return { missingTerm: true };
       return createTermPayment({
         session, subscription, term, amountPaid: body.amountPaid, method: body.method,
         paymentDate: dateOnly(paymentDate), idempotencyKey, requestFingerprint: fingerprint,
-        gymId,
+        gymId, branchId: getRequestBranchId(request),
       });
     });
     if (result.missing) return errorResponse("Subscription was not found.", 404);

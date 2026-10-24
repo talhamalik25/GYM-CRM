@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
 import { deriveSubscriptionStatus } from "../../../../lib/subscriptionRules";
-import { requireApiUser, tenantFilter, getRequestGymId } from "../../../../lib/auth";
+import { requireApiUser, tenantFilter, getRequestGymId, getRequestScope, } from "../../../../lib/auth";
 import Subscription from "../../../../models/Subscription";
 import Member from "../../../../models/Member";
 import { paymentLedgerErrorResponse, runLedgerTransaction } from "../../../../lib/paymentLedger";
@@ -37,11 +37,12 @@ export async function PATCH(request, { params }) {
     if (body?.status !== "cancelled" || Object.keys(body).some((key) => key !== "status")) return errorResponse("Only cancellation is supported.", 400, { status: "Set status to cancelled." });
     await connectToDatabase();
     const gymId = getRequestGymId(request);
+    const scope = getRequestScope(request);
     const result = await runLedgerTransaction(async (session) => {
-      const current = await Subscription.findOne({ _id: id, gymId }).session(session);
+      const current = await Subscription.findOne({ _id: id, ...scope }).session(session);
       if (!current) return { missing: true };
       if (current.status === "cancelled") return { alreadyCancelled: true };
-      const member = await Member.findOne({ _id: current.memberId, gymId }).session(session);
+      const member = await Member.findOne({ _id: current.memberId, ...scope }).session(session);
       if (!member) throw Object.assign(new Error("The subscription member was not found in this gym."), { status: 409 });
       current.status = "cancelled";
       await current.save({ session });
@@ -52,7 +53,7 @@ export async function PATCH(request, { params }) {
       const memberStart = member.startDate instanceof Date ? member.startDate.toISOString().slice(0, 10) : String(member.startDate).slice(0, 10);
       const termStart = latestTerm?.startDate instanceof Date ? latestTerm.startDate.toISOString().slice(0, 10) : String(latestTerm?.startDate || "").slice(0, 10);
       if (representsCurrentMembership && memberStart === termStart) {
-        await Member.updateOne({ _id: member._id, gymId }, { $set: { membershipCancelled: true } }, { session });
+        await Member.updateOne({ _id: member._id, ...scope }, { $set: { membershipCancelled: true } }, { session });
       }
       return { subscription: current };
     });

@@ -128,7 +128,7 @@ test("every gym-data API route requires tenant authorization and an explicit que
   for (const path of gymRoutes) {
     const source = await readFile(path, "utf8");
     assert.match(source, /requireApiUser\(/, `${path} must require an authenticated gym membership`);
-    assert.match(source, /tenantFilter\(|getRequestGymId\(/, `${path} must scope its database operations`);
+    assert.match(source, /tenantFilter\(|getRequestGymId\(|getRequestScope\(|getRequestTenantContext\(/, `${path} must scope its database operations`);
   }
   for (const suffix of ["admin\\users\\route.js", "admin\\users\\[id]\\route.js", "admin\\gyms\\route.js", "admin\\gyms\\[id]\\route.js", "admin\\gym-owners\\route.js", "admin\\overview\\route.js", "admin\\billing\\route.js"]) {
     const source = await readFile(routeFiles.find((path) => path.endsWith(suffix)), "utf8");

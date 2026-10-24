@@ -1,3 +1,4 @@
+import Branch from "../../../../models/Branch.js";
 import mongoose from "mongoose";
 import { createSession, validateRequestOrigin } from "../../../../lib/auth.js";
 import { publicRegistrationConfigured, publicTrialSubscription, registrationGymSlug, validateGymOwnerRegistrationBody } from "../../../../lib/gymOwnerRegistration.js";
@@ -64,9 +65,10 @@ export async function POST(request) {
       await User.create([{ _id: userId, fullName: validation.fullName, email: validation.email, passwordHash, role: "staff", isActive: true }], { session });
       await Gym.create([{
         _id: gymId, name: validation.gymName, slug, status: "active", saasAccessRequired: true,
-        createdAt: now, saasSubscription: subscription,
+        trialUsedAt: now, createdAt: now, saasSubscription: subscription,
         publicTrial: { version: 1, startedAt: now, endsAt: subscription.trialEndsAt },
       }], { session });
+      await Branch.create([{ _id: gymId, gymId, name: "Main branch", isDefault: true }], { session });
       await GymMembership.create([{ userId, gymId, role: "gym_owner", status: "active" }], { session });
       response = await createSession(userId, { session });
     });

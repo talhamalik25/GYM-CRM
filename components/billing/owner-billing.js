@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PlanComparison from "./plan-comparison";
 import Badge from "../ui/badge";
 import Card from "../ui/card";
 import PageHeading from "../ui/page-heading";
@@ -45,17 +46,7 @@ export default function OwnerBilling() {
         <p className="mt-4 text-xs text-ink-muted">Fitivo online payment processing is not configured. Open invoices require manual payment through the method provided by Fitivo.</p>
       </Card>}
       {data.manualBillingInstructions && <Card className="p-5"><h2 className="font-semibold text-ink">Manual payment instructions</h2><p className="mt-2 whitespace-pre-wrap text-sm text-ink-muted">{data.manualBillingInstructions}</p></Card>}
-      <Card className="p-5">
-        <h2 className="font-semibold text-ink">Available paid plans</h2>
-        <p className="mt-2 text-sm text-ink-muted">Contact Fitivo support to select a plan and request an invoice. Follow the payment instructions and share your invoice number and payment reference. Access starts only after a Superadmin verifies and reconciles the payment. Your saved gym data is retained.</p>
-        {!data.manualBillingInstructions && <p className="mt-2 text-sm text-ink-muted">Contact your Fitivo platform administrator for payment instructions before sending payment.</p>}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">{data.plans?.map((plan) => <div key={plan.id} className="rounded-lg border border-line p-4">
-          <h3 className="font-medium">{plan.name}</h3><p className="mt-1 text-sm">{amount(plan.price)} / {plan.interval}</p>
-          <p className="mt-1 text-sm text-ink-muted">{plan.description}</p>
-          <p className="mt-2 text-xs text-ink-muted">Members: {plan.limits.members ?? "Unlimited"} · Trainers: {plan.limits.trainers ?? "Unlimited"}</p>
-        </div>)}</div>
-        {!data.plans?.length && <p className="mt-3 text-sm text-ink-muted">Contact Fitivo support for available subscription plans.</p>}
-      </Card>
+      <PlanComparison data={data} onRequested={() => setRetry((value) => value + 1)} />
       <Card className="overflow-x-auto p-4 md:p-6"><h2 className="mb-4 text-lg font-semibold text-ink">Fitivo invoices</h2>{!data.subscription?.invoices?.length ? <p className="py-5 text-center text-sm text-ink-muted">No Fitivo invoices have been issued.</p> : <table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b border-line text-xs uppercase text-ink-subtle"><th className="px-3 py-3">Invoice</th><th className="px-3 py-3">Plan period</th><th className="px-3 py-3">Amount</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Payment reference</th></tr></thead><tbody>{data.subscription.invoices.map((invoice) => <tr key={invoice.id} className="border-b border-line last:border-0"><td className="px-3 py-3"><span className="font-medium text-ink">{invoice.invoiceNumber}</span><span className="block text-xs text-ink-muted">Issued {date(invoice.issuedAt)}</span></td><td className="px-3 py-3 text-ink-muted">{date(invoice.periodStart)} – {date(invoice.periodEnd)}</td><td className="px-3 py-3 text-ink-muted">{amount(invoice.amountDue)}</td><td className="px-3 py-3"><Badge tone={tone(invoice.status)}>{invoiceLabel(invoice.status)}</Badge></td><td className="px-3 py-3 text-ink-muted">{invoice.paymentReference || "—"}</td></tr>)}</tbody></table>}</Card>
     </>}
   </div>;

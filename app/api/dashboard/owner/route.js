@@ -1,5 +1,5 @@
 import connectToDatabase from "../../../../lib/db.js";
-import { getRequestGymId, getRequestTenantContext, requireApiUser } from "../../../../lib/auth.js";
+import { getRequestTenantContext, requireApiUser, getRequestScope, } from "../../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
 import { serializeOwnerDashboard } from "../../../../lib/ownerDashboardRules.js";
 import Member from "../../../../models/Member.js";
@@ -7,7 +7,7 @@ import Plan from "../../../../models/Plan.js";
 import Trainer from "../../../../models/Trainer.js";
 
 export async function GET(request) {
-  const authResponse = await requireApiUser(request, { allowedRoles: ["gym_owner"] });
+  const authResponse = await requireApiUser(request, { allowedRoles: ["gym_owner", "gym_admin"] });
   if (authResponse) return authResponse;
 
   const context = getRequestTenantContext(request);
@@ -17,13 +17,13 @@ export async function GET(request) {
 
   try {
     await connectToDatabase();
-    const scope = { gymId: getRequestGymId(request) };
+    const scope = { ...getRequestScope(request) };
     const [members, plans, trainers] = await Promise.all([
       Member.countDocuments({ ...scope, isActive: { $ne: false } }),
       Plan.countDocuments(scope),
       Trainer.countDocuments(scope),
     ]);
-    return successResponse(serializeOwnerDashboard(context.gym, { members, plans, trainers }));
+    return successResponse({ ...serializeOwnerDashboard(context.gym, { members, plans, trainers }), entitlements: context.entitlements });
   } catch {
     console.error("Gym owner dashboard could not be loaded.");
     return errorResponse("Could not load your gym dashboard. Please try again.", 503);

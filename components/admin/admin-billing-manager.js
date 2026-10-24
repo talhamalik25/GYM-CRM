@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { FEATURE_LABELS, LAUNCH_PLANS } from "../../lib/saasPlanRules.js";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Card from "../ui/card";
@@ -11,7 +12,7 @@ import Modal from "../ui/modal";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 
-const emptyPlan = { id: "", name: "", description: "", price: "", interval: "monthly", members: "", trainers: "" };
+const emptyPlan = { key: "basic", features: LAUNCH_PLANS[0].features, staff: "3", branches: "1", id: "", name: "", description: "", price: "", interval: "monthly", members: "", trainers: "" };
 
 async function requestBilling(body) {
   const response = await fetch("/api/admin/billing", {
@@ -59,7 +60,7 @@ export default function AdminBillingManager() {
   useEffect(() => { const timer = window.setTimeout(load, 0); return () => window.clearTimeout(timer); }, [load]);
 
   function startEdit(selected) {
-    setPlan({ id: selected.id, name: selected.name, description: selected.description, price: String(selected.price), interval: selected.interval, members: selected.limits.members == null ? "" : String(selected.limits.members), trainers: selected.limits.trainers == null ? "" : String(selected.limits.trainers) });
+    setPlan({ key: selected.key || "", features: selected.features || {}, staff: selected.limits.staff == null ? "" : String(selected.limits.staff), branches: String(selected.limits.branches || 1), id: selected.id, name: selected.name, description: selected.description, price: String(selected.price), interval: selected.interval, members: selected.limits.members == null ? "" : String(selected.limits.members), trainers: selected.limits.trainers == null ? "" : String(selected.limits.trainers) });
     setPlanErrors({});
   }
 
@@ -67,8 +68,9 @@ export default function AdminBillingManager() {
     event.preventDefault(); setSaving(true); setError(""); setMessage(""); setPlanErrors({});
     const payload = {
       action: plan.id ? "update_plan" : "create_plan", ...(plan.id ? { planId: plan.id } : {}),
+      ...(!plan.id && plan.key ? { key: plan.key } : {}), ...(plan.key ? { features: plan.features } : {}),
       name: plan.name, description: plan.description, price: Number(plan.price), interval: plan.interval,
-      limits: { members: plan.members === "" ? null : Number(plan.members), trainers: plan.trainers === "" ? null : Number(plan.trainers) },
+      limits: { ...(plan.key ? { staff: plan.staff === "" ? null : Number(plan.staff), branches: Number(plan.branches) } : {}), members: plan.members === "" ? null : Number(plan.members), trainers: plan.trainers === "" ? null : Number(plan.trainers) },
     };
     try {
       const result = await requestBilling(payload);
@@ -102,6 +104,7 @@ export default function AdminBillingManager() {
   ];
   const subscriptionRows = data.gyms.filter((gym) => gym.subscription);
   const subscriptionColumns = [
+    { key: "usage", label: "Usage / locations", render: (gym) => <div className="text-xs">{gym.usage?.members || 0} members · {gym.usage?.staff || 0} staff · {gym.usage?.branches || 1} active branches<p>{gym.branches?.map((branch) => `${branch.name} (${branch.status})`).join(", ")}</p></div> },
     { key: "name", label: "Gym", render: (gym) => <span className="admin-primary-cell">{gym.name}</span> },
     { key: "plan", label: "Plan", render: (gym) => gym.subscription.planSnapshot?.name || "Plan unavailable" },
     { key: "status", label: "Status", render: (gym) => <Badge tone={statusTone(gym.subscription.status)}>{gym.subscription.status.replaceAll("_", " ")}</Badge> },
@@ -122,14 +125,18 @@ export default function AdminBillingManager() {
     {error && <Card className="admin-inline-error"><ErrorState title="Billing action needs attention" description={error} /></Card>}
     <Card className="admin-billing-notice"><p className="admin-billing-notice-title">Billing mode: manual</p><p>No payment provider is configured. Invoices are local records only. Mark one paid only after verifying an external payment, and enter its reference.</p></Card>
 
+    <Card className="p-5"><h2 className="font-semibold">Launch catalog</h2><p className="my-3 text-sm text-ink-muted">Initialize Basic, Pro and Professional at the proposed launch prices. Existing catalog entries and subscriptions are preserved.</p><Button disabled={saving} onClick={() => action({ action: "initialize_launch_plans" }, "Launch catalog initialized. Existing terms preserved.")}>Initialize missing launch plans</Button></Card>
+    <Card className="p-5"><h2 className="font-semibold">Plan change requests</h2>{data.gyms.filter((gym) => gym.planChangeRequest).map((gym) => <div key={gym.id} className="mt-3 flex flex-wrap items-center justify-between gap-3"><p>{gym.name} → {data.plans.find((plan) => plan.id === gym.planChangeRequest.planId)?.name || "Plan unavailable"}</p><Button disabled={saving} onClick={() => action({ action: "assign_plan", mode: "invoice", gymId: gym.id, planId: gym.planChangeRequest.planId }, "Invoice issued. Current access is retained until reconciliation.")}>Review and issue invoice</Button></div>)}</Card>
     <div className="admin-billing-forms">
       <Card className="admin-surface admin-billing-form-card">
         <h2 className="text-lg font-semibold text-ink">{plan.id ? "Edit SaaS plan" : "Configure a SaaS plan"}</h2>
         <form className="mt-4 space-y-4" onSubmit={submitPlan} noValidate>
+          {!plan.id && <Select label="Stable identifier" value={plan.key} onChange={(event) => { const preset = LAUNCH_PLANS.find((item) => item.key === event.target.value); setPlan({ ...plan, key: preset.key, name: preset.name, price: String(preset.price), members: String(preset.limits.members), staff: String(preset.limits.staff), branches: String(preset.limits.branches), features: preset.features }); }}><option value="basic">Basic</option><option value="pro">Pro</option><option value="professional">Professional</option></Select>}
+          {plan.key && <><div className="grid gap-4 sm:grid-cols-2"><Input label="Staff limit" type="number" min="0" value={plan.staff} onChange={(event) => setPlan({ ...plan, staff: event.target.value })} /><Input label="Active branch limit" type="number" min="1" disabled={plan.key !== "professional"} value={plan.branches} onChange={(event) => setPlan({ ...plan, branches: event.target.value })} /></div><fieldset className="grid gap-2 sm:grid-cols-2"><legend className="mb-2 text-sm font-semibold">Entitlements for future assignments</legend>{Object.entries(FEATURE_LABELS).map(([key, label]) => <label className="flex items-center gap-2 text-sm" key={key}><input type="checkbox" disabled={plan.key !== "professional" && ["multiBranch", "branchReports", "consolidatedAnalytics", "prioritySupport"].includes(key)} checked={Boolean(plan.features[key])} onChange={(event) => setPlan({ ...plan, features: { ...plan.features, [key]: event.target.checked } })} />{label}</label>)}</fieldset></>}
           <Input id="saas-plan-name" label="Plan name" required value={plan.name} onChange={(event) => setPlan({ ...plan, name: event.target.value })} error={planErrors.name} />
           <Input id="saas-plan-description" label="Description" value={plan.description} onChange={(event) => setPlan({ ...plan, description: event.target.value })} error={planErrors.description} />
           <div className="grid gap-4 sm:grid-cols-2"><Input id="saas-plan-price" label="Price (PKR)" type="number" min="0" step="1" required value={plan.price} onChange={(event) => setPlan({ ...plan, price: event.target.value })} error={planErrors.price} /><Select id="saas-plan-interval" label="Billing interval" value={plan.interval} onChange={(event) => setPlan({ ...plan, interval: event.target.value })}><option value="monthly">Monthly</option><option value="yearly">Yearly</option></Select></div>
-          <div><p className="text-sm font-medium text-ink">Feature limits</p><p className="mt-1 text-xs text-ink-muted">Blank means unlimited. Limits apply to new members and trainers when the Gym subscription is active or in trial.</p><div className="mt-3 grid gap-4 sm:grid-cols-2"><Input id="saas-limit-members" label="Maximum members" type="number" min="0" step="1" value={plan.members} onChange={(event) => setPlan({ ...plan, members: event.target.value })} error={planErrors["limits.members"]} /><Input id="saas-limit-trainers" label="Maximum trainers" type="number" min="0" step="1" value={plan.trainers} onChange={(event) => setPlan({ ...plan, trainers: event.target.value })} error={planErrors["limits.trainers"]} /></div></div>
+          <div><p className="text-sm font-medium text-ink">Feature limits</p><p className="mt-1 text-xs text-ink-muted">Blank means unlimited. Edits apply to future assignments. Existing subscription snapshots keep their agreed terms.</p><div className="mt-3 grid gap-4 sm:grid-cols-2"><Input id="saas-limit-members" label="Maximum members" type="number" min="0" step="1" value={plan.members} onChange={(event) => setPlan({ ...plan, members: event.target.value })} error={planErrors["limits.members"]} /><Input id="saas-limit-trainers" label="Maximum trainers" type="number" min="0" step="1" value={plan.trainers} onChange={(event) => setPlan({ ...plan, trainers: event.target.value })} error={planErrors["limits.trainers"]} /></div></div>
           <div className="flex justify-end gap-2 border-t border-line pt-4">{plan.id && <Button type="button" variant="secondary" disabled={saving} onClick={() => { setPlan(emptyPlan); setPlanErrors({}); }}>Cancel edit</Button>}<Button type="submit" disabled={saving} aria-busy={saving}>{saving ? "Saving…" : plan.id ? "Save plan" : "Create plan"}</Button></div>
         </form>
       </Card>
@@ -139,7 +146,7 @@ export default function AdminBillingManager() {
           <Select id="billing-gym" label="Gym" required value={gymId} onChange={(event) => setGymId(event.target.value)}><option value="">Choose a Gym</option>{data.gyms.filter((gym) => gym.status === "active").map((gym) => <option key={gym.id} value={gym.id}>{gym.name}</option>)}</Select>
           <Select id="billing-plan" label="Active plan" required value={planId} onChange={(event) => setPlanId(event.target.value)}><option value="">Choose a plan</option>{data.plans.filter((item) => item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name} · {amount(item.price)} / {item.interval === "monthly" ? "month" : "year"}</option>)}</Select>
           {selectedPlan && <p className="rounded-lg bg-canvas p-3 text-xs text-ink-muted">Limits: {selectedPlan.limits.members == null ? "unlimited members" : `${selectedPlan.limits.members} members`} · {selectedPlan.limits.trainers == null ? "unlimited trainers" : `${selectedPlan.limits.trainers} trainers`}</p>}
-        <Select id="billing-mode" label="Start as" value={mode} onChange={(event) => setMode(event.target.value)}><option value="invoice">Issue invoice</option><option value="trial">Trial</option></Select>
+        <Select id="billing-mode" label="Start as" value={mode} onChange={(event) => setMode(event.target.value)}><option value="invoice">Issue invoice</option></Select>
           {mode === "trial" && <Input id="trial-days" label="Trial days (1–90)" type="number" min="1" max="90" value={trialDays} onChange={(event) => setTrialDays(event.target.value)} />}
           <p className="text-xs text-ink-muted">Auto-renew is off. An invoice does not activate the plan until a Superadmin reconciles verified external payment.</p>
           <div className="flex justify-end border-t border-line pt-4"><Button type="submit" disabled={saving || !data.plans.some((item) => item.isActive) || !gymId || !planId}>{saving ? "Processing…" : mode === "trial" ? "Assign trial" : "Issue invoice"}</Button></div>
@@ -147,7 +154,7 @@ export default function AdminBillingManager() {
       </Card>
     </div>
 
-    <Card className="admin-surface admin-billing-settings"><h2>Platform billing settings</h2><p>These settings do not configure a payment provider. A zero day default means trials are assigned only when an admin chooses one.</p><form onSubmit={(event) => { event.preventDefault(); action({ action: "update_settings", defaultTrialDays: Number(settings.defaultTrialDays), manualBillingInstructions: settings.manualBillingInstructions }, "Platform billing settings saved."); }}><Input id="default-trial-days" label="Suggested default trial length (days)" type="number" min="0" max="90" step="1" value={settings.defaultTrialDays} onChange={(event) => setSettings({ ...settings, defaultTrialDays: event.target.value })} /><label className="admin-billing-textarea-label" htmlFor="manual-billing-instructions">Manual payment instructions<textarea id="manual-billing-instructions" maxLength={1200} rows={4} value={settings.manualBillingInstructions} onChange={(event) => setSettings({ ...settings, manualBillingInstructions: event.target.value })} /></label><p className="admin-form-hint">Displayed to Gym owners. Do not enter secret credentials.</p><div className="admin-form-actions"><Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save settings"}</Button></div></form></Card>
+    <Card className="admin-surface admin-billing-settings"><h2>Platform billing settings</h2><p>New gyms receive a fixed seven-day trial. These legacy defaults do not change existing trials or configure a payment provider.</p><form onSubmit={(event) => { event.preventDefault(); action({ action: "update_settings", defaultTrialDays: Number(settings.defaultTrialDays), manualBillingInstructions: settings.manualBillingInstructions }, "Platform billing settings saved."); }}><Input id="default-trial-days" label="Suggested default trial length (days)" type="number" min="0" max="90" step="1" value={settings.defaultTrialDays} onChange={(event) => setSettings({ ...settings, defaultTrialDays: event.target.value })} /><label className="admin-billing-textarea-label" htmlFor="manual-billing-instructions">Manual payment instructions<textarea id="manual-billing-instructions" maxLength={1200} rows={4} value={settings.manualBillingInstructions} onChange={(event) => setSettings({ ...settings, manualBillingInstructions: event.target.value })} /></label><p className="admin-form-hint">Displayed to Gym owners. Do not enter secret credentials.</p><div className="admin-form-actions"><Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save settings"}</Button></div></form></Card>
 
     <Card className="admin-surface admin-billing-record-card"><h2>SaaS plans</h2>{loading ? <p role="status" className="admin-loading-state">Loading billing…</p> : !data.plans.length ? <p className="admin-loading-state">No SaaS plans are configured. Create a plan above.</p> : <DataTable caption="SaaS plans" columns={planColumns} rows={data.plans} getRowKey={(item) => item.id} className="admin-billing-plans-table" />}</Card>
 

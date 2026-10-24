@@ -28,7 +28,7 @@ test("owner dashboard endpoint requires authentication and gym owner membership"
   const response = await getOwnerDashboard(new Request("http://localhost/api/dashboard/owner"));
   assert.equal(response.status, 401);
   const source = await readFile(fileURLToPath(new URL("../app/api/dashboard/owner/route.js", import.meta.url)), "utf8");
-  assert.match(source, /requireApiUser\(request, \{ allowedRoles: \["gym_owner"\] \}\)/);
+  assert.match(source, /requireApiUser\(request, \{ allowedRoles: \["gym_owner", "gym_admin"\] \}\)/);
   assert.match(source, /getRequestTenantContext\(request\)/);
   assert.match(source, /Member\.countDocuments\(\{ \.\.\.scope, isActive: \{ \$ne: false \} \}\)/);
   assert.match(source, /Plan\.countDocuments\(scope\)/);

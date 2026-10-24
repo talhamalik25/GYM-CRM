@@ -4,7 +4,7 @@ import { handlePaymentError } from "../../../../lib/paymentApiHelpers";
 import Payment from "../../../../models/Payment";
 import Subscription from "../../../../models/Subscription";
 import Member from "../../../../models/Member";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../lib/auth";
+import { requireApiUser, tenantFilter, getRequestScope, } from "../../../../lib/auth";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -13,7 +13,7 @@ export async function GET(request) {
     await connectToDatabase();
     const [legacyDues, subscriptions] = await Promise.all([
       Payment.aggregate([
-        { $match: { gymId: getRequestGymId(request), subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } },
+        { $match: { ...getRequestScope(request), subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } },
         { $lookup: { from: "members", let: { memberId: "$memberId", gymId: "$gymId" }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$_id", "$$memberId"] }, { $eq: ["$gymId", "$$gymId"] }] } } }], as: "member" } },
         { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
         { $group: { _id: "$memberId", memberName: { $first: "$member.fullName" }, balance: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } }, paymentCount: { $sum: 1 } } },

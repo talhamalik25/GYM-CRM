@@ -2,7 +2,7 @@ import connectToDatabase from "../../../lib/db";
 import Plan from "../../../models/Plan";
 import Member from "../../../models/Member";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../lib/planApiResponse";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -14,7 +14,7 @@ export async function GET(request) {
     const plans = await Plan.find(tenantFilter(request, onlyActive ? { isActive: true } : {})).sort({ createdAt: -1 }).lean();
     if (params.get("includeMemberCounts") === "true") {
       const counts = plans.length ? await Member.aggregate([
-        { $match: { gymId: getRequestGymId(request), planId: { $in: plans.map(({ _id }) => _id) } } },
+        { $match: { ...getRequestScope(request), planId: { $in: plans.map(({ _id }) => _id) } } },
         { $group: { _id: "$planId", count: { $sum: 1 } } },
       ]) : [];
       const countByPlan = new Map(counts.map(({ _id, count }) => [String(_id), count]));
@@ -36,7 +36,7 @@ export async function POST(request) {
 
     await connectToDatabase();
     const plan = await Plan.create({
-      gymId: getRequestGymId(request),
+      gymId: getRequestGymId(request), branchId: getRequestBranchId(request),
       name: body.name.trim(),
       price: body.price,
       durationDays: body.durationDays,

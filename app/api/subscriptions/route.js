@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../lib/subscriptionRules";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
 import Payment from "../../../models/Payment";
@@ -75,12 +75,13 @@ export async function POST(request) {
     requestFingerprint = JSON.stringify({ memberId: body.memberId.toLowerCase(), planId: body.planId.toLowerCase(), startDate: body.startDate, agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
     const result = await runLedgerTransaction(async (session) => {
       const gymId = getRequestGymId(request);
-      const prior = await Subscription.findOne({ createKey: key, gymId }).session(session);
+    const scope = getRequestScope(request);
+      const prior = await Subscription.findOne({ createKey: key, ...scope }).session(session);
       if (prior) {
         if (prior.createFingerprint !== requestFingerprint) throw Object.assign(new Error("This request key was already used for different subscription details."), { status: 409 });
         return { subscription: prior, duplicate: true };
       }
-      const [member, plan] = await Promise.all([Member.findOne({ _id: body.memberId, gymId }).session(session), Plan.findOne({ _id: body.planId, gymId }).session(session)]);
+      const [member, plan] = await Promise.all([Member.findOne({ _id: body.memberId, ...scope }).session(session), Plan.findOne({ _id: body.planId, ...scope }).session(session)]);
       if (!member) throw Object.assign(new Error("The selected member was not found."), { status: 404, fields: { memberId: "Choose an existing member." } });
       if (member.isActive === false) throw Object.assign(new Error("Reactivate this member account before assigning a subscription."), { status: 409, fields: { memberId: "This member account is inactive." } });
       if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 404, fields: { planId: "Choose an active plan." } });
@@ -92,21 +93,21 @@ export async function POST(request) {
       const expiryDate = addDays(startDate, plan.durationDays - 1);
       const planSnapshot = { name: plan.name, durationDays: plan.durationDays, originalPrice: plan.price, agreedPrice };
       await lockMemberVersion(member, session, gymId);
-      const existingSubscriptions = await Subscription.find({ memberId: member._id, gymId }).session(session).lean();
+      const existingSubscriptions = await Subscription.find({ memberId: member._id, ...scope }).session(session).lean();
       const hasCurrent = existingSubscriptions.some((entry) => ["active", "pending"].includes(deriveSubscriptionStatus(entry, gymToday())));
       if (hasCurrent) throw Object.assign(new Error("This member already has a current subscription. Renew it instead of creating another."), { status: 409, fields: { memberId: "Renew the current subscription." } });
       const subscription = (await Subscription.create([{
-        gymId,
+        gymId, branchId: getRequestBranchId(request),
         memberId: member._id, planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate),
         originalPrice: plan.price, agreedPrice, planSnapshot, status: "pending", createKey: key, createFingerprint: requestFingerprint,
         renewalHistory: [{ renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate) }],
       }], { session }))[0];
       if (amountPaid > 0) {
         const payment = (await Payment.create([{
-          gymId,
+          gymId, branchId: getRequestBranchId(request),
           memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
           amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()),
-          receiptNumber: await generateReceiptNumber({ gymId }), idempotencyKey: key,
+          receiptNumber: await generateReceiptNumber({ ...scope }), idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: String(subscription._id), renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || gymToday() }),
         }], { session }))[0];
         subscription.renewalHistory[0].paymentId = payment._id;

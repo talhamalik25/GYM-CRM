@@ -1,3 +1,7 @@
+import { issuePlanChangeInvoice } from "../../../../lib/saasBilling.js";
+import { lockGym, assertPlanFits, getGymUsage, EntitlementError, entitlementErrorResponse } from "../../../../lib/entitlements.js";
+import { listGymBranches } from "../../../../lib/branches.js";
+import { LAUNCH_PLANS } from "../../../../lib/saasPlanRules.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db.js";
 import { getAuthenticatedUserFromRequest, requireSuperadminUser } from "../../../../lib/auth.js";
@@ -16,7 +20,7 @@ function serializeGym(gym) {
   const subscription = gym.saasSubscription
     ? { ...gym.saasSubscription, status: serializeGymSaaSSubscription(gym.saasSubscription).status }
     : null;
-  return { id: String(gym._id), name: gym.name, slug: gym.slug, status: gym.status, subscription };
+  return { id: String(gym._id), name: gym.name, slug: gym.slug, status: gym.status, subscription, planChangeRequest: gym.planChangeRequest || null };
 }
 
 async function userIdFromRequest(request) {
@@ -41,11 +45,11 @@ export async function GET(request) {
     await connectToDatabase();
     const [plans, gyms, invoices, settings] = await Promise.all([
       SaaSPlan.find({}).sort({ createdAt: -1, _id: 1 }).lean(),
-      Gym.find({}).select("name slug status saasSubscription").sort({ name: 1, _id: 1 }).lean(),
+      Gym.find({}).select("name slug status saasSubscription planChangeRequest").sort({ name: 1, _id: 1 }).lean(),
       PlatformInvoice.find({}).populate("gymId", "name").sort({ issuedAt: -1, _id: -1 }).limit(100).lean(),
       PlatformSetting.findById("fitivo").lean(),
     ]);
-    return successResponse({ plans: plans.map(serializeSaaSPlan), gyms: gyms.map(serializeGym), invoices: invoices.map(serializePlatformInvoice), settings: { defaultTrialDays: settings?.defaultTrialDays ?? 0, manualBillingInstructions: settings?.manualBillingInstructions || "" } });
+    return successResponse({ plans: plans.map(serializeSaaSPlan), gyms: await Promise.all(gyms.map(async (gym) => ({ ...serializeGym(gym), usage: await getGymUsage(gym._id), branches: await listGymBranches(gym._id) }))), invoices: invoices.map(serializePlatformInvoice), settings: { defaultTrialDays: settings?.defaultTrialDays ?? 0, manualBillingInstructions: settings?.manualBillingInstructions || "" } });
   } catch {
     console.error("Platform billing data could not be loaded.");
     return errorResponse("Could not load platform billing. Please try again.", 503);
@@ -62,6 +66,14 @@ export async function POST(request) {
   try { await connectToDatabase(); }
   catch { return errorResponse("Billing service is temporarily unavailable.", 503); }
 
+  if (body.action === "initialize_launch_plans") {
+    try {
+      await SaaSPlan.init();
+      for (const plan of LAUNCH_PLANS) await SaaSPlan.updateOne({ key: plan.key }, { $setOnInsert: { ...plan, currency: "PKR", isActive: true } }, { upsert: true, runValidators: true });
+      return successResponse({ initialized: true });
+    } catch { return errorResponse("Could not initialize the launch catalog.", 503); }
+  }
+
   if (body.action === "create_plan" || body.action === "update_plan") {
     const updating = body.action === "update_plan";
     if (updating && (typeof body.planId !== "string" || !mongoose.isObjectIdOrHexString(body.planId))) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid plan." });
@@ -77,6 +89,13 @@ export async function POST(request) {
           return errorResponse("A plan with this name already exists.", 409, { name: "Choose a different plan name." });
         }
       }
+      const existingPlan = updating ? await SaaSPlan.findById(body.planId).lean() : null;
+      if (updating && !existingPlan) return errorResponse("Plan was not found.", 404);
+      if (validation.limits && existingPlan) validation.limits = { ...existingPlan.limits, ...validation.limits };
+      if (validation.features && existingPlan) validation.features = { ...existingPlan.features, ...validation.features };
+      const finalKey = existingPlan?.key || validation.key;
+      if (validation.limits?.branches != null && validation.limits.branches < 1) return errorResponse("Every organization must allow at least one branch.", 400);
+      if (finalKey && finalKey !== "professional" && (validation.limits?.branches > 1 || ["multiBranch", "branchReports", "consolidatedAnalytics", "prioritySupport"].some((key) => validation.features?.[key]))) return errorResponse("Only Professional can enable organization features or multiple branches.", 400);
       const plan = updating
         ? await SaaSPlan.findByIdAndUpdate(body.planId, { $set: validation }, { new: true, runValidators: true }).lean()
         : await SaaSPlan.create({ ...validation, currency: "PKR", isActive: true });
@@ -104,55 +123,13 @@ export async function POST(request) {
     const payload = { ...body }; delete payload.action;
     const validation = validatePlanAssignment(payload);
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
+    if (validation.mode === "trial") return errorResponse("Seven-day trials are assigned only during new gym provisioning. Existing gyms cannot receive another trial.", 409);
     try {
-      const [gym, plan] = await Promise.all([
-        Gym.findOne({ _id: validation.gymId, status: "active" }).lean(),
-        SaaSPlan.findOne({ _id: validation.planId, isActive: true }).lean(),
-      ]);
-      if (!gym) return errorResponse("Active Gym was not found.", 404);
-      if (!plan) return errorResponse("An active SaaS plan is required.", 400, { planId: "Choose an active plan." });
-      if (gym.publicTrial?.version === 1 && validation.mode === "invoice" && plan.price === 0) {
-        return errorResponse("Public trial gyms require a paid plan and verified invoice reconciliation.", 400);
-      }
-      if (gym.saasSubscription?.pendingInvoiceId && await PlatformInvoice.exists({ _id: gym.saasSubscription.pendingInvoiceId, status: "open" })) {
-        return errorResponse("Reconcile or void the existing open invoice before changing this subscription.", 409);
-      }
-      const snapshot = planSnapshot(plan);
-      const now = new Date();
-      if (validation.mode === "trial") {
-        const trialEndsAt = new Date(now.getTime() + validation.trialDays * 86400000);
-        const updated = await Gym.findOneAndUpdate({ _id: gym._id }, { $set: { saasSubscription: {
-          planId: plan._id, planSnapshot: snapshot, status: "trialing", periodStart: null, periodEnd: null,
-          trialStartedAt: now, trialEndsAt, renewalDate: trialEndsAt, pendingInvoiceId: null, autoRenew: false,
-        } } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
-        return successResponse({ gym: serializeGym(updated), invoice: null });
-      }
-      const periodStart = gym.saasSubscription?.status === "active" && gym.saasSubscription.periodEnd > now
-        ? gym.saasSubscription.periodEnd : now;
-      const periodEnd = addBillingInterval(periodStart, plan.interval);
-      if (plan.price === 0) {
-        const updated = await Gym.findOneAndUpdate({ _id: gym._id }, { $set: { saasSubscription: {
-          planId: plan._id, planSnapshot: snapshot, status: "active", periodStart, periodEnd,
-          trialStartedAt: null, trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: null, autoRenew: false,
-        } } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
-        return successResponse({ gym: serializeGym(updated), invoice: null });
-      }
-      const session = await mongoose.startSession();
-      let updatedGym;
-      let invoice;
-      try {
-        await session.withTransaction(async () => {
-          invoice = await createInvoice({ gymId: gym._id, planId: plan._id, snapshot, periodStart, periodEnd, createdBy: actorId, session });
-          updatedGym = await Gym.findOneAndUpdate({ _id: gym._id, "saasSubscription.pendingInvoiceId": null }, { $set: { saasSubscription: {
-            planId: plan._id, planSnapshot: snapshot, status: "past_due", periodStart, periodEnd,
-            trialStartedAt: null, trialEndsAt: null, renewalDate: periodEnd, pendingInvoiceId: invoice._id, autoRenew: false,
-          } } }, { new: true, runValidators: true, session }).select("name slug status saasSubscription").lean();
-          if (!updatedGym) throw new Error("Active Gym was not found.");
-        });
-      } finally { await session.endSession(); }
-      return successResponse({ gym: serializeGym(updatedGym), invoice: serializePlatformInvoice(invoice) }, 201);
-    } catch {
-      return errorResponse("Could not assign the SaaS plan. Please try again.", 503);
+      const result = await issuePlanChangeInvoice(validation.gymId, validation.planId, actorId);
+      return successResponse({ gym: serializeGym(result.gym), invoice: serializePlatformInvoice(result.invoice) }, 201);
+    } catch (error) {
+      if (error instanceof EntitlementError) return entitlementErrorResponse(error);
+      return errorResponse("Could not issue the plan change invoice.", 503);
     }
   }
 
@@ -192,24 +169,26 @@ export async function POST(request) {
       await session.withTransaction(async () => {
         const invoice = await PlatformInvoice.findOne({ _id: body.invoiceId, status: "open" }).session(session);
         if (!invoice) throw new Error("Invoice is missing or is not open.");
-        const gym = await Gym.findOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }).session(session).lean();
+        const gym = await lockGym(invoice.gymId, session);
         if (!gym || !invoiceMatchesPendingSubscription(gym.saasSubscription, invoice)) throw new Error("Invoice does not match the Gym's pending subscription.");
+        await assertPlanFits(gym._id, invoice.planSnapshot, session);
         invoice.status = "paid";
         invoice.paidAt = new Date();
         // New public gyms receive a usable paid term even when manual payment
         // verification happens long after issuance. Preserve legacy terms.
-        if (gym.publicTrial?.version === 1) {
-          invoice.periodStart = new Date(Math.max(invoice.periodStart.getTime(), invoice.paidAt.getTime()));
+        if (invoice.changesPlan || gym.publicTrial?.version === 1) {
+          invoice.periodStart = invoice.changesPlan ? invoice.paidAt : new Date(Math.max(invoice.periodStart.getTime(), invoice.paidAt.getTime()));
           invoice.periodEnd = addBillingInterval(invoice.periodStart, invoice.planSnapshot.interval);
         }
         const current = gym.saasSubscription;
-        const accessStart = gym.publicTrial?.version === 1 && current.status === "active"
+        const accessStart = !invoice.changesPlan && current.status === "active"
           && current.periodStart <= invoice.paidAt && current.periodEnd > invoice.paidAt
           && current.periodEnd >= invoice.periodStart ? current.periodStart : invoice.periodStart;
         invoice.paymentReference = validation.paymentReference;
         invoice.reconciledBy = actorId;
         await invoice.save({ session });
         const subscriptionUpdate = await Gym.updateOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: {
+          "saasSubscription.planId": invoice.planId, "saasSubscription.planSnapshot": invoice.planSnapshot,
           "saasSubscription.status": "active", "saasSubscription.periodStart": accessStart,
           "saasSubscription.periodEnd": invoice.periodEnd, "saasSubscription.renewalDate": invoice.periodEnd,
           "saasSubscription.trialStartedAt": null, "saasSubscription.trialEndsAt": null,
@@ -220,6 +199,7 @@ export async function POST(request) {
       });
     } catch (error) {
       await session.endSession();
+      if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       if (error.message === "Invoice is missing or is not open.") return errorResponse(error.message, 409);
       if (error.message === "Invoice does not match the Gym's pending subscription.") return errorResponse(error.message, 409);
       return errorResponse("Could not reconcile this invoice. Please try again.", 503);
@@ -248,6 +228,7 @@ export async function POST(request) {
       });
     } catch (error) {
       await session.endSession();
+      if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       if (error.message === "Invoice is missing or is not open.") return errorResponse(error.message, 409);
       return errorResponse("Could not void this invoice. Please try again.", 503);
     }
@@ -260,7 +241,7 @@ export async function POST(request) {
     try {
       const existing = await Gym.findOne({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }).select("saasSubscription.pendingInvoiceId").lean();
       if (existing?.saasSubscription?.pendingInvoiceId && await PlatformInvoice.exists({ _id: existing.saasSubscription.pendingInvoiceId, status: "open" })) return errorResponse("Void or reconcile the open invoice before cancelling this subscription.", 409);
-      const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true }, "saasSubscription.pendingInvoiceId": null }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { new: true, runValidators: true }).select("name slug status saasSubscription").lean();
+      const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true }, "saasSubscription.pendingInvoiceId": null }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { new: true, runValidators: true }).select("name slug status saasSubscription planChangeRequest").lean();
       if (!gym) return errorResponse("Gym SaaS subscription was not found.", 404);
       return successResponse({ gym: serializeGym(gym) });
     } catch { return errorResponse("Could not cancel this SaaS subscription.", 503); }

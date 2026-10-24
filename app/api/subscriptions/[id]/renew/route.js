@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../../lib/planApiResponse";
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../../../lib/subscriptionRules";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../../../lib/auth";
 import Subscription from "../../../../../models/Subscription";
 import Member from "../../../../../models/Member";
 import Plan from "../../../../../models/Plan";
@@ -41,10 +41,11 @@ export async function POST(request, { params }) {
     await Payment.init();
     requestFingerprint = JSON.stringify({ planId: body.planId || "", startDate: body.startDate || "", agreedPrice: body.agreedPrice ?? null, amountPaid: body.amountPaid ?? 0, method: body.method || "", paymentDate: body.paymentDate || "" });
     const gymId = getRequestGymId(request);
+    const scope = getRequestScope(request);
     const result = await runLedgerTransaction(async (session) => {
-      const subscription = await Subscription.findOne({ _id: id, gymId }).session(session);
+      const subscription = await Subscription.findOne({ _id: id, ...scope }).session(session);
       if (!subscription) return { missing: true };
-      const member = await Member.findOne({ _id: subscription.memberId, gymId }).session(session);
+      const member = await Member.findOne({ _id: subscription.memberId, ...scope }).session(session);
       if (!member) throw Object.assign(new Error("The subscription member was not found in this gym."), { status: 409 });
       if (member.isActive === false) throw Object.assign(new Error("Reactivate this member account before renewing."), { status: 409 });
       const previousTerm = subscription.renewalHistory.find((term) => term.renewalKey === key);
@@ -59,7 +60,7 @@ export async function POST(request, { params }) {
       const latest = subscription.renewalHistory.at(-1);
       const startDate = currentStatus === "active" ? addDays(latest.expiryDate.toISOString().slice(0, 10), 1) : (body.startDate || today);
       if (currentStatus !== "active" && startDate < today) throw Object.assign(new Error("An expired subscription cannot be renewed from a past date."), { status: 400, fields: { startDate: "Choose today or a future date." } });
-      const plan = await Plan.findOne({ _id: body.planId || subscription.planId, gymId }).session(session);
+      const plan = await Plan.findOne({ _id: body.planId || subscription.planId, ...scope }).session(session);
       if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 400, fields: { planId: "Choose an active plan." } });
       const agreedPrice = body.agreedPrice ?? plan.price;
       const amountPaid = body.amountPaid ?? 0;
@@ -73,10 +74,10 @@ export async function POST(request, { params }) {
       let paymentId = null;
       if (amountPaid > 0) {
         const payment = (await Payment.create([{
-          gymId,
+          gymId, branchId: getRequestBranchId(request),
           memberId: subscription.memberId, planId: plan._id, subscriptionId: subscription._id,
           renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method,
-          paymentDate: dateOnly(body.paymentDate || today), receiptNumber: await generateReceiptNumber({ gymId }),
+          paymentDate: dateOnly(body.paymentDate || today), receiptNumber: await generateReceiptNumber({ ...scope }),
           idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: id, renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || today }),
         }], { session }))[0];
@@ -85,7 +86,7 @@ export async function POST(request, { params }) {
       const term = { renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot, startDate: start, expiryDate: expiry, paymentId };
       await lockSubscriptionVersion(subscription, session, gymId);
       const updated = await Subscription.findOneAndUpdate(
-        { _id: id, gymId, __v: (subscription.__v || 0) + 1, status: { $ne: "cancelled" }, "renewalHistory.renewalKey": { $ne: key } },
+        { _id: id, ...scope, __v: (subscription.__v || 0) + 1, status: { $ne: "cancelled" }, "renewalHistory.renewalKey": { $ne: key } },
         { $push: { renewalHistory: term }, $set: { planId: plan._id, startDate: start, expiryDate: expiry, originalPrice: plan.price, agreedPrice, planSnapshot, status: "pending" }, $inc: { __v: 1 } },
         { new: true, session },
       );

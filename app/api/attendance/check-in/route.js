@@ -5,7 +5,7 @@ import { getGymDate } from "../../../../lib/gymDate";
 import { getMembershipStatus } from "../../../../lib/membersService";
 import Attendance from "../../../../models/Attendance";
 import Member from "../../../../models/Member";
-import { requireApiUser, getRequestGymId, tenantFilter } from "../../../../lib/auth";
+import { requireApiUser, getRequestGymId, tenantFilter, getRequestBranchId } from "../../../../lib/auth";
 
 async function populatedAttendance(request, id) {
   return Attendance.findOne(tenantFilter(request, { _id: id })).populate({ path: "memberId", match: tenantFilter(request), select: "fullName planId", populate: { path: "planId", match: tenantFilter(request), select: "name" } }).lean();
@@ -51,7 +51,7 @@ export async function POST(request) {
     }
     try {
       const created = await Attendance.create({
-        gymId: getRequestGymId(request),
+        gymId: getRequestGymId(request), branchId: getRequestBranchId(request),
         memberId: member._id,
         date,
         checkInAt: now,
