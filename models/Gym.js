@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
+import { snapshotSchema } from "./saasSchemas.js";
 
 const gymSchema = new mongoose.Schema({
+  capacityVersion: { type: Number, default: 0 },
+  trialUsedAt: { type: Date, default: null },
+  planChangeRequest: { type: new mongoose.Schema({ planId: { type: mongoose.Schema.Types.ObjectId, ref: "SaaSPlan", required: true }, requestedAt: { type: Date, required: true }, requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true } }, { _id: false }), default: undefined },
   name: { type: String, required: true, trim: true, minlength: 2, maxlength: 120 },
   slug: {
     type: String,
@@ -28,16 +32,7 @@ const gymSchema = new mongoose.Schema({
   saasSubscription: {
     type: new mongoose.Schema({
       planId: { type: mongoose.Schema.Types.ObjectId, ref: "SaaSPlan", required: true },
-      planSnapshot: {
-        name: { type: String, required: true },
-        price: { type: Number, required: true, min: 0 },
-        currency: { type: String, enum: ["PKR"], required: true },
-        interval: { type: String, enum: ["monthly", "yearly"], required: true },
-        limits: {
-          members: { type: Number, default: null },
-          trainers: { type: Number, default: null },
-        },
-      },
+      planSnapshot: { type: snapshotSchema, required: true },
       status: { type: String, enum: ["trialing", "active", "past_due", "expired", "cancelled"], required: true },
       trialStartedAt: { type: Date, default: null },
       periodStart: { type: Date, default: null },

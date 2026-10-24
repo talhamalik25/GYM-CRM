@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const planSchema = new mongoose.Schema({
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null, index: true },
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required() { return this.isNew; } },
   name: { type: String, required: true, trim: true },
   price: {

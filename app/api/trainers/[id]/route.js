@@ -1,3 +1,4 @@
+import { withCapacityTransaction } from "../../../../lib/entitlements.js";
 import connectToDatabase from "../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
 import { handleTrainerError, isTrainerId, serializeTrainer, validateTrainerBody } from "../../../../lib/trainerApiHelpers";
@@ -20,7 +21,7 @@ export async function GET(request, { params }) {
   } catch (error) { return handleTrainerError(error); }
 }
 
-export async function PATCH(request, { params }) {
+async function handlePATCH(request, { params }) {
   const auth = await requireApiUser(request); if (auth) return auth;
   const { id } = await params;
   if (!isTrainerId(id)) return errorResponse("Trainer id is invalid.", 400);
@@ -43,3 +44,5 @@ export async function PATCH(request, { params }) {
     return successResponse(serializeTrainer(trainer, assignedMemberCount));
   } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }
 }
+
+export const PATCH = withCapacityTransaction(handlePATCH, "trainers");

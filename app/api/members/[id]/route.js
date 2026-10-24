@@ -1,3 +1,4 @@
+import { withCapacityTransaction } from "../../../../lib/entitlements.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db";
 import { getMembershipExpiryDate } from "../../../../lib/membersService";
@@ -33,7 +34,7 @@ export async function GET(_request, context) {
   }
 }
 
-export async function PATCH(request, context) {
+async function handlePATCH(request, context) {
   const authResponse = await requireApiUser(request);
   if (authResponse) return authResponse;
   try {
@@ -97,3 +98,5 @@ export async function PATCH(request, context) {
     return handleMemberError(error);
   }
 }
+
+export const PATCH = withCapacityTransaction(handlePATCH, "members");

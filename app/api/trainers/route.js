@@ -1,3 +1,4 @@
+import { withCapacityTransaction } from "../../../lib/entitlements.js";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handleTrainerError, serializeTrainer, validateTrainerBody } from "../../../lib/trainerApiHelpers";
@@ -31,7 +32,7 @@ export async function GET(request) {
   } catch (error) { return handleTrainerError(error); }
 }
 
-export async function POST(request) {
+async function handlePOST(request) {
   const auth = await requireApiUser(request); if (auth) return auth;
   try {
     const body = await request.json(); const validation = validateTrainerBody(body);
@@ -46,3 +47,5 @@ export async function POST(request) {
 }
 
 function normalizePhone(value) { return `${value.trim().startsWith("+") ? "+" : ""}${value.replace(/\D/g, "")}`; }
+
+export const POST = withCapacityTransaction(handlePOST, "trainers");

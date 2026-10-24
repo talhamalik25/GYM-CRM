@@ -1,17 +1,9 @@
 import mongoose from "mongoose";
 
-const invoicePlanSnapshotSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  price: { type: Number, required: true, min: 0 },
-  currency: { type: String, enum: ["PKR"], required: true },
-  interval: { type: String, enum: ["monthly", "yearly"], required: true },
-  limits: {
-    members: { type: Number, default: null },
-    trainers: { type: Number, default: null },
-  },
-}, { _id: false });
+import { snapshotSchema as invoicePlanSnapshotSchema } from "./saasSchemas.js";
 
 const platformInvoiceSchema = new mongoose.Schema({
+  changesPlan: { type: Boolean, default: false },
   invoiceNumber: { type: String, required: true },
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required: true },
   planId: { type: mongoose.Schema.Types.ObjectId, ref: "SaaSPlan", required: true },

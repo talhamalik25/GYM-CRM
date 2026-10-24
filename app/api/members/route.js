@@ -1,3 +1,4 @@
+import { withCapacityTransaction } from "../../../lib/entitlements.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
 import { getMembershipExpiryDate, EXPIRING_DAYS } from "../../../lib/membersService";
@@ -67,7 +68,7 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+async function handlePOST(request) {
   const authResponse = await requireApiUser(request);
   if (authResponse) return authResponse;
   try {
@@ -111,3 +112,5 @@ export async function POST(request) {
     return handleMemberError(error);
   }
 }
+
+export const POST = withCapacityTransaction(handlePOST, "members");

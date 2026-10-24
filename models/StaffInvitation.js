@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { GYM_ROLES } from "./GymMembership.js";
 
 const staffInvitationSchema = new mongoose.Schema({
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null, index: true },
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required: true, index: true },
   email: { type: String, required: true, lowercase: true, trim: true, maxlength: 254 },
   role: { type: String, enum: GYM_ROLES.filter((role) => role !== "gym_owner"), required: true },

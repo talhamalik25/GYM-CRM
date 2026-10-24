@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const trainerSchema = new mongoose.Schema({
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null, index: true },
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required() { return this.isNew; } },
   fullName: { type: String, required: true, trim: true, minlength: 2, maxlength: 120 },
   email: { type: String, required: true, trim: true, lowercase: true, maxlength: 254, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
