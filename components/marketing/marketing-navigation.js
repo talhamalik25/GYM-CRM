@@ -28,6 +28,14 @@ function AccessAction({ trialAvailable, onClick, mobile = false }) {
   </a>;
 }
 
+function MobileHeaderAction({ trialAvailable, scrolled }) {
+  const tone = scrolled ? "text-indigo-700" : "text-white";
+  if (trialAvailable) return <Link href="/register" className={`rounded-lg px-3 py-2 text-xs font-semibold ${tone}`}>Start free trial</Link>;
+  if (!MARKETING_SUPPORT_CHANNEL) return <Link href="/login" className={`rounded-lg px-3 py-2 text-xs font-semibold ${tone}`}>Log in</Link>;
+  const external = MARKETING_SUPPORT_CHANNEL.href.startsWith("https:");
+  return <a href={MARKETING_SUPPORT_CHANNEL.href} target={external ? "_blank" : undefined} rel={external ? "noreferrer noopener" : undefined} className={`rounded-lg px-3 py-2 text-xs font-semibold ${tone}`}>Request access</a>;
+}
+
 export default function MarketingNavigation({ trialAvailable }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -76,10 +84,8 @@ export default function MarketingNavigation({ trialAvailable }) {
     setMenuOpen(false);
   }
 
-  const actionLabel = trialAvailable ? "Start free trial" : MARKETING_SUPPORT_CHANNEL ? "Request access" : "Log in";
-  const actionHref = trialAvailable ? "/register" : MARKETING_SUPPORT_CHANNEL?.href || "/login";
-
   return <header className={`sticky top-0 z-50 -mb-[70px] border-b transition-colors duration-200 ${scrolled ? "border-slate-200 bg-white/95 shadow-sm backdrop-blur" : "border-transparent bg-transparent"}`}>
+    <a href="#features" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-[60] focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-indigo-800 focus:shadow-lg">Skip to main content</a>
     <div className="mx-auto flex h-[70px] max-w-7xl items-center justify-between gap-5 px-5 sm:px-8">
       <Brand inverse={!scrolled} />
       <nav className={`hidden items-center gap-7 text-xs font-medium md:flex ${scrolled ? "text-slate-600" : "text-white/85"}`} aria-label="Main navigation">
@@ -91,19 +97,19 @@ export default function MarketingNavigation({ trialAvailable }) {
         {!trialAvailable && MARKETING_SUPPORT_CHANNEL && <AccessAction trialAvailable={false} />}
       </div>
       <div className="flex items-center gap-2 md:hidden">
-        <Link href={actionHref} className={`rounded-lg px-3 py-2 text-xs font-semibold ${scrolled ? "text-indigo-700" : "text-white"}`}>{actionLabel}</Link>
+        <MobileHeaderAction trialAvailable={trialAvailable} scrolled={scrolled} />
         <button ref={triggerRef} type="button" className={`grid size-10 place-items-center rounded-[10px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${scrolled ? "text-slate-800 hover:bg-slate-100" : "text-white hover:bg-white/10"}`} aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={menuOpen} aria-controls="marketing-mobile-navigation" onClick={() => setMenuOpen((open) => !open)}>
           {menuOpen ? <X size={21} aria-hidden="true" /> : <Menu size={21} aria-hidden="true" />}
         </button>
       </div>
     </div>
-    {menuOpen && <div id="marketing-mobile-navigation" ref={menuRef} className="border-t border-slate-200 bg-white px-5 py-3 text-slate-700 shadow-lg md:hidden">
+    <div id="marketing-mobile-navigation" ref={menuRef} aria-hidden={!menuOpen} inert={!menuOpen} className={`absolute inset-x-0 top-full border-t border-slate-200 bg-white px-5 py-3 text-slate-700 shadow-lg transition duration-200 ease-out md:hidden ${menuOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}>
       <nav className="mx-auto grid max-w-7xl gap-1" aria-label="Mobile navigation">
         {navigationLinks.map(([label, href]) => <a key={href} href={href} onClick={closeMenu} className="rounded-lg px-3 py-3 text-sm font-medium hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">{label}</a>)}
         <Link href="/login" onClick={closeMenu} className="rounded-lg px-3 py-3 text-sm font-medium hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-600">Log in</Link>
         {trialAvailable && <AccessAction trialAvailable mobile onClick={closeMenu} />}
         {!trialAvailable && MARKETING_SUPPORT_CHANNEL && <AccessAction trialAvailable={false} mobile onClick={closeMenu} />}
       </nav>
-    </div>}
+    </div>
   </header>;
 }

@@ -7,6 +7,8 @@ import Link from "next/link";
 import Button from "../ui/button";
 import Card from "../ui/card";
 import Input from "../ui/input";
+import { MarketingBrand } from "../marketing/marketing-primitives.js";
+import MarketingProductPreview from "../marketing/marketing-product-preview.js";
 
 
 function validate(values) {
@@ -26,7 +28,7 @@ function validate(values) {
 }
 
 
-export default function LoginForm() {
+export default function LoginForm({ registrationAvailable = false }) {
   const router = useRouter();
   const [values, setValues] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
@@ -65,19 +67,17 @@ export default function LoginForm() {
   }
 
   return (
-    <main className="auth-shell">
-      <section className="auth-main">
-        <div className="auth-main-inner">
-          <div className="auth-brand" aria-label="Fitivo sign in">
-            Fitivo<span aria-hidden="true" />
-          </div>
-          <Card className="auth-card">
-            <div className="auth-card-header">
-              <h1>Sign in</h1>
-              <p>Welcome back. Sign in to manage your gym.</p>
+    <main className="grid min-h-screen bg-canvas lg:grid-cols-2">
+      <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+        <div className="w-full max-w-[440px]">
+          <MarketingBrand className="mb-10" />
+          <Card className="p-6 sm:p-9">
+            <div className="mb-7">
+              <h1 className="text-2xl font-semibold tracking-tight text-ink">Welcome back.</h1>
+              <p className="mt-2 text-sm leading-6 text-ink-muted">Sign in to manage your gym workspace.</p>
             </div>
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
-              <div className="auth-field" aria-live="polite">
+            <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+              <div aria-live="polite">
                 <Input
                   id="login-email"
                   name="email"
@@ -91,7 +91,7 @@ export default function LoginForm() {
                   required
                 />
               </div>
-              <div className="auth-password-field" aria-live="polite">
+              <div className="relative" aria-live="polite">
                 <Input
                   id="login-password"
                   name="password"
@@ -102,12 +102,12 @@ export default function LoginForm() {
                   value={values.password}
                   onChange={(event) => updateValue("password", event.target.value)}
                   error={errors.password}
-                  className="auth-password-input"
+                  className="pr-12"
                   required
                 />
                 <button
                   type="button"
-                  className="auth-password-toggle"
+                  className="absolute right-3 top-[38px] grid size-9 place-items-center rounded-lg text-ink-muted hover:bg-canvas focus-visible:outline-2 focus-visible:outline-brand"
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
@@ -115,30 +115,20 @@ export default function LoginForm() {
                   {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
                 </button>
               </div>
-              <div className="auth-forgot-row">
-                <span aria-label="Forgot password?"><span>Forgot password?</span></span>
-              </div>
-              {formError && <p className="auth-form-error" role="alert">{formError}</p>}
-              <Button type="submit" size="lg" className="auth-submit" loading={loading} loadingLabel="Signing in…">
+              {formError && <p className="rounded-lg border border-error/20 bg-error-soft px-3 py-2.5 text-sm text-error" role="alert">{formError}</p>}
+              <Button type="submit" size="lg" className="w-full" loading={loading} loadingLabel="Signing in…">
                 <LockKeyhole size={16} strokeWidth={1.75} aria-hidden="true" />Sign in
               </Button>
-              <p className="auth-account-link">New to Fitivo? <Link href="/register">Create a gym account</Link></p>
+              {registrationAvailable && <p className="text-center text-sm text-ink-muted">New to Fitivo? <Link className="font-medium text-brand hover:underline" href="/register">Create a gym account</Link></p>}
             </form>
           </Card>
-          <p className="auth-footer-note">Fitivo · Gym management workspace</p>
+          <p className="mt-6 text-center text-xs text-ink-muted">Fitivo · Gym management workspace</p>
         </div>
       </section>
 
-      <aside className="auth-story">
-        <div className="auth-orbit auth-orbit-large" aria-hidden="true" />
-        <div className="auth-orbit auth-orbit-small" aria-hidden="true" />
-        <div className="auth-story-brand">Fitivo<span aria-hidden="true" /></div>
-        <div className="auth-story-copy">
-          <div className="auth-story-rule" aria-hidden="true" />
-          <p className="auth-story-title">Your gym, in sync.</p>
-          <p className="auth-story-description">Manage members, plans, payments and attendance in one place.</p>
-        </div>
-        <p className="auth-story-footer">Fitivo gym management</p>
+      <aside className="relative hidden min-h-screen flex-col justify-center overflow-hidden bg-ink p-8 text-white lg:flex xl:p-14">
+        <div className="absolute -right-24 -top-24 size-96 rounded-full bg-brand/20 blur-2xl" aria-hidden="true" />
+        <div className="relative mx-auto w-full max-w-xl"><MarketingBrand inverse className="mb-12" /><h2 className="max-w-lg text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">Your gym, in sync.</h2><p className="mt-3 max-w-lg text-sm leading-6 text-slate-300">Manage members, memberships, attendance, and payments in one connected workspace.</p><div className="mt-9"><MarketingProductPreview compact /></div></div>
       </aside>
     </main>
   );
