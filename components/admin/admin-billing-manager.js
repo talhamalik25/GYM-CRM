@@ -35,6 +35,7 @@ export default function AdminBillingManager() {
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [subscriptionConflict, setSubscriptionConflict] = useState(null);
   const [message, setMessage] = useState("");
   const [planErrors, setPlanErrors] = useState({});
   const [plan, setPlan] = useState(emptyPlan);
@@ -43,6 +44,8 @@ export default function AdminBillingManager() {
   const [mode, setMode] = useState("invoice");
   const [trialDays, setTrialDays] = useState("14");
   const [reconcileInvoice, setReconcileInvoice] = useState(null);
+  const [voidInvoice, setVoidInvoice] = useState(null);
+  const [voidReason, setVoidReason] = useState("");
   const [verifiedAmount, setVerifiedAmount] = useState("");
   const [verifiedReference, setVerifiedReference] = useState("");
   const [verificationNotes, setVerificationNotes] = useState("");
@@ -86,8 +89,17 @@ export default function AdminBillingManager() {
 
   async function action(payload, successText) {
     setSaving(true); setError(""); setLoadError(""); setMessage("");
-    try { await requestBilling(payload); setMessage(successText); setReconcileInvoice(null); setRejectedClaim(null); setVerifiedAmount(""); setVerifiedReference(""); setVerificationNotes(""); setVerificationConfirmed(false); setClaimRejectionReason(""); await load(); }
-    catch (requestError) { setError(requestError.message || "The billing action could not be completed."); }
+    try {
+      await requestBilling(payload);
+      if (["cancel_subscription", "void_invoice", "reconcile_invoice"].includes(payload.action)) setSubscriptionConflict(null);
+      setMessage(successText); setReconcileInvoice(null); setVoidInvoice(null); setRejectedClaim(null); setVerifiedAmount(""); setVerifiedReference(""); setVerificationNotes(""); setVerificationConfirmed(false); setClaimRejectionReason(""); setVoidReason(""); await load();
+    }
+    catch (requestError) {
+      if (payload.action === "cancel_subscription") {
+        const context = requestError.context || {};
+        setSubscriptionConflict({ gymId: context.gym?.id || payload.gymId, gymName: context.gym?.name || "Selected Gym", invoice: context.invoice || null, message: requestError.message || "Could not cancel this subscription." });
+      } else setError(requestError.message || "The billing action could not be completed.");
+    }
     finally { setSaving(false); }
   }
 
@@ -116,6 +128,7 @@ export default function AdminBillingManager() {
     if (!claim || claim.status !== "submitted") return;
     setRejectedClaim({ invoice, claim }); setClaimRejectionReason("");
   }
+  function openVoid(invoice) { setVoidInvoice(invoice); setVoidReason(""); }
   const planColumns = [
     { key: "name", label: "Plan", render: (item) => <div><span className="admin-primary-cell">{item.name}</span><span className="admin-secondary-cell">{item.description || "No description"}</span></div> },
     { key: "price", label: "Price", render: (item) => `${amount(item.price)} / ${item.interval}` },
@@ -130,15 +143,22 @@ export default function AdminBillingManager() {
     { key: "plan", label: "Plan", render: (gym) => gym.subscription.planSnapshot?.name || "Plan unavailable" },
     { key: "status", label: "Status", render: (gym) => <Badge tone={statusTone(gym.subscription.status)}>{gym.subscription.status.replaceAll("_", " ")}</Badge> },
     { key: "renewal", label: "Renewal / trial end", render: (gym) => date(gym.subscription.trialEndsAt || gym.subscription.renewalDate) },
-    { key: "actions", label: "Actions", render: (gym) => <div className="admin-inline-actions"><Button type="button" variant="ghost" size="sm" disabled={saving || gym.subscription.pendingInvoiceId} onClick={() => action({ action: "renew_invoice", gymId: gym.id }, "Renewal invoice issued.")}>Issue renewal invoice</Button>{gym.subscription.status !== "cancelled" && <Button type="button" variant="danger" size="sm" disabled={saving} onClick={() => { if (window.confirm(`Cancel Fitivo subscription for ${gym.name}? Gym workspace access will be restricted.`)) action({ action: "cancel_subscription", gymId: gym.id }, "SaaS subscription cancelled. Gym access is now restricted."); }}>Cancel</Button>}</div> },
+    { key: "actions", label: "Actions", render: (gym) => <div className="space-y-2">
+      {subscriptionConflict?.gymId === gym.id && <div className="rounded-lg border border-warning-soft bg-canvas p-3 text-sm" role="alert">
+        <p className="font-semibold text-ink">Cancellation blocked for {subscriptionConflict.gymName || gym.name}</p>
+        <p className="mt-1 text-ink-muted">{subscriptionConflict.message}</p>
+        {subscriptionConflict.invoice && <><p className="mt-2 text-ink">{subscriptionConflict.invoice.invoiceNumber} · {subscriptionConflict.invoice.planSnapshot?.name} · {amount(subscriptionConflict.invoice.amountDue)} · pending</p><p className="text-xs text-ink-muted">Issued {date(subscriptionConflict.invoice.issuedAt)}</p><div className="mt-2 flex flex-wrap gap-2"><a className="text-brand underline" href={`#invoice-${subscriptionConflict.invoice.id}`}>Go to invoice history</a><Button type="button" variant="ghost" size="sm" onClick={() => openVerification(subscriptionConflict.invoice)}>Verify &amp; reconcile</Button><Button type="button" variant="danger" size="sm" onClick={() => openVoid(subscriptionConflict.invoice)}>Void invoice</Button></div></>}
+      </div>}
+      <div className="admin-inline-actions"><Button type="button" variant="ghost" size="sm" disabled={saving || gym.subscription.pendingInvoiceId} onClick={() => action({ action: "renew_invoice", gymId: gym.id }, "Renewal invoice issued.")}>Issue renewal invoice</Button>{gym.subscription.status !== "cancelled" && <Button type="button" variant="danger" size="sm" disabled={saving} onClick={() => { if (window.confirm(`Cancel Fitivo subscription for ${gym.name}? Gym workspace access will be restricted.`)) action({ action: "cancel_subscription", gymId: gym.id }, "SaaS subscription cancelled. Gym access is now restricted."); }}>Cancel</Button>}</div>
+    </div> },
   ];
   const invoiceColumns = [
-    { key: "invoiceNumber", label: "Invoice", render: (invoice) => <div><span className="admin-primary-cell">{invoice.invoiceNumber}</span><span className="admin-secondary-cell">{date(invoice.issuedAt)}</span></div> },
+    { key: "invoiceNumber", label: "Invoice", render: (invoice) => <div id={`invoice-${invoice.id}`}><span className="admin-primary-cell">{invoice.invoiceNumber}</span><span className="admin-secondary-cell">{date(invoice.issuedAt)}</span></div> },
     { key: "gymName", label: "Gym" },
     { key: "amountDue", label: "Amount", render: (invoice) => amount(invoice.amountDue) },
     { key: "period", label: "Period", render: (invoice) => `${date(invoice.periodStart)} – ${date(invoice.periodEnd)}` },
     { key: "status", label: "Status", render: (invoice) => <div><Badge tone={statusTone(invoice.status)}>{invoice.status}</Badge>{invoice.voidReason && <span className="admin-secondary-cell admin-void-reason">{invoice.voidReason}</span>}</div> },
-    { key: "action", label: "Action", render: (invoice) => <div className="admin-inline-actions">{invoice.status === "open" && <><Button type="button" variant="ghost" size="sm" onClick={() => openVerification(invoice)}>Verify &amp; reconcile</Button>{invoice.paymentClaims?.at(-1)?.status === "submitted" && <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => openClaimRejection(invoice)}>Reject claim</Button>}<Button type="button" variant="danger" size="sm" disabled={saving} onClick={() => { const reason = window.prompt("Why is this invoice being voided?"); if (reason?.trim()) action({ action: "void_invoice", invoiceId: invoice.id, reason }, "Invoice voided."); }}>Void</Button></>}{invoice.status === "paid" && <span className="admin-secondary-cell">Verified ref: {invoice.verifiedReference || invoice.paymentReference}</span>}</div> },
+    { key: "action", label: "Action", render: (invoice) => <div className="admin-inline-actions">{invoice.status === "open" && <><Button type="button" variant="ghost" size="sm" onClick={() => openVerification(invoice)}>Verify &amp; reconcile</Button>{invoice.paymentClaims?.at(-1)?.status === "submitted" && <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => openClaimRejection(invoice)}>Reject claim</Button>}<Button type="button" variant="danger" size="sm" disabled={saving} onClick={() => openVoid(invoice)}>Void</Button></>}{invoice.status === "paid" && <span className="admin-secondary-cell">Verified ref: {invoice.verifiedReference || invoice.paymentReference}</span>}</div> },
   ];
   const paymentQueueColumns = [
     { key: "invoice", label: "Invoice / issued", render: (invoice) => <div><span className="admin-primary-cell">{invoice.invoiceNumber}</span><span className="admin-secondary-cell">{date(invoice.issuedAt)}</span></div> },
@@ -206,6 +226,13 @@ export default function AdminBillingManager() {
         <label className="flex items-start gap-2 text-sm text-ink"><input type="checkbox" required checked={verificationConfirmed} onChange={(event) => setVerificationConfirmed(event.target.checked)} /><span>I independently verified receipt of the full invoice amount in the receiving account.</span></label>
         <p className="text-xs text-ink-muted">Reconciliation records the verifier, amount, reference and notes, then activates the subscription exactly once.</p>
         <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={saving} onClick={() => setReconcileInvoice(null)}>Cancel</Button><Button type="submit" disabled={saving || !verifiedReference.trim() || !verificationNotes.trim() || !verificationConfirmed || Number(verifiedAmount) !== reconcileInvoice?.amountDue} aria-busy={saving}>{saving ? "Reconciling…" : "Approve and reconcile"}</Button></div>
+      </form>
+    </Modal>
+    <Modal open={Boolean(voidInvoice)} onClose={() => { if (!saving) setVoidInvoice(null); }} title="Confirm invoice void" description={voidInvoice ? `${voidInvoice.invoiceNumber} · ${voidInvoice.gymName || "Gym"} · ${amount(voidInvoice.amountDue)}` : ""}>
+      <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); action({ action: "void_invoice", invoiceId: voidInvoice.id, reason: voidReason }, "Invoice voided. Subscription access was not activated by voiding."); }}>
+        <p className="text-sm text-ink-muted">Voiding preserves this invoice and its payment claims in billing history. It does not record payment or activate a plan.</p>
+        <label className="admin-billing-textarea-label" htmlFor="void-invoice-reason">Reason for voiding<textarea id="void-invoice-reason" required minLength={3} maxLength={300} rows={3} value={voidReason} onChange={(event) => setVoidReason(event.target.value)} /></label>
+        <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={saving} onClick={() => setVoidInvoice(null)}>Keep invoice</Button><Button type="submit" variant="danger" disabled={saving || !voidReason.trim()}>{saving ? "Voiding…" : "Confirm void invoice"}</Button></div>
       </form>
     </Modal>
     <Modal open={Boolean(rejectedClaim)} onClose={() => { if (!saving) setRejectedClaim(null); }} title="Reject payment claim" description={rejectedClaim ? `${rejectedClaim.invoice.invoiceNumber} · ${rejectedClaim.claim.reference}` : ""}>

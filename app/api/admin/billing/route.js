@@ -312,10 +312,29 @@ export async function POST(request) {
   if (body.action === "cancel_subscription") {
     if (typeof body.gymId !== "string" || !mongoose.isObjectIdOrHexString(body.gymId)) return errorResponse("Gym id is invalid.", 400, { gymId: "Choose a valid Gym." });
     try {
-      const existing = await Gym.findOne({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }).select("saasSubscription.pendingInvoiceId").lean();
-      if (existing?.saasSubscription?.pendingInvoiceId && await PlatformInvoice.exists({ _id: existing.saasSubscription.pendingInvoiceId, status: "open" })) return errorResponse("Void or reconcile the open invoice before cancelling this subscription.", 409);
+      const pendingInvoiceConflict = async (gym) => {
+        const pendingInvoiceId = gym?.saasSubscription?.pendingInvoiceId;
+        if (!pendingInvoiceId) return null;
+        const invoice = await PlatformInvoice.findOne({ _id: pendingInvoiceId, gymId: gym._id, status: "open" }).lean();
+        return invoice ? errorResponse(
+          "Void or reconcile the open invoice before cancelling this subscription.",
+          409,
+          undefined,
+          { code: "PENDING_INVOICE", gym: { id: String(gym._id), name: gym.name }, invoice: serializePlatformInvoice(invoice) },
+        ) : null;
+      };
+      const existing = await Gym.findOne({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }).select("name saasSubscription").lean();
+      if (!existing) return errorResponse("Gym SaaS subscription was not found.", 404);
+      const pendingConflict = await pendingInvoiceConflict(existing);
+      if (pendingConflict) return pendingConflict;
       const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true }, "saasSubscription.pendingInvoiceId": null }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { new: true, runValidators: true }).select("name slug status saasSubscription planChangeRequest").lean();
-      if (!gym) return errorResponse("Gym SaaS subscription was not found.", 404);
+      if (!gym) {
+        const current = await Gym.findOne({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }).select("name saasSubscription").lean();
+        if (!current) return errorResponse("Gym SaaS subscription was not found.", 404);
+        const racedConflict = await pendingInvoiceConflict(current);
+        if (racedConflict) return racedConflict;
+        return errorResponse("Gym SaaS subscription was not found or changed. Refresh the billing page and try again.", 409);
+      }
       return successResponse({ gym: serializeGym(gym) });
     } catch { return errorResponse("Could not cancel this SaaS subscription.", 503); }
   }
