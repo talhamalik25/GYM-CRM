@@ -1,5 +1,4 @@
 import "./globals.css";
-import "./marketing.css";
 import { Inter } from "next/font/google";
 
 const inter = Inter({
@@ -16,7 +15,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} scroll-smooth motion-reduce:scroll-auto`} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
