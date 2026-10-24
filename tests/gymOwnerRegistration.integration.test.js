@@ -215,7 +215,7 @@ test("public trial onboarding, expiry, verified reactivation and existing-gym is
       assert.equal(assigned.status, 201, JSON.stringify(await assigned.clone().json()));
       const invoice = (await assigned.json()).data.invoice;
       assert.equal((await dashboard(request("/api/dashboard/owner", ownerToken))).status, 403);
-      const reconciliation = { action: "reconcile_invoice", invoiceId: invoice.id, paymentReference: "BANK-VERIFIED-123" };
+      const reconciliation = { action: "reconcile_invoice", invoiceId: invoice.id, verifiedAmount: plan.price, verifiedReference: "BANK-VERIFIED-123", verificationNotes: "Matched external receipt to receiving account", paymentIndependentlyVerified: true };
       assert.equal((await action(reconciliation, ownerToken)).status, 403);
       assert.equal((await dashboard(request("/api/dashboard/owner", ownerToken))).status, 403);
       // Exercise a delayed verification: even an old invoice restores a usable paid term.
@@ -244,13 +244,15 @@ test("public trial onboarding, expiry, verified reactivation and existing-gym is
       await Gym.updateOne({ _id: gym._id }, { $set: { status: "active" } });
       const issued = await adminBilling(request("/api/admin/billing", adminToken, { action: "renew_invoice", gymId: String(gym._id) }));
       assert.equal(issued.status, 201);
-      const invoiceId = (await issued.json()).data.invoice.id;
+      const renewalInvoice = (await issued.json()).data.invoice;
+      const invoiceId = renewalInvoice.id;
       await Gym.updateOne({ _id: gym._id }, { $set: { status: "suspended" } });
-      assert.equal((await adminBilling(request("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId, paymentReference: "SUSPENDED-VERIFIED" }))).status, 200);
+      assert.equal((await adminBilling(request("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId, verifiedAmount: renewalInvoice.amountDue, verifiedReference: "SUSPENDED-VERIFIED", verificationNotes: "Matched transfer in receiving bank", paymentIndependentlyVerified: true }))).status, 200);
       assert.equal((await Gym.findById(gym._id)).status, "suspended");
       assert.equal((await dashboard(request("/api/dashboard/owner", ownerToken))).status, 403);
       await Gym.updateOne({ _id: gym._id }, { $set: { status: "active" } });
       assert.equal((await dashboard(request("/api/dashboard/owner", ownerToken))).status, 200, "early paid renewal preserves the currently active term");
+      assert.equal((await Gym.findById(gym._id).lean()).saasSubscription.periodEnd.getTime(), new Date(renewalInvoice.periodEnd).getTime());
       await Gym.updateOne({ _id: gym._id }, { $set: { status: "suspended" } });
       assert.equal((await logout(request("/api/auth/logout", ownerToken, {}))).status, 200);
       assert.equal((await dashboard(request("/api/dashboard/owner", ownerToken))).status, 401);
@@ -276,7 +278,7 @@ test("public trial onboarding, expiry, verified reactivation and existing-gym is
       assert.deepEqual(await readLegacy(), originalLegacy);
     });
 
-    await t.test("legacy reconciliation retains original invoice dates and admin free-plan behavior", async () => {
+    await t.test("legacy reconciliation retains invoice dates and complimentary grants are separate and audited", async () => {
       const periodStart = new Date(Date.now() - 3 * 86400000);
       const periodEnd = new Date(Date.now() + 27 * 86400000);
       const invoiceId = new mongoose.Types.ObjectId();
@@ -285,14 +287,20 @@ test("public trial onboarding, expiry, verified reactivation and existing-gym is
       await PlatformInvoice.create({ _id: invoiceId, invoiceNumber: "LEGACY-BILLING-TEST", gymId: legacy._id,
         planId: plan._id, planSnapshot: oldTrial.planSnapshot, amountDue: plan.price, currency: "PKR",
         periodStart, periodEnd, status: "open", issuedAt: periodStart, createdBy: admin._id });
-      const response = await adminBilling(request("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: String(invoiceId), paymentReference: "LEGACY-REFERENCE" }));
+      const response = await adminBilling(request("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: String(invoiceId), verifiedAmount: plan.price, verifiedReference: "LEGACY-REFERENCE", verificationNotes: "Matched funds against invoice", paymentIndependentlyVerified: true }));
       assert.equal(response.status, 200);
       const reconciled = await Gym.findById(legacy._id).lean();
-      assert.equal(reconciled.saasSubscription.periodStart.getTime(), periodStart.getTime());
-      assert.equal(reconciled.saasSubscription.periodEnd.getTime(), periodEnd.getTime());
+      assert.equal(reconciled.saasSubscription.periodStart.getTime(), (await PlatformInvoice.findById(invoiceId)).paidAt.getTime());
+      assert.ok(reconciled.saasSubscription.periodEnd > new Date());
       assert.equal(Object.hasOwn(reconciled, "publicTrial"), false);
       const free = await SaaSPlan.findOne({ price: 0 });
-      assert.equal((await adminBilling(request("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(legacy._id), planId: String(free._id), mode: "invoice" }))).status, 200);
+      assert.equal((await adminBilling(request("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(legacy._id), planId: String(free._id), mode: "invoice" }))).status, 400);
+      assert.equal((await adminBilling(request("/api/admin/billing", adminToken, { action: "grant_complimentary", gymId: String(legacy._id), planId: String(free._id) }))).status, 400);
+      const grant = await adminBilling(request("/api/admin/billing", adminToken, { action: "grant_complimentary", gymId: String(legacy._id), planId: String(free._id), reason: "Approved launch accommodation" }));
+      assert.equal(grant.status, 200);
+      const grantedGym = await Gym.findById(legacy._id).lean();
+      assert.equal(grantedGym.saasSubscription.complimentaryGrant.reason, "Approved launch accommodation");
+      assert.equal(String(grantedGym.saasSubscription.complimentaryGrant.grantedBy), String(admin._id));
       assert.equal(await PublicTrialClaim.countDocuments({ gymId: legacy._id }), 0);
       assert.deepEqual(await readLegacy(), originalLegacy);
     });

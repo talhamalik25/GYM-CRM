@@ -6,6 +6,9 @@ import { serializeAdminGym, validateGymStatusUpdate } from "../../../../../lib/a
 import Gym from "../../../../../models/Gym.js";
 import GymMembership from "../../../../../models/GymMembership.js";
 import { trialSummary } from "../../../../../lib/publicTrialAccess.js";
+import PlatformInvoice from "../../../../../models/PlatformInvoice.js";
+import SaaSPlan from "../../../../../models/SaaSPlan.js";
+import { serializeGymSaaSSubscription, serializePlatformInvoice, serializeSaaSPlan } from "../../../../../lib/platformBillingRules.js";
 
 async function readGymId(context) {
   const { id } = await context.params;
@@ -24,12 +27,20 @@ export async function GET(request, context) {
 
   try {
     await connectToDatabase();
-    const gym = await Gym.findById(id).select("name slug status timezone createdAt updatedAt publicTrial saasSubscription").lean();
+    const gym = await Gym.findById(id).select("name slug status timezone createdAt updatedAt publicTrial saasSubscription planChangeRequest").populate("saasSubscription.complimentaryGrant.grantedBy", "fullName email").lean();
     if (!gym) return errorResponse("Gym was not found.", 404);
-    const memberships = await GymMembership.find({ gymId: gym._id, role: "gym_owner", status: "active" })
-      .select("gymId userId").populate({ path: "userId", match: { isActive: { $ne: false } }, select: "fullName email" }).lean();
+    const [memberships, invoices, plans] = await Promise.all([
+      GymMembership.find({ gymId: gym._id, role: "gym_owner", status: "active" })
+        .select("gymId userId").populate({ path: "userId", match: { isActive: { $ne: false } }, select: "fullName email" }).lean(),
+      PlatformInvoice.find({ gymId: gym._id }).populate("createdBy reconciledBy voidedBy verifiedBy paymentClaims.submittedBy paymentClaims.reviewedBy", "fullName email")
+        .sort({ issuedAt: -1, _id: -1 }).limit(100).lean(),
+      SaaSPlan.find({ isActive: true }).sort({ price: 1, _id: 1 }).lean(),
+    ]);
     const trial = trialSummary(gym);
-    return successResponse({ ...serializeAdminGym(gym, memberships), ...(trial ? { trial } : {}) });
+    return successResponse({ ...serializeAdminGym(gym, memberships),
+      subscription: serializeGymSaaSSubscription(gym.saasSubscription, invoices),
+      planChangeRequest: gym.planChangeRequest ? { planId: String(gym.planChangeRequest.planId), requestedAt: gym.planChangeRequest.requestedAt } : null,
+      plans: plans.map(serializeSaaSPlan), ...(trial ? { trial } : {}) });
   } catch {
     console.error("Admin gym details could not be loaded.");
     return errorResponse("Could not load gym details. Please try again.", 503);

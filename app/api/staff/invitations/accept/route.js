@@ -1,3 +1,4 @@
+import { branchScope } from "../../../../../lib/branchRules.js";
 import { assertGymLimit, EntitlementError, entitlementErrorResponse } from "../../../../../lib/entitlements.js";
 import Branch from "../../../../../models/Branch.js";
 import mongoose from "mongoose";
@@ -27,7 +28,7 @@ export async function POST(request) {
     if (!invitation || !["gym_admin", "trainer"].includes(invitation.role) || !await Gym.exists({ _id: invitation.gymId, status: "active" })) {
       return json({ success: false, error: { message: "This invitation is invalid or expired." } }, 400);
     }
-    if (invitation.role === "trainer" && !await Trainer.exists({ gymId: invitation.gymId, email: invitation.email, status: "active" })) {
+    if (invitation.role === "trainer" && !await Trainer.exists({ ...branchScope(invitation.gymId, invitation.branchId), email: invitation.email, status: "active" })) {
       return json({ success: false, error: { message: "The active trainer profile for this invitation is no longer available." } }, 409);
     }
     const existingUser = await User.findOne({ email: invitation.email }).select("_id role isActive").lean();
@@ -68,7 +69,7 @@ export async function POST(request) {
           throw new Error("OTHER_ACTIVE_MEMBERSHIP");
         }
         if (await GymMembership.exists({ userId: memberId, gymId: invitation.gymId }).session(mongoSession)) throw new Error("MEMBERSHIP_EXISTS");
-        if (invitation.role === "trainer" && !await Trainer.exists({ gymId: invitation.gymId, email: invitation.email, status: "active" }).session(mongoSession)) throw new Error("TRAINER_PROFILE_MISSING");
+        if (invitation.role === "trainer" && !await Trainer.exists({ ...branchScope(invitation.gymId, invitation.branchId), email: invitation.email, status: "active" }).session(mongoSession)) throw new Error("TRAINER_PROFILE_MISSING");
         const claimed = await StaffInvitation.findOneAndUpdate(
           { _id: invitation._id, tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } },
           { $set: { status: "accepted" } }, { new: true, session: mongoSession },

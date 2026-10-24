@@ -1354,6 +1354,28 @@ button.owner-text-link { border: 0; padding: 0; background: transparent; text-al
 .admin-gym-detail-owners li { display: grid; gap: 4px; }
 .admin-gym-detail-owners li span { font-weight: 500; }
 .admin-gym-detail-owners li small { color: var(--ink-subtle); font-size: 13px; }
+.admin-gym-subscription-card { display: grid; gap: 18px; padding: var(--card-padding); }
+.admin-gym-subscription-actions { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 18px; padding-top: 18px; border-top: 1px solid var(--divider); }
+.admin-gym-subscription-actions h3, .admin-gym-subscription-history h3 { margin: 0; color: var(--ink); font-size: 15px; font-weight: 600; }
+.admin-gym-subscription-actions p, .admin-gym-subscription-history > p { max-width: 620px; margin: 5px 0 0; color: var(--ink-subtle); font-size: 13px; line-height: 1.5; }
+.admin-gym-subscription-actions form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.admin-gym-subscription-actions form > div { min-width: 220px; }
+.admin-subscription-term-note { max-width: 250px; margin: 0; color: var(--ink-subtle); font-size: 12px; line-height: 1.45; }
+.admin-pending-invoice { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--warning-soft); border-radius: var(--radius-card); background: var(--surface); }
+.admin-pending-invoice h3 { margin: 0; color: var(--ink); font-size: 15px; font-weight: 600; }
+.admin-pending-invoice > div:first-child p, .admin-pending-invoice-blocked { margin: 5px 0 0; color: var(--ink-subtle); font-size: 13px; line-height: 1.5; }
+.admin-pending-invoice dl, .admin-invoice-detail-modal dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 18px; margin: 0; }
+.admin-pending-invoice dt, .admin-invoice-detail-modal dt { color: var(--ink-subtle); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.admin-pending-invoice dd, .admin-invoice-detail-modal dd { margin: 4px 0 0; color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+.admin-pending-invoice-blocked { color: var(--warning); }
+.admin-invoice-detail-modal { display: grid; gap: 16px; }
+.admin-invoice-detail-modal > p { margin: 0; color: var(--ink-subtle); font-size: 13px; line-height: 1.5; }
+.admin-gym-subscription-history { display: grid; gap: 12px; padding-top: 18px; border-top: 1px solid var(--divider); }
+.admin-gym-subscription-history .admin-table-scroll { overflow-x: auto; }
+.admin-gym-subscription-history table { width: 100%; min-width: 700px; border-collapse: collapse; text-align: left; font-size: 13px; }
+.admin-gym-subscription-history th { padding: 10px; color: var(--ink-subtle); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--divider); }
+.admin-gym-subscription-history td { padding: 12px 10px; color: var(--ink-muted); vertical-align: top; border-bottom: 1px solid var(--divider); }
+.admin-gym-subscription-history td small { display: block; margin-top: 4px; color: var(--ink-subtle); font-size: 11px; }
 .admin-billing-page { display: grid; gap: var(--section-gap); min-width: 0; }
 .admin-billing-page > .ui-page-header { margin-bottom: 0; }
 .admin-billing-notice { padding: 16px 18px; border: 1px solid var(--warning-soft); border-radius: var(--radius-card); background: var(--surface); }

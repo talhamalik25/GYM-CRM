@@ -29,7 +29,7 @@ export default function PlanComparison({ data, onRequested }) {
     {data.planChangeRequest && <p className="rounded-lg bg-canvas p-4 text-sm">A plan request is awaiting Superadmin review. Your current access remains unchanged.</p>}
     <div className="grid items-stretch gap-5 lg:grid-cols-3">{data.plans?.map((plan) => {
       const entitlements = snapshotEntitlements(plan);
-      const current = data.subscription?.planId === plan.id;
+      const current = data.subscription?.planId === plan.id && data.subscription.status !== "past_due";
       return <Card className={`flex flex-col p-6 ${current ? "ring-2 ring-blue-600" : ""}`} key={plan.id}>
         <div className="flex items-center justify-between"><h3 className="text-xl font-semibold">{plan.name}</h3>{current && <span className="rounded-full bg-canvas px-3 py-1 text-xs">Current plan</span>}</div>
         <p className="mt-4 text-3xl font-semibold">PKR {plan.price.toLocaleString("en-PK")}</p><p className="mt-1 text-sm text-ink-muted">per {plan.interval === "monthly" ? "month" : "year"}</p>

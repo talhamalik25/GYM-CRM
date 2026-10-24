@@ -16,7 +16,9 @@ try {
   if (!await db.collection("gyms").findOne({ _id: gymId })) throw new Error("Organization not found.");
   if (!apply && !rollback) {
     const report = await inspectBranchMigration(db, gymId);
-    console.log(JSON.stringify({ mode: "dry-run", gymId, counts: report.counts, issues: report.issues, valid: !report.issues.length }, null, 2));
+    const unscopedRecords = {};
+    for (const collection of ["members", "trainers", "plans", "subscriptions", "payments", "attendances"]) unscopedRecords[collection] = await db.collection(collection).countDocuments({ gymId: null });
+    console.log(JSON.stringify({ mode: "dry-run", gymId, unscopedRecords, counts: report.counts, issues: report.issues, valid: !report.issues.length }, null, 2));
     if (report.issues.length) process.exitCode = 1;
   } else {
     // Pre-create only the journal collection outside the transaction, if absent.

@@ -70,7 +70,9 @@ test("gym list and status endpoints require platform superadmin authorization", 
   const listSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/route.js", import.meta.url)), "utf8");
   const updateSource = await readFile(fileURLToPath(new URL("../app/api/admin/gyms/[id]/route.js", import.meta.url)), "utf8");
   assert.equal((updateSource.match(/await requireSuperadminUser\(request\)/g) || []).length, 2);
-  assert.match(updateSource, /Gym\.findById\(id\)\.select\("name slug status timezone createdAt updatedAt publicTrial saasSubscription"\)/);
+  assert.match(updateSource, /Gym\.findById\(id\)\.select\("name slug status timezone createdAt updatedAt publicTrial saasSubscription planChangeRequest"\)/);
+  assert.match(updateSource, /PlatformInvoice\.find\(\{ gymId: gym\._id \}\)/);
+  assert.match(updateSource, /serializeGymSaaSSubscription\(gym\.saasSubscription, invoices\)/);
   assert.match(updateSource, /populate\(\{ path: "userId", match: \{ isActive: \{ \$ne: false \} \}, select: "fullName email" \}\)/);
   assert.doesNotMatch(updateSource, /models\/(?:Payment|Subscription|Member)\.js|Member\.find/);
   assert.match(listSource, /await requireSuperadminUser\(request\)/);
@@ -100,5 +102,16 @@ test("gym list and status endpoints require platform superadmin authorization", 
   assert.match(detailComponent, /import ErrorState/);
   assert.match(detailComponent, /<ErrorState/);
   assert.match(detailComponent, /No active owner assigned/);
+  assert.match(detailComponent, /Fitivo subscription/);
+  assert.match(detailComponent, /Issue plan invoice/);
+  assert.match(detailComponent, /Create renewal invoice/);
+  assert.match(detailComponent, /Pending payment/);
+  assert.match(detailComponent, /Pending invoice blocks another plan change/);
+  assert.match(detailComponent, /View invoice/);
+  assert.match(detailComponent, /Reconcile verified payment/);
+  assert.match(detailComponent, /Void invoice/);
+  assert.match(detailComponent, /I independently verified full payment in the receiving account/);
+  assert.match(detailComponent, /Reason for voiding/);
+  assert.match(detailComponent, /pendingInvoiceId/);
   assert.match(detailComponent, /Back to gyms/i);
 });

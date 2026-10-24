@@ -41,6 +41,7 @@ const gymSchema = new mongoose.Schema({
       renewalDate: { type: Date, default: null },
       pendingInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: "PlatformInvoice", default: null },
       autoRenew: { type: Boolean, default: false, required: true },
+      complimentaryGrant: { type: new mongoose.Schema({ reason: { type: String, required: true, trim: true, maxlength: 300 }, grantedAt: { type: Date, required: true }, grantedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true } }, { _id: false }), default: undefined },
     }, { _id: false }),
     default: undefined,
   },

@@ -38,7 +38,7 @@ test("authorized Gym owners receive a one-time share link when email delivery is
   assert.match(manager, /Share the single-use link with the invitee within 7 days/);
   assert.match(manager, /useState\("gym_admin"\)/);
   assert.match(manager, /<option value="trainer">Trainer<\/option>/);
-  assert.ok(route.includes('Trainer.exists({ gymId: getRequestGymId(request), email: validation.email, status: "active" })'));
+  assert.ok(route.includes('Trainer.exists({ ...branchScope(getRequestGymId(request), assignedBranch), email: validation.email, status: "active" })'));
 });
 
 test("invitation acceptance rejects malformed tokens before database access", async () => {

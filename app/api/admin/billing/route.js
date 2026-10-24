@@ -9,7 +9,7 @@ import { errorResponse, successResponse } from "../../../../lib/planApiResponse.
 import {
   addBillingInterval, createPlatformInvoiceNumber, invoiceMatchesPendingSubscription, planSnapshot, serializeGymSaaSSubscription, serializePlatformInvoice,
   serializeSaaSPlan, validateInvoiceVoid, validateManualReconciliation, validatePlanAssignment,
-  validatePlatformSettings, validateSaaSPlanBody,
+  validatePaymentClaimRejection, validatePlatformSettings, validateSaaSPlanBody,
 } from "../../../../lib/platformBillingRules.js";
 import Gym from "../../../../models/Gym.js";
 import PlatformInvoice from "../../../../models/PlatformInvoice.js";
@@ -46,10 +46,10 @@ export async function GET(request) {
     const [plans, gyms, invoices, settings] = await Promise.all([
       SaaSPlan.find({}).sort({ createdAt: -1, _id: 1 }).lean(),
       Gym.find({}).select("name slug status saasSubscription planChangeRequest").sort({ name: 1, _id: 1 }).lean(),
-      PlatformInvoice.find({}).populate("gymId", "name").sort({ issuedAt: -1, _id: -1 }).limit(100).lean(),
+      PlatformInvoice.find({}).populate("gymId", "name").populate("createdBy reconciledBy voidedBy verifiedBy paymentClaims.submittedBy paymentClaims.reviewedBy", "fullName email").sort({ issuedAt: -1, _id: -1 }).limit(500).lean(),
       PlatformSetting.findById("fitivo").lean(),
     ]);
-    return successResponse({ plans: plans.map(serializeSaaSPlan), gyms: await Promise.all(gyms.map(async (gym) => ({ ...serializeGym(gym), usage: await getGymUsage(gym._id), branches: await listGymBranches(gym._id) }))), invoices: invoices.map(serializePlatformInvoice), settings: { defaultTrialDays: settings?.defaultTrialDays ?? 0, manualBillingInstructions: settings?.manualBillingInstructions || "" } });
+    return successResponse({ plans: plans.map(serializeSaaSPlan), gyms: await Promise.all(gyms.map(async (gym) => ({ ...serializeGym(gym), usage: await getGymUsage(gym._id), branches: await listGymBranches(gym._id) }))), invoices: invoices.map(serializePlatformInvoice), settings: { defaultTrialDays: settings?.defaultTrialDays ?? 0, manualBillingInstructions: settings?.manualBillingInstructions || "", paymentInstructions: settings?.paymentInstructions || [] } });
   } catch {
     console.error("Platform billing data could not be loaded.");
     return errorResponse("Could not load platform billing. Please try again.", 503);
@@ -112,7 +112,7 @@ export async function POST(request) {
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
     try {
       const settings = await PlatformSetting.findByIdAndUpdate("fitivo", { $set: validation }, { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }).lean();
-      return successResponse({ settings: { defaultTrialDays: settings.defaultTrialDays, manualBillingInstructions: settings.manualBillingInstructions || "" } });
+      return successResponse({ settings: { defaultTrialDays: settings.defaultTrialDays, manualBillingInstructions: settings.manualBillingInstructions || "", paymentInstructions: settings.paymentInstructions || [] } });
     } catch { return errorResponse("Could not save platform billing settings.", 503); }
   }
 
@@ -126,11 +126,44 @@ export async function POST(request) {
     if (validation.mode === "trial") return errorResponse("Seven-day trials are assigned only during new gym provisioning. Existing gyms cannot receive another trial.", 409);
     try {
       const result = await issuePlanChangeInvoice(validation.gymId, validation.planId, actorId);
-      return successResponse({ gym: serializeGym(result.gym), invoice: serializePlatformInvoice(result.invoice) }, 201);
+      return successResponse({ gym: serializeGym(result.gym), invoice: result.invoice ? serializePlatformInvoice(result.invoice) : null }, result.invoice ? 201 : 200);
     } catch (error) {
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       return errorResponse("Could not issue the plan change invoice.", 503);
     }
+  }
+
+  if (body.action === "grant_complimentary") {
+    if (typeof body.gymId !== "string" || !mongoose.isObjectIdOrHexString(body.gymId)) return errorResponse("Gym id is invalid.", 400, { gymId: "Choose a valid Gym." });
+    if (typeof body.planId !== "string" || !mongoose.isObjectIdOrHexString(body.planId)) return errorResponse("Plan id is invalid.", 400, { planId: "Choose a valid zero-price plan." });
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (Object.keys(body).some((key) => !["action", "gymId", "planId", "reason"].includes(key)) || !reason || reason.length > 300) {
+      return errorResponse("A complimentary grant requires a reason of up to 300 characters.", 400, { reason: "Enter the reason for this complimentary grant." });
+    }
+    const session = await mongoose.startSession();
+    let updated;
+    try {
+      await session.withTransaction(async () => {
+        const gym = await lockGym(body.gymId, session);
+        if (gym.status !== "active") throw new EntitlementError("An active gym is required.", "GYM_UNAVAILABLE", 409);
+        if (gym.saasSubscription?.pendingInvoiceId) throw new EntitlementError("Reconcile or void the pending invoice first.", "INVOICE_PENDING", 409);
+        const plan = await SaaSPlan.findOne({ _id: body.planId, isActive: true, price: 0 }).session(session).lean();
+        if (!plan) throw new EntitlementError("Choose an active zero-price plan for a complimentary grant.", "INVALID_PLAN", 400);
+        const snapshot = planSnapshot(plan);
+        await assertPlanFits(body.gymId, snapshot, session);
+        const now = new Date();
+        updated = await Gym.findByIdAndUpdate(body.gymId, { $set: { saasSubscription: {
+          planId: plan._id, planSnapshot: snapshot, status: "active", periodStart: now,
+          periodEnd: addBillingInterval(now, plan.interval), trialStartedAt: null, trialEndsAt: null,
+          renewalDate: null, pendingInvoiceId: null, autoRenew: false,
+          complimentaryGrant: { reason, grantedAt: now, grantedBy: actorId },
+        } }, $unset: { planChangeRequest: 1 } }, { new: true, session, runValidators: true }).lean();
+      });
+      return successResponse({ gym: serializeGym(updated), granted: true });
+    } catch (error) {
+      if (error instanceof EntitlementError) return entitlementErrorResponse(error);
+      return errorResponse("Could not grant complimentary access.", 503);
+    } finally { await session.endSession(); }
   }
 
   if (body.action === "renew_invoice") {
@@ -149,7 +182,7 @@ export async function POST(request) {
       try {
         await session.withTransaction(async () => {
           invoice = await createInvoice({ gymId: gym._id, planId: subscription.planId, snapshot: subscription.planSnapshot, periodStart, periodEnd, createdBy: actorId, session });
-          const updated = await Gym.updateOne({ _id: gym._id, "saasSubscription.pendingInvoiceId": subscription.pendingInvoiceId || null }, { $set: { "saasSubscription.pendingInvoiceId": invoice._id } }, { session });
+          const updated = await Gym.updateOne({ _id: gym._id, "saasSubscription.pendingInvoiceId": subscription.pendingInvoiceId || null }, { $set: { "saasSubscription.pendingInvoiceId": invoice._id }, $unset: { planChangeRequest: 1 } }, { session });
           if (updated.modifiedCount !== 1) throw new Error("Subscription changed; retry invoice creation.");
         });
       } finally { await session.endSession(); }
@@ -161,7 +194,7 @@ export async function POST(request) {
 
   if (body.action === "reconcile_invoice") {
     if (typeof body.invoiceId !== "string" || !mongoose.isObjectIdOrHexString(body.invoiceId)) return errorResponse("Invoice id is invalid.", 400, { invoiceId: "Choose a valid invoice." });
-    const validation = validateManualReconciliation({ paymentReference: body.paymentReference });
+    const validation = validateManualReconciliation({ verifiedAmount: body.verifiedAmount, verifiedReference: body.verifiedReference, verificationNotes: body.verificationNotes, paymentIndependentlyVerified: body.paymentIndependentlyVerified });
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
     const session = await mongoose.startSession();
     let reconciled;
@@ -169,23 +202,32 @@ export async function POST(request) {
       await session.withTransaction(async () => {
         const invoice = await PlatformInvoice.findOne({ _id: body.invoiceId, status: "open" }).session(session);
         if (!invoice) throw new Error("Invoice is missing or is not open.");
+        if (validation.verifiedAmount !== invoice.amountDue) throw new Error("Verified amount does not match invoice amount.");
         const gym = await lockGym(invoice.gymId, session);
         if (!gym || !invoiceMatchesPendingSubscription(gym.saasSubscription, invoice)) throw new Error("Invoice does not match the Gym's pending subscription.");
         await assertPlanFits(gym._id, invoice.planSnapshot, session);
         invoice.status = "paid";
         invoice.paidAt = new Date();
-        // New public gyms receive a usable paid term even when manual payment
-        // verification happens long after issuance. Preserve legacy terms.
-        if (invoice.changesPlan || gym.publicTrial?.version === 1) {
-          invoice.periodStart = invoice.changesPlan ? invoice.paidAt : new Date(Math.max(invoice.periodStart.getTime(), invoice.paidAt.getTime()));
+        // Activation policy: a plan change starts on verified payment; a renewal
+        // starts at its proposed future renewal boundary, or at payment time if
+        // that boundary elapsed while payment was pending. No paid days are lost.
+        if (invoice.changesPlan || invoice.periodStart <= invoice.paidAt) {
+          invoice.periodStart = invoice.paidAt;
           invoice.periodEnd = addBillingInterval(invoice.periodStart, invoice.planSnapshot.interval);
         }
         const current = gym.saasSubscription;
         const accessStart = !invoice.changesPlan && current.status === "active"
           && current.periodStart <= invoice.paidAt && current.periodEnd > invoice.paidAt
           && current.periodEnd >= invoice.periodStart ? current.periodStart : invoice.periodStart;
-        invoice.paymentReference = validation.paymentReference;
+        invoice.verifiedAmount = validation.verifiedAmount;
+        invoice.verifiedReference = validation.verifiedReference;
+        invoice.verificationNotes = validation.verificationNotes;
+        invoice.verifiedAt = invoice.paidAt;
+        invoice.verifiedBy = actorId;
+        invoice.paymentReference = validation.verifiedReference;
         invoice.reconciledBy = actorId;
+        const claim = [...invoice.paymentClaims].reverse().find((item) => item.status === "submitted");
+        if (claim) { claim.status = "approved"; claim.reviewedAt = invoice.paidAt; claim.reviewedBy = actorId; }
         await invoice.save({ session });
         const subscriptionUpdate = await Gym.updateOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: {
           "saasSubscription.planId": invoice.planId, "saasSubscription.planSnapshot": invoice.planSnapshot,
@@ -193,7 +235,7 @@ export async function POST(request) {
           "saasSubscription.periodEnd": invoice.periodEnd, "saasSubscription.renewalDate": invoice.periodEnd,
           "saasSubscription.trialStartedAt": null, "saasSubscription.trialEndsAt": null,
           "saasSubscription.pendingInvoiceId": null,
-        } }, { session });
+        }, $unset: { "saasSubscription.complimentaryGrant": 1 } }, { session });
         if (subscriptionUpdate.modifiedCount !== 1) throw new Error("Invoice is no longer pending for this Gym subscription.");
         reconciled = invoice.toObject();
       });
@@ -202,10 +244,36 @@ export async function POST(request) {
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       if (error.message === "Invoice is missing or is not open.") return errorResponse(error.message, 409);
       if (error.message === "Invoice does not match the Gym's pending subscription.") return errorResponse(error.message, 409);
+      if (error.message === "Verified amount does not match invoice amount.") return errorResponse(error.message, 400, { verifiedAmount: "Verified amount must equal the invoice amount." });
       return errorResponse("Could not reconcile this invoice. Please try again.", 503);
     }
     await session.endSession();
     return successResponse({ invoice: serializePlatformInvoice(reconciled) });
+  }
+
+  if (body.action === "reject_payment_claim") {
+    if (Object.keys(body).some((key) => !["action", "invoiceId", "claimId", "reason"].includes(key))) return errorResponse("Payment claim review contains unsupported fields.", 400);
+    const validation = validatePaymentClaimRejection({ invoiceId: body.invoiceId, claimId: body.claimId, reason: body.reason });
+    if (validation.message) return errorResponse(validation.message, 400, validation.fields);
+    const session = await mongoose.startSession();
+    let invoiceResult;
+    try {
+      await session.withTransaction(async () => {
+        const invoice = await PlatformInvoice.findOne({ _id: validation.invoiceId, status: "open" }).session(session);
+        if (!invoice) throw new Error("Invoice is missing or is not open.");
+        const gym = await lockGym(invoice.gymId, session);
+        if (!gym || String(gym.saasSubscription?.pendingInvoiceId) !== String(invoice._id)) throw new Error("Invoice is no longer pending for this Gym.");
+        const claim = invoice.paymentClaims.id(validation.claimId);
+        if (!claim || claim.status !== "submitted") throw new Error("Payment claim is missing or has already been reviewed.");
+        claim.status = "rejected"; claim.reviewedAt = new Date(); claim.reviewedBy = actorId; claim.rejectionReason = validation.reason;
+        await invoice.save({ session });
+        invoiceResult = invoice.toObject();
+      });
+    } catch (error) {
+      if (error.message === "Invoice is missing or is not open." || error.message === "Invoice is no longer pending for this Gym." || error.message === "Payment claim is missing or has already been reviewed.") return errorResponse(error.message, 409);
+      return errorResponse("Could not reject the payment claim.", 503);
+    } finally { await session.endSession(); }
+    return successResponse({ invoice: serializePlatformInvoice(invoiceResult) });
   }
 
   if (body.action === "void_invoice") {
@@ -223,7 +291,12 @@ export async function POST(request) {
         invoice.voidedBy = actorId;
         invoice.voidReason = validation.reason;
         await invoice.save({ session });
-        await Gym.updateOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: { "saasSubscription.pendingInvoiceId": null } }, { session });
+        const gym = await Gym.findOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }).session(session);
+        if (gym) {
+          const values = { "saasSubscription.pendingInvoiceId": null };
+          if (gym.saasSubscription.status === "past_due") values["saasSubscription.status"] = "expired";
+          await Gym.updateOne({ _id: gym._id, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: values }, { session });
+        }
         voided = invoice.toObject();
       });
     } catch (error) {

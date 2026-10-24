@@ -38,7 +38,7 @@ export async function POST(request) {
     await connectToDatabase();
     // Fail closed if eligibility indexes are unavailable, including when
     // automatic index creation is disabled by the deployment.
-    await Promise.all([User.init(), Gym.init(), GymMembership.init(), AuthSession.init(), PublicTrialClaim.init()]);
+    await Promise.all([User.init(), Gym.init(), GymMembership.init(), AuthSession.init(), PublicTrialClaim.init(), Branch.init()]);
     for (const [Model, fields] of [[User, ["email"]], [Gym, ["slug"]], [PublicTrialClaim, ["email", "gymSlug"]]]) {
       const indexes = await Model.listIndexes();
       if (fields.some((field) => !indexes.some((index) => index.unique && !index.partialFilterExpression && !index.sparse && Object.keys(index.key).length === 1 && index.key[field] === 1))) {

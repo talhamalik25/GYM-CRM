@@ -1,3 +1,4 @@
+import { branchScope } from "../../../../lib/branchRules.js";
 import { listGymBranches } from "../../../../lib/branches.js";
 import { assertGymFeature, EntitlementError, entitlementErrorResponse } from "../../../../lib/entitlements.js";
 import connectToDatabase from "../../../../lib/db.js";
@@ -41,7 +42,7 @@ export async function POST(request) {
     if (targetUser && (targetUser.role !== "staff" || !targetUser.isActive)) {
       return json({ success: false, error: { message: "This email belongs to an inactive or platform-level account and cannot be invited." } }, 409);
     }
-    if (validation.role === "trainer" && !await Trainer.exists({ gymId: getRequestGymId(request), email: validation.email, status: "active" })) {
+    if (validation.role === "trainer" && !await Trainer.exists({ ...branchScope(getRequestGymId(request), assignedBranch), email: validation.email, status: "active" })) {
       return json({ success: false, error: { message: "Create an active trainer profile with this email before sending a trainer invitation." }, fields: { email: "An active trainer profile must use this email." } }, 400);
     }
     if (targetUser && await GymMembership.exists({ gymId: getRequestGymId(request), status: "active", userId: targetUser._id })) {

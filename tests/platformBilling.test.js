@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { GET as adminBilling, POST as updateAdminBilling } from "../app/api/admin/billing/route.js";
 import { GET as gymBilling } from "../app/api/gym/billing/route.js";
 import { POST as processSaaSExpiry } from "../app/api/cron/saas-expiry/route.js";
-import { addBillingInterval, expiredSaaSPaidPeriodFilter, expiredSaaSTrialFilter, invoiceMatchesPendingSubscription, serializeGymSaaSSubscription, validateInvoiceVoid, validateManualReconciliation, validatePlatformSettings, validateSaaSPlanBody } from "../lib/platformBillingRules.js";
+import { addBillingInterval, expiredSaaSPaidPeriodFilter, expiredSaaSTrialFilter, invoiceMatchesPendingSubscription, serializeGymSaaSSubscription, validateInvoiceVoid, validateManualReconciliation, validatePaymentClaim, validatePaymentClaimRejection, validatePlatformSettings, validateSaaSPlanBody } from "../lib/platformBillingRules.js";
 
 test("SaaS plans validate prices, intervals, and only supported feature limits", () => {
   assert.deepEqual(validateSaaSPlanBody({ name: "Growth", price: 2500, interval: "monthly", limits: { members: 100, trainers: null } }), { name: "Growth", price: 2500, interval: "monthly", limits: { members: 100, trainers: null } });
@@ -32,6 +32,18 @@ test("Gym SaaS billing reports expired trials and paid periods at their boundary
   assert.equal(serializeGymSaaSSubscription({ ...base, status: "active", periodEnd: now }, [], now).status, "expired");
 });
 
+test("subscription history serialization exposes invoice actors and explicit complimentary grant audit", () => {
+  const grantActor = { _id: "admin-id", fullName: "Platform Admin", email: "admin@example.test" };
+  const invoiceActor = { _id: "verifier-id", email: "verifier@example.test" };
+  const subscription = { planId: "plan-id", planSnapshot: { name: "Basic" }, status: "active", complimentaryGrant: { reason: "Launch accommodation", grantedAt: new Date("2026-10-20T00:00:00Z"), grantedBy: grantActor } };
+  const invoice = { _id: "invoice-id", invoiceNumber: "FITIVO-1", gymId: "gym-id", planId: "plan-id", planSnapshot: { name: "Basic" }, previousPlanSnapshot: { name: "Pro" }, changesPlan: true, amountDue: 2999, currency: "PKR", periodStart: new Date("2026-10-20T00:00:00Z"), periodEnd: new Date("2026-11-20T00:00:00Z"), status: "paid", issuedAt: new Date("2026-10-19T00:00:00Z"), paidAt: new Date("2026-10-20T00:00:00Z"), createdBy: invoiceActor, reconciledBy: invoiceActor };
+  const result = serializeGymSaaSSubscription(subscription, [invoice]);
+  assert.equal(result.complimentaryGrant.reason, "Launch accommodation");
+  assert.equal(result.complimentaryGrant.grantedBy.name, "Platform Admin");
+  assert.equal(result.invoices[0].previousPlanSnapshot.name, "Pro");
+  assert.equal(result.invoices[0].reconciledBy.name, "verifier@example.test");
+});
+
 test("expiry processing selects boundary-expired terms once and invoice reconciliation requires its pending subscription", () => {
   const now = new Date("2026-10-20T00:00:00.000Z");
   assert.deepEqual(expiredSaaSTrialFilter(now), { "saasSubscription.status": "trialing", $or: [{ "saasSubscription.trialEndsAt": { $lte: now } }, { "saasSubscription.trialEndsAt": null }] });
@@ -44,11 +56,16 @@ test("expiry processing selects boundary-expired terms once and invoice reconcil
 });
 
 test("manual reconciliation, invoice voiding, and platform settings require bounded valid input", () => {
-  assert.ok(validateManualReconciliation({ paymentReference: "  BANK-123 " }).paymentReference === "BANK-123");
-  assert.ok(validateManualReconciliation({ paymentReference: "" }).message);
+  const verified = validateManualReconciliation({ verifiedAmount: 2999, verifiedReference: " BANK-123 ", verificationNotes: "Checked receiving account", paymentIndependentlyVerified: true });
+  assert.equal(verified.verifiedReference, "BANK-123");
+  assert.ok(validateManualReconciliation({ verifiedAmount: 2999, verifiedReference: "BANK-123", verificationNotes: "Checked", paymentIndependentlyVerified: false }).message);
+  assert.ok(validateManualReconciliation({ verifiedAmount: 1, verifiedReference: "BANK-123", verificationNotes: "Checked receiving account", paymentIndependentlyVerified: true }).verifiedAmount === 1);
+  assert.ok(validatePaymentClaim({ invoiceId: "507f1f77bcf86cd799439011", reference: "WALLET-123" }).reference === "WALLET-123");
+  assert.ok(validatePaymentClaimRejection({ invoiceId: "507f1f77bcf86cd799439011", claimId: "507f1f77bcf86cd799439012", reason: "Reference not received" }).reason);
   assert.equal(validateInvoiceVoid({ reason: "Duplicate invoice" }).reason, "Duplicate invoice");
   assert.ok(validateInvoiceVoid({ reason: " " }).message);
-  assert.deepEqual(validatePlatformSettings({ defaultTrialDays: 14, manualBillingInstructions: "Pay by transfer" }), { defaultTrialDays: 14, manualBillingInstructions: "Pay by transfer" });
+  assert.deepEqual(validatePlatformSettings({ defaultTrialDays: 14, manualBillingInstructions: "Pay by transfer", paymentInstructions: [{ type: "bank_transfer", instructions: "Use the Fitivo invoice number." }] }), { defaultTrialDays: 14, manualBillingInstructions: "Pay by transfer", paymentInstructions: [{ type: "bank_transfer", instructions: "Use the Fitivo invoice number." }] });
+  assert.ok(validatePlatformSettings({ paymentInstructions: [{ type: "crypto", instructions: "Send funds" }] }).message);
   assert.ok(validatePlatformSettings({ defaultTrialDays: 91 }).message);
   assert.ok(validatePlatformSettings({ providerSecret: "x" }).fields.providerSecret);
 });

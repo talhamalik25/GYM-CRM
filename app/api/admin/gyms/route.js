@@ -46,7 +46,7 @@ export async function POST(request) {
   let session;
   try {
     await connectToDatabase();
-    await PublicTrialClaim.init();
+    await Promise.all([PublicTrialClaim.init(), Branch.init()]);
     const validation = validateGymProvisioning(body, { defaultTrialDays: 7 });
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
     const actor = await getAuthenticatedUserFromRequest(request);
@@ -59,6 +59,7 @@ export async function POST(request) {
       if (!owner) throw new GymProvisioningError("An active staff account with this email was not found.", 404, { ownerEmail: "Choose an existing active staff account." });
       await lockOwnerAccountForAssignment(owner, session, User);
       await ensureNoConflictingGymMembership(owner._id, session, GymMembership);
+      if (await PublicTrialClaim.exists({ $or: [{ userId: owner._id }, { email: owner.email }, { gymSlug: validation.slug }] }).session(session)) throw new GymProvisioningError("This owner or gym identity has already received a trial. Manage the existing gym subscription instead.", 409);
       const now = new Date();
       const plan = await SaaSPlan.findOne(validation.planId ? { _id: validation.planId, isActive: true } : { key: "basic", isActive: true }).session(session).lean();
       if (!plan) throw new GymProvisioningError("Initialize the launch catalog and choose an active trial plan.", 400);

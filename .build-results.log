@@ -1,0 +1,103 @@
+
+> gym-crm@0.1.0 build
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.mjs took 121ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.2s
+  Running TypeScript ...
+  Finished TypeScript in 11ms ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/60) ...
+  Generating static pages using 7 workers (15/60) 
+  Generating static pages using 7 workers (30/60) 
+  Generating static pages using 7 workers (45/60) 
+✓ Generating static pages using 7 workers (60/60) in 801ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/billing
+├ ƒ /admin/gyms
+├ ƒ /admin/gyms/[id]
+├ ƒ /admin/users
+├ ƒ /api/account/profile
+├ ƒ /api/admin/billing
+├ ƒ /api/admin/gym-owners
+├ ƒ /api/admin/gyms
+├ ƒ /api/admin/gyms/[id]
+├ ƒ /api/admin/overview
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/attendance
+├ ƒ /api/attendance/[id]/check-out
+├ ƒ /api/attendance/check-in
+├ ƒ /api/attendance/summary
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/register
+├ ƒ /api/branches
+├ ƒ /api/cron/saas-expiry
+├ ƒ /api/dashboard/owner
+├ ƒ /api/exports
+├ ƒ /api/gym/billing
+├ ƒ /api/gym/entitlements
+├ ƒ /api/gym/settings
+├ ƒ /api/members
+├ ƒ /api/members/[id]
+├ ƒ /api/members/[id]/subscriptions
+├ ƒ /api/payment-reports
+├ ƒ /api/payments
+├ ƒ /api/payments/[id]
+├ ƒ /api/payments/dues
+├ ƒ /api/payments/summary
+├ ƒ /api/plans
+├ ƒ /api/plans/[id]
+├ ƒ /api/reports
+├ ƒ /api/staff/invitations
+├ ƒ /api/staff/invitations/accept
+├ ƒ /api/staff/manage
+├ ƒ /api/subscriptions
+├ ƒ /api/subscriptions/[id]
+├ ƒ /api/subscriptions/[id]/payments
+├ ƒ /api/subscriptions/[id]/renew
+├ ƒ /api/trainer/workspace
+├ ƒ /api/trainers
+├ ƒ /api/trainers/[id]
+├ ƒ /attendance
+├ ƒ /billing
+├ ƒ /branches
+├ ƒ /dashboard
+├ ○ /login
+├ ƒ /members
+├ ƒ /members/[id]
+├ ƒ /members/[id]/edit
+├ ƒ /members/new
+├ ƒ /memberships
+├ ƒ /memberships/[id]
+├ ƒ /memberships/[id]/renew
+├ ƒ /memberships/plans/[id]/edit
+├ ƒ /memberships/plans/new
+├ ƒ /payments
+├ ƒ /profile
+├ ○ /register
+├ ƒ /reports
+├ ƒ /settings
+├ ƒ /staff
+├ ƒ /staff/accept
+├ ƒ /trainer
+├ ƒ /trainers
+├ ƒ /trainers/[id]
+├ ƒ /trainers/[id]/edit
+├ ƒ /trainers/new
+└ ƒ /workouts
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -27,16 +27,18 @@ test("SaaS API enforcement, transactions, branch isolation, billing and reversib
   for (const name of ["Gym", "SaaSPlan", "Branch", "User", "GymMembership", "AuthSession", "Member", "Plan", "Trainer", "Attendance", "Payment", "Subscription", "PlatformInvoice", "StaffInvitation", "Counter", "PublicTrialClaim"]) models[name] = (await import(`../models/${name}.js`)).default;
   const { Gym, SaaSPlan, Branch, User, GymMembership, Member, Plan, PlatformInvoice } = models;
   const { LAUNCH_PLANS } = await import("../lib/saasPlanRules.js");
-  const { planSnapshot } = await import("../lib/platformBillingRules.js");
+  const { addBillingInterval, planSnapshot } = await import("../lib/platformBillingRules.js");
   const { createSession } = await import("../lib/auth.js");
   const { assertGymLimit } = await import("../lib/entitlements.js");
   const { POST: addMember, GET: listMembers } = await import("../app/api/members/route.js");
   const { PATCH: updateMember } = await import("../app/api/members/[id]/route.js");
   const { POST: branches } = await import("../app/api/branches/route.js");
   const { GET: reports } = await import("../app/api/reports/route.js");
+  const { GET: paymentReports } = await import("../app/api/payment-reports/route.js");
   const { GET: exports } = await import("../app/api/exports/route.js");
   const { POST: requestPlan, GET: billing } = await import("../app/api/gym/billing/route.js");
   const { POST: adminBilling } = await import("../app/api/admin/billing/route.js");
+  const { GET: getAdminBilling } = await import("../app/api/admin/billing/route.js");
   const { applyBranchMigration, inspectBranchMigration, rollbackBranchMigration } = await import("../lib/branchMigration.js");
   const cookieName = process.env.NODE_ENV === "production" ? "__Host-fitivo_session" : "fitivo_session";
   const req = (path, token, body, branch, method = "POST") => new NextRequest(`http://localhost${path}`, {
@@ -65,6 +67,13 @@ test("SaaS API enforcement, transactions, branch isolation, billing and reversib
     const professional = await fixture("professional-gym", plans[2], { branches: 2 });
     const other = await fixture("other-gym", plans[1]);
     const memberBody = (planId, phone) => ({ fullName: "Synthetic Member", phone, gender: "Other", planId: String(planId), startDate: "2026-10-24" });
+
+    await t.test("Superadmin billing catalog lists the three active launch plans", async () => {
+      const response = await getAdminBilling(req("/api/admin/billing", adminToken));
+      const result = await data(response);
+      assert.deepEqual(result.plans.filter((plan) => plan.key).map(({ key }) => key).sort(), ["basic", "pro", "professional"]);
+      assert.deepEqual(result.plans.filter((plan) => plan.key).map(({ isActive }) => isActive), [true, true, true]);
+    });
 
     await t.test("Basic denies direct analytics and CSV but serves basic reports", async () => {
       assert.equal((await reports(req("/api/reports", basic.token))).status, 403);
@@ -110,6 +119,7 @@ test("SaaS API enforcement, transactions, branch isolation, billing and reversib
       await data(await listMembers(req("/api/members", token)));
       assert.equal((await listMembers(req("/api/members", professional.token, null, "all"))).status, 403);
       await data(await reports(req("/api/reports", professional.token, null, "all")));
+      await data(await paymentReports(req("/api/payment-reports", professional.token, null, "all")));
     });
     await t.test("concurrent staff enrollment uses the same organization lock", async () => {
       const users = await User.create([{ email: "one@staff.test", passwordHash: "synthetic" }, { email: "two@staff.test", passwordHash: "synthetic" }]);
@@ -126,14 +136,58 @@ test("SaaS API enforcement, transactions, branch isolation, billing and reversib
       const original = (await Gym.findById(basic.gym._id).lean()).saasSubscription;
       await data(await requestPlan(req("/api/gym/billing", basic.token, { planId: String(plans[1]._id) })), 201);
       assert.deepEqual((await Gym.findById(basic.gym._id).lean()).saasSubscription, original);
+      const deniedAssignment = await adminBilling(req("/api/admin/billing", basic.token, { action: "assign_plan", gymId: String(basic.gym._id), planId: String(plans[1]._id), mode: "invoice" }));
+      assert.equal(deniedAssignment.status, 403);
+      const invalidPlan = await adminBilling(req("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(basic.gym._id), planId: new mongoose.Types.ObjectId().toString(), mode: "invoice" }));
+      assert.equal(invalidPlan.status, 400);
+      assert.equal((await invalidPlan.json()).error.code, "INVALID_PLAN");
       const issued = await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(basic.gym._id), planId: String(plans[1]._id), mode: "invoice" })), 201);
+      assert.equal(issued.invoice.planId, String(plans[1]._id));
       const pending = (await Gym.findById(basic.gym._id).lean()).saasSubscription;
       assert.equal(pending.status, "active"); assert.deepEqual(pending.planSnapshot, original.planSnapshot);
-      assert.equal((await adminBilling(req("/api/admin/billing", basic.token, { action: "reconcile_invoice", invoiceId: issued.invoice.id, paymentReference: "fake" }))).status, 403);
-      await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: issued.invoice.id, paymentReference: "verified-test-reference" })));
+      const claim = { action: "submit_payment_claim", invoiceId: issued.invoice.id, reference: "OWNER-CLAIM-123" };
+      assert.equal((await requestPlan(req("/api/gym/billing", other.token, claim))).status, 409, "an owner cannot submit a claim against another Gym's invoice");
+      await data(await requestPlan(req("/api/gym/billing", basic.token, claim)), 201);
+      assert.equal((await PlatformInvoice.findById(issued.invoice.id).lean()).status, "open");
+      assert.equal((await Gym.findById(basic.gym._id).lean()).saasSubscription.planSnapshot.key, "basic", "a reference claim does not activate the selected plan");
+      assert.equal((await requestPlan(req("/api/gym/billing", basic.token, claim))).status, 409, "duplicate active owner claims are rejected");
+      const claimedInvoice = await PlatformInvoice.findById(issued.invoice.id).lean();
+      const firstClaimId = String(claimedInvoice.paymentClaims[0]._id);
+      const reject = await adminBilling(req("/api/admin/billing", adminToken, { action: "reject_payment_claim", invoiceId: issued.invoice.id, claimId: firstClaimId, reason: "No matching funds received" }));
+      assert.equal(reject.status, 200);
+      assert.equal((await PlatformInvoice.findById(issued.invoice.id).lean()).status, "open", "rejection preserves the invoice");
+      await data(await requestPlan(req("/api/gym/billing", basic.token, { ...claim, reference: "OWNER-CLAIM-456" })), 201);
+      const verification = { verifiedAmount: issued.invoice.amountDue, verifiedReference: "verified-test-reference", verificationNotes: "Matched bank credit against the invoice", paymentIndependentlyVerified: true };
+      assert.equal((await adminBilling(req("/api/admin/billing", basic.token, { action: "reconcile_invoice", invoiceId: issued.invoice.id, ...verification }))).status, 403);
+      await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: issued.invoice.id, ...verification })));
       assert.equal((await Gym.findById(basic.gym._id).lean()).saasSubscription.planSnapshot.key, "pro");
-      assert.equal((await PlatformInvoice.findById(issued.invoice.id).lean()).status, "paid");
-      assert.equal((await adminBilling(req("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: issued.invoice.id, paymentReference: "duplicate" }))).status, 409);
+      const verifiedInvoice = await PlatformInvoice.findById(issued.invoice.id).lean();
+      assert.equal(verifiedInvoice.status, "paid");
+      assert.equal(verifiedInvoice.verifiedAmount, issued.invoice.amountDue);
+      assert.equal(verifiedInvoice.verifiedReference, "verified-test-reference");
+      assert.equal(String(verifiedInvoice.verifiedBy), String(admin._id));
+      assert.deepEqual(verifiedInvoice.paymentClaims.map((item) => item.status), ["rejected", "approved"]);
+      const ownerView = await data(await billing(req("/api/gym/billing", basic.token)));
+      const ownerInvoice = ownerView.subscription.invoices.find((item) => item.id === issued.invoice.id);
+      assert.equal(ownerInvoice.verifiedReference, "verified-test-reference");
+      assert.equal(Object.hasOwn(ownerInvoice, "verificationNotes"), false, "internal verification notes stay in the Superadmin audit view");
+      assert.equal(Object.hasOwn(ownerInvoice, "verifiedBy"), false);
+      assert.equal((await adminBilling(req("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: issued.invoice.id, ...verification }))).status, 409);
+      const renewalResponse = await adminBilling(req("/api/admin/billing", adminToken, { action: "renew_invoice", gymId: String(basic.gym._id) }));
+      const renewalData = await data(renewalResponse, 201);
+      const elapsedStart = new Date(Date.now() - 5 * 86400000);
+      await PlatformInvoice.updateOne({ _id: renewalData.invoice.id }, { $set: { periodStart: elapsedStart, periodEnd: new Date(elapsedStart.getTime() + 86400000) } });
+      const renewed = await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: renewalData.invoice.id, verifiedAmount: renewalData.invoice.amountDue, verifiedReference: "verified-renewal", verificationNotes: "Matched renewal transfer in receiving bank", paymentIndependentlyVerified: true })));
+      const renewedGym = await Gym.findById(basic.gym._id).lean();
+      assert.equal(renewedGym.saasSubscription.periodStart.getTime(), new Date(renewed.invoice.paidAt).getTime());
+      assert.equal(renewedGym.saasSubscription.periodEnd.getTime(), addBillingInterval(renewed.invoice.paidAt, "monthly").getTime());
+      const voidGym = await fixture("void-invoice-gym", plans[0]);
+      const voidIssued = await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(voidGym.gym._id), planId: String(plans[1]._id), mode: "invoice" })), 201);
+      const beforeVoid = (await Gym.findById(voidGym.gym._id).lean()).saasSubscription;
+      assert.equal((await adminBilling(req("/api/admin/billing", adminToken, { action: "void_invoice", invoiceId: voidIssued.invoice.id, reason: "Owner selected the wrong plan" }))).status, 200);
+      const afterVoid = (await Gym.findById(voidGym.gym._id).lean()).saasSubscription;
+      assert.equal(afterVoid.planSnapshot.key, beforeVoid.planSnapshot.key);
+      assert.equal(afterVoid.status, "active");
       const downgrade = await requestPlan(req("/api/gym/billing", professional.token, { planId: String(plans[1]._id) }));
       assert.equal(downgrade.status, 409);
       assert.equal((await downgrade.json()).error.code, "DOWNGRADE_REMEDIATION_REQUIRED");
