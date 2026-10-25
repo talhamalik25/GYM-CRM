@@ -7,6 +7,8 @@ import MarketingHome from "../components/marketing/marketing-home.js";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
+  metadataBase: new URL("https://gym-crm-pi.vercel.app"),
+  alternates: { canonical: "/" },
   title: "Fitivo | Gym Management, Made for Growth",
   description: "Manage gym members, memberships, attendance, payments, staff, reports, and branches in one connected Fitivo workspace.",
   openGraph: {

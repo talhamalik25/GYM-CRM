@@ -1,38 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { Activity, Building2, CalendarCheck2, ChartNoAxesCombined, CreditCard, LayoutDashboard, Users } from "lucide-react";
 import MarketingProductPreview from "./marketing-product-preview.js";
+import styles from "./marketing.module.css";
 
-const tabs = [
-  ["overview", "Overview"],
-  ["members", "Members"],
-  ["attendance", "Attendance"],
-  ["payments", "Payments"],
-  ["reports", "Reports"],
-];
+const tabs = [["overview", "Dashboard", LayoutDashboard], ["members", "Members", Users], ["attendance", "Attendance", Activity], ["renewals", "Renewals", CalendarCheck2], ["payments", "Payments", CreditCard], ["reports", "Reports", ChartNoAxesCombined], ["branches", "Branches", Building2]];
+const descriptions = {
+  overview: "Start with a clear overview of members, collections, and the day ahead.",
+  members: "Give every member an organized record, from first visit to latest renewal.",
+  attendance: "Keep track of visits and understand your gym’s daily rhythm.",
+  renewals: "See expiring memberships and keep renewal history close at hand.",
+  payments: "Bring payment records, outstanding dues, and receipts into one view.",
+  reports: "Review performance with analytics and reports on eligible plans.",
+  branches: "Bring your locations together with Professional multi-branch management.",
+};
 
 export default function MarketingProductShowcase() {
   const [active, setActive] = useState("overview");
   const tabRefs = useRef([]);
-
+  const id = useId();
   function handleKeyDown(event, index) {
-    let nextIndex = index;
-    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
-    else if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    setActive(tabs[nextIndex][0]);
-    tabRefs.current[nextIndex]?.focus();
+    const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault(); setActive(tabs[next][0]); tabRefs.current[next]?.focus();
   }
-
-  return <div className="grid items-center gap-9 lg:grid-cols-[.7fr_1.3fr]">
-    <div>
-      <div role="tablist" aria-label="Product areas" className="grid gap-2">
-        {tabs.map(([id, label], index) => <button key={id} ref={(element) => { tabRefs.current[index] = element; }} id={`showcase-tab-${id}`} type="button" role="tab" aria-selected={active === id} aria-controls="showcase-panel" tabIndex={active === id ? 0 : -1} onClick={() => setActive(id)} onKeyDown={(event) => handleKeyDown(event, index)} className={`rounded-xl border p-4 text-left transition ${active === id ? "border-brand bg-surface shadow-sm" : "border-transparent hover:border-line hover:bg-surface"}`}><span className="block text-sm font-semibold text-ink">{label}</span><span className="mt-1 block text-xs leading-5 text-ink-muted">{id === "overview" ? "A useful snapshot of the day." : id === "members" ? "Profiles, memberships, and renewals." : id === "attendance" ? "See gym check-ins over time." : id === "payments" ? "Keep payment records together." : "Review activity and performance."}</span></button>)}
-      </div>
-    </div>
-    <div id="showcase-panel" role="tabpanel" aria-labelledby={`showcase-tab-${active}`}><MarketingProductPreview kind={active} /></div>
+  return <div className={styles.showcase}>
+    <div className={styles.productTabs} role="tablist" aria-label="Explore Fitivo product areas">{tabs.map(([key, label, Icon], index) => <button key={key} ref={(el) => { tabRefs.current[index] = el; }} type="button" role="tab" id={`${id}-tab-${key}`} aria-selected={active === key} aria-controls={`${id}-panel`} tabIndex={active === key ? 0 : -1} onClick={() => setActive(key)} onKeyDown={(event) => handleKeyDown(event, index)}><Icon size={16} aria-hidden="true" />{label}</button>)}</div>
+    <div id={`${id}-panel`} role="tabpanel" tabIndex={0} aria-labelledby={`${id}-tab-${active}`} className={styles.productPanel}><p className={styles.productDescription}>{descriptions[active]}</p><MarketingProductPreview kind={active} /></div>
   </div>;
 }
