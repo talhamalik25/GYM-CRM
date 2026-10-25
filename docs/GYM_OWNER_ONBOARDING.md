@@ -2,9 +2,9 @@
 
 ## Registration flow
 
-**Current status: public registration is paused.** `/register` shows a maintenance message and the API returns HTTP 503 after input validation. The former flow described below is not currently available while legacy data ownership and tenant isolation remain unverified. Do not re-enable it until the migration gates in [MULTI_TENANT_MIGRATION_AUDIT.md](MULTI_TENANT_MIGRATION_AUDIT.md) pass.
+**Current behavior: public registration is opt-in.** The repository example sets `PUBLIC_REGISTRATION_ENABLED=false`; `/register` and the API only enable registration when the feature flag and an active trial plan are configured. Follow [PUBLIC_TRIAL_ONBOARDING.md](PUBLIC_TRIAL_ONBOARDING.md) for required settings, eligibility rules, and access behavior. Do not enable it in a deployment until its owner has reviewed those operational requirements and the tenant migration status.
 
-When it was enabled, `/register` created an owner account, a newly generated Gym, an active `gym_owner` membership, and the initial authenticated session. The registration API accepted only `fullName`, `email`, `password`, and `gymName`. Server validation trimmed names, normalized email to lowercase to match login, and reused the existing scrypt password policy. Client-provided roles, permissions, and Gym ids were rejected.
+When enabled, `/register` creates an owner account, a newly generated Gym, an active `gym_owner` membership, and the initial authenticated session. The registration API accepts only `fullName`, `email`, `password`, and `gymName`. Server validation trims names, normalizes email to lowercase to match login, and reuses the existing scrypt password policy. Client-provided roles, permissions, and Gym ids are rejected.
 
 The User's platform role is explicitly `staff`; gym ownership is exclusively the `GymMembership.role` value `gym_owner`. The Gym slug is derived from the submitted gym name with a random suffix, so the request cannot claim an existing Gym by slug or id. The existing session-backed tenant resolver then obtains the one active membership and allows the owner to access that Gym. No legacy business rows are migrated or assigned during registration.
 
@@ -12,9 +12,9 @@ User, Gym, GymMembership, and the initial AuthSession are created inside one Mon
 
 Successful registration sets the existing secure session cookie and redirects to `/dashboard`, matching the current login flow. Existing login and logout routes are unchanged. Expired sessions remain rejected by the existing session lookup.
 
-## Historical local verification (not currently available)
+## Local verification
 
-The former signup flow was designed for a dedicated, disposable local replica set. Do not use the procedure below while public registration is paused. Signup behavior must only be re-enabled after the migration audit gates pass and the service owner approves a separate change.
+Registration integration tests require a dedicated, disposable local replica set. Do not point them at a production or shared application database.
 
 For automated database tests, configure only the explicit `MONGODB_TEST_URI` described in [SAFE_DATABASE_INTEGRATION_TESTING.md](SAFE_DATABASE_INTEGRATION_TESTING.md). The test harness creates a unique per-run database name and refuses an unmarked database name or an undesignated remote host. Run:
 
@@ -25,7 +25,7 @@ npm run lint
 git diff --check
 ```
 
-The current registration test verifies that valid public signup returns HTTP 503 and that invalid/forged requests are rejected without database access. The former end-to-end signup test is no longer applicable while registration is paused. A successful signup test must be restored only when registration is deliberately re-enabled after tenant migration verification.
+The unit suite verifies validation and fail-closed behavior when registration is not configured. The integration suite exercises the transactional registration flow against its isolated test database.
 
 ## Abuse protection and operational requirement
 

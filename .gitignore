@@ -30,6 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# generated build/test result logs
+/.all-test-results.log
+/.build-results.log
+/.lint-results.log
+/.unit-test-results.log
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example

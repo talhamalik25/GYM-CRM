@@ -1,4 +1,21 @@
 import { requirePublicGymOperationalPage } from "../../../lib/ownerPageAccess.js";
-import SectionPage from '../../../components/ui/section-page';import {workouts} from '../../../lib/mock-data';
+
 export default async function WorkoutsPage() {
-  await requirePublicGymOperationalPage();return <SectionPage title="Workouts" description="Personalized plans to keep training focused and fun." action={<button className="button button-primary" type="button">＋ Create workout</button>} stats={[{label:'Active plans',value:'64',note:'Assigned to members'},{label:'In progress',value:'52',note:'Members training now'},{label:'Completed this month',value:'28',note:'+6 from last month'},{label:'Coaches assigned',value:'8',note:'Across active plans'}]} columns={[{key:'member',label:'MEMBER'},{key:'plan',label:'WORKOUT PLAN'},{key:'exercises',label:'EXERCISES'},{key:'duration',label:'DURATION'},{key:'status',label:'STATUS'}]} rows={workouts}/>}
+  await requirePublicGymOperationalPage();
+  return (
+    <div className="memberships-page">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">WORKOUTS</p>
+          <h1>Workout Plans</h1>
+          <p>Personalized plans to keep training focused and fun.</p>
+        </div>
+      </div>
+      <div className="ui-empty-state">
+        <span className="ui-empty-icon" style={{ fontSize: 28 }}>🏋️</span>
+        <h3>Coming soon</h3>
+        <p>Workout plan management is under development. You&apos;ll be able to create, assign, and track personalized workout plans for your members here.</p>
+      </div>
+    </div>
+  );
+}

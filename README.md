@@ -1,58 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Fitivo
 
-## Getting Started
+Fitivo is a multi-tenant gym management SaaS built with Next.js App Router,
+React, MongoDB, and Mongoose. It includes Superadmin and Gym workspaces for
+members, memberships, attendance, trainers, staff, reports, branches, and
+subscription billing. Gym member payments and Fitivo SaaS invoices are separate
+ledgers; SaaS invoice payment is verified and reconciled by an authorized
+Superadmin.
 
-First, run the development server:
+## Development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Install dependencies with `npm ci`.
+2. Copy `.env.example` to `.env.local` and configure `MONGODB_URI` and
+   `AUTH_SESSION_SECRET` for a local development database.
+3. Use a transaction-capable MongoDB replica set for payment, subscription, and
+   registration flows. See the operational guides in `docs/` before enabling
+   public registration or configuring expiry jobs.
+4. Start the app with `npm run dev`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Public registration is opt-in and disabled in `.env.example`. It requires an
+active trial plan and the settings described in
+[`PUBLIC_TRIAL_ONBOARDING.md`](docs/PUBLIC_TRIAL_ONBOARDING.md).
 
-## Seed sample payments
+## Project layout
 
-After MongoDB is configured and at least three members have plans priced at two or more whole rupees, run `node scripts/seed-payments.js`. This command is manual and transactionally creates two subscription-linked sample payments (one full and one partial) plus one pending subscription invoice. It skips if its sample records already exist.
+- `app/` contains public pages, authenticated App Router pages, and API route
+  handlers.
+- `components/` contains shared UI and feature components.
+- `lib/` contains authentication, tenant authorization, business rules, and
+  application services.
+- `models/` contains Mongoose schemas.
+- `scripts/` contains explicitly invoked account and data utilities.
+- `tests/` contains unit and MongoDB integration tests.
+- `docs/` contains onboarding, security, billing, migration, and operations
+  guides.
 
-## Seed sample attendance
+## Checks
 
-After MongoDB is configured and at least three real members exist, run `node scripts/seed-attendance.js`. This command is manual. It creates records for real members across recent gym days, including two open check-ins today, and skips member/day combinations that already exist.
+- `npm test` runs the Node test suite. MongoDB integration suites require an
+  explicit disposable `MONGODB_TEST_URI`; see
+  [`tests/INTEGRATION_TESTING.md`](tests/INTEGRATION_TESTING.md).
+- `npm run lint` runs ESLint.
+- `npm run build` creates a production build.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Never point integration tests at `MONGODB_URI` or a production database. The
+test helper refuses unmarked database names and undesignated remote hosts.
 
-## Authentication setup
+## Account utilities
 
-Set `MONGODB_URI` and `AUTH_SESSION_SECRET` in `.env.local` for local development and in Vercel Project Settings for each deployment environment. Generate a unique session secret with `openssl rand -base64 48`; use a different value in Production, Preview, and Development. `GYM_TIMEZONE` remains optional and defaults to `Asia/Karachi`.
-
-Payment recording, subscription creation, and renewal require MongoDB transaction support (MongoDB Atlas or another replica-set deployment). The test suite's database concurrency test uses only the database named `fitivo_payment_ledger_test_<process-id>` derived from `MONGODB_TEST_URI`; it does not use `MONGODB_URI` for integration fixtures.
-
-Create a login account from an interactive terminal after configuring the database:
-
-```bash
-npm run user:create -- --email you@example.com
-```
-
-The password is entered without terminal echo and is stored as a scrypt hash. There is no public sign-up route. All authenticated accounts currently have the same access; roles and account management are not implemented.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Use `npm run user:create`, `npm run user:promote`, and
+`npm run user:reset-password` from an interactive terminal. The commands prompt
+for passwords without echoing them. See [`scripts/README.md`](scripts/README.md)
+for account bootstrap and seed-script details.
