@@ -139,6 +139,7 @@ test("owner invitations are gym scoped, role limited, single use, and preserve e
       await GymMembership.deleteMany({ userId: { $in: ids.users }, gymId: { $in: ids.gyms } });
       await User.deleteMany({ _id: { $in: ids.users } });
       await Gym.deleteMany({ _id: { $in: ids.gyms } });
+      await mongoose.connection.dropDatabase();
     }
     await mongoose.disconnect();
     if (previousUri === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previousUri;

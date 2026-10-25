@@ -72,7 +72,7 @@ export async function POST(request) {
         if (invitation.role === "trainer" && !await Trainer.exists({ ...branchScope(invitation.gymId, invitation.branchId), email: invitation.email, status: "active" }).session(mongoSession)) throw new Error("TRAINER_PROFILE_MISSING");
         const claimed = await StaffInvitation.findOneAndUpdate(
           { _id: invitation._id, tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } },
-          { $set: { status: "accepted" } }, { new: true, session: mongoSession },
+          { $set: { status: "accepted" } }, { returnDocument: "after", session: mongoSession },
         );
         if (!claimed) throw new Error("INVITATION_ALREADY_USED");
         await GymMembership.create([{ userId: memberId, gymId: invitation.gymId, branchId: invitation.branchId || invitation.gymId, role: invitation.role, status: "active" }], { session: mongoSession });

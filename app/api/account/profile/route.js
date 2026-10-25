@@ -40,7 +40,7 @@ export async function PATCH(request) {
     const updated = await User.findOneAndUpdate(
       { _id: auth.user._id, role: "staff", isActive: true },
       { $set: { fullName: validation.fullName, phone: validation.phone } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).select("fullName email phone").lean();
     if (!updated) return errorResponse("User account was not found or is inactive.", 401);
     return successResponse(serializeOwnerProfile(updated));

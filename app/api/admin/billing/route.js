@@ -97,7 +97,7 @@ export async function POST(request) {
       if (validation.limits?.branches != null && validation.limits.branches < 1) return errorResponse("Every organization must allow at least one branch.", 400);
       if (finalKey && finalKey !== "professional" && (validation.limits?.branches > 1 || ["multiBranch", "branchReports", "consolidatedAnalytics", "prioritySupport"].some((key) => validation.features?.[key]))) return errorResponse("Only Professional can enable organization features or multiple branches.", 400);
       const plan = updating
-        ? await SaaSPlan.findByIdAndUpdate(body.planId, { $set: validation }, { new: true, runValidators: true }).lean()
+        ? await SaaSPlan.findByIdAndUpdate(body.planId, { $set: validation }, { returnDocument: "after", runValidators: true }).lean()
         : await SaaSPlan.create({ ...validation, currency: "PKR", isActive: true });
       if (!plan) return errorResponse("Plan was not found.", 404);
       return successResponse({ plan: serializeSaaSPlan(plan) }, updating ? 200 : 201);
@@ -111,7 +111,7 @@ export async function POST(request) {
     const validation = validatePlatformSettings(payload);
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
     try {
-      const settings = await PlatformSetting.findByIdAndUpdate("fitivo", { $set: validation }, { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }).lean();
+      const settings = await PlatformSetting.findByIdAndUpdate("fitivo", { $set: validation }, { returnDocument: "after", upsert: true, runValidators: true, setDefaultsOnInsert: true }).lean();
       return successResponse({ settings: { defaultTrialDays: settings.defaultTrialDays, manualBillingInstructions: settings.manualBillingInstructions || "", paymentInstructions: settings.paymentInstructions || [] } });
     } catch { return errorResponse("Could not save platform billing settings.", 503); }
   }
@@ -123,7 +123,45 @@ export async function POST(request) {
     const payload = { ...body }; delete payload.action;
     const validation = validatePlanAssignment(payload);
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
-    if (validation.mode === "trial") return errorResponse("Seven-day trials are assigned only during new gym provisioning. Existing gyms cannot receive another trial.", 409);
+    if (validation.mode === "trial") {
+      const session = await mongoose.startSession();
+      let updatedGym;
+      try {
+        await session.withTransaction(async () => {
+          const gym = await lockGym(validation.gymId, session);
+          if (gym.status !== "active") throw new EntitlementError("An active Gym is required for a support trial.", "GYM_UNAVAILABLE", 409);
+          if (gym.publicTrial?.version !== 1) throw new EntitlementError("Only an existing public-trial Gym can receive an authorized support-trial override.", "TRIAL_UNAVAILABLE", 409);
+          if (gym.saasSubscription?.pendingInvoiceId && await PlatformInvoice.findOne({ _id: gym.saasSubscription.pendingInvoiceId, status: "open" }).session(session).select("_id").lean()) {
+            throw new EntitlementError("Reconcile or void the pending invoice before assigning a support trial.", "INVOICE_PENDING", 409);
+          }
+          const plan = await SaaSPlan.findOne({ _id: validation.planId, isActive: true }).session(session).lean();
+          if (!plan) throw new EntitlementError("The selected SaaS plan is unavailable.", "PLAN_NOT_FOUND", 404);
+          const snapshot = planSnapshot(plan);
+          await assertPlanFits(gym._id, snapshot, session);
+          const trialStartedAt = new Date();
+          const trialEndsAt = new Date(trialStartedAt.getTime() + validation.trialDays * 86400000);
+          updatedGym = await Gym.findOneAndUpdate({ _id: gym._id, status: "active" }, {
+            $set: {
+              saasAccessRequired: true,
+              saasSubscription: {
+                planId: plan._id, planSnapshot: snapshot, status: "trialing",
+                trialStartedAt, trialEndsAt, renewalDate: trialEndsAt,
+                periodStart: null, periodEnd: null, pendingInvoiceId: null, autoRenew: false,
+              },
+            },
+            $unset: { planChangeRequest: 1 },
+          }, { returnDocument: "after", session, runValidators: true }).lean();
+          if (!updatedGym) throw new EntitlementError("Gym was not found.", "GYM_NOT_FOUND", 404);
+        });
+        return successResponse({ gym: serializeGym(updatedGym) });
+      } catch (error) {
+        if (error instanceof EntitlementError) return entitlementErrorResponse(error);
+        console.error("Could not assign a support trial.");
+        return errorResponse("Could not assign the Gym trial. Please try again.", 503);
+      } finally {
+        await session.endSession();
+      }
+    }
     try {
       const result = await issuePlanChangeInvoice(validation.gymId, validation.planId, actorId);
       return successResponse({ gym: serializeGym(result.gym), invoice: result.invoice ? serializePlatformInvoice(result.invoice) : null }, result.invoice ? 201 : 200);
@@ -157,7 +195,7 @@ export async function POST(request) {
           periodEnd: addBillingInterval(now, plan.interval), trialStartedAt: null, trialEndsAt: null,
           renewalDate: null, pendingInvoiceId: null, autoRenew: false,
           complimentaryGrant: { reason, grantedAt: now, grantedBy: actorId },
-        } }, $unset: { planChangeRequest: 1 } }, { new: true, session, runValidators: true }).lean();
+        } }, $unset: { planChangeRequest: 1 } }, { returnDocument: "after", session, runValidators: true }).lean();
       });
       return successResponse({ gym: serializeGym(updated), granted: true });
     } catch (error) {
@@ -327,7 +365,7 @@ export async function POST(request) {
       if (!existing) return errorResponse("Gym SaaS subscription was not found.", 404);
       const pendingConflict = await pendingInvoiceConflict(existing);
       if (pendingConflict) return pendingConflict;
-      const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true }, "saasSubscription.pendingInvoiceId": null }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { new: true, runValidators: true }).select("name slug status saasSubscription planChangeRequest").lean();
+      const gym = await Gym.findOneAndUpdate({ _id: body.gymId, "saasSubscription.planId": { $exists: true }, "saasSubscription.pendingInvoiceId": null }, { $set: { "saasSubscription.status": "cancelled", "saasSubscription.autoRenew": false } }, { returnDocument: "after", runValidators: true }).select("name slug status saasSubscription planChangeRequest").lean();
       if (!gym) {
         const current = await Gym.findOne({ _id: body.gymId, "saasSubscription.planId": { $exists: true } }).select("name saasSubscription").lean();
         if (!current) return errorResponse("Gym SaaS subscription was not found.", 404);

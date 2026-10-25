@@ -47,7 +47,7 @@ export async function POST(request) {
       if (body.id && !existing && !isDefault) throw new EntitlementError("Branch was not found.", "NOT_FOUND", 404);
       if (isDefault && body.status === "inactive") throw new EntitlementError("The default branch must remain active.", "DEFAULT_BRANCH_REQUIRED", 409);
       if ((!body.id || existing?.status === "inactive") && body.status !== "inactive") await assertGymLimit(gym._id, "branches", { session });
-      branch = await Branch.findOneAndUpdate({ _id: existing?._id || (isDefault ? gym._id : new mongoose.Types.ObjectId()), gymId: gym._id }, { $set: { name: body.name.trim(), address: body.address?.trim() || "", status: body.status || "active", isDefault } }, { new: true, upsert: true, runValidators: true, session }).lean();
+      branch = await Branch.findOneAndUpdate({ _id: existing?._id || (isDefault ? gym._id : new mongoose.Types.ObjectId()), gymId: gym._id }, { $set: { name: body.name.trim(), address: body.address?.trim() || "", status: body.status || "active", isDefault } }, { returnDocument: "after", upsert: true, runValidators: true, session }).lean();
     });
     return successResponse({ branch }, body.id ? 200 : 201);
   } catch (error) {

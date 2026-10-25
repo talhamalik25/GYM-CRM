@@ -61,16 +61,22 @@ export async function POST(request) {
       await ensureNoConflictingGymMembership(owner._id, session, GymMembership);
       if (await PublicTrialClaim.exists({ $or: [{ userId: owner._id }, { email: owner.email }, { gymSlug: validation.slug }] }).session(session)) throw new GymProvisioningError("This owner or gym identity has already received a trial. Manage the existing gym subscription instead.", 409);
       const now = new Date();
-      const plan = await SaaSPlan.findOne(validation.planId ? { _id: validation.planId, isActive: true } : { key: "basic", isActive: true }).session(session).lean();
-      if (!plan) throw new GymProvisioningError("Initialize the launch catalog and choose an active trial plan.", 400);
-      const saasSubscription = publicTrialSubscription(plan, now);
+      const plan = validation.planId
+        ? await SaaSPlan.findOne({ _id: validation.planId, isActive: true }).session(session).lean()
+        : null;
+      if (validation.planId && !plan) throw new GymProvisioningError("Choose an active SaaS plan.", 400);
+      const saasSubscription = validation.accessMode === "none" ? null : publicTrialSubscription(plan, now);
       const invoiceTerms = validation.accessMode === "invoice" && plan.price > 0 ? { planId: plan._id, snapshot: planSnapshot(plan), periodStart: now, periodEnd: addBillingInterval(now, plan.interval) } : null;
+      const trialEligibility = saasSubscription ? {
+        trialUsedAt: now,
+        publicTrial: { version: 1, startedAt: now, endsAt: saasSubscription.trialEndsAt },
+      } : {};
       const [gym] = await Gym.create([{
         name: validation.name, slug: validation.slug, timezone: validation.timezone, status: "active",
-        trialUsedAt: now, publicTrial: { version: 1, startedAt: now, endsAt: saasSubscription.trialEndsAt },
+        ...trialEligibility,
         saasAccessRequired: true, ...(saasSubscription ? { saasSubscription } : {}),
       }], { session });
-      await PublicTrialClaim.create([{ email: owner.email, gymSlug: gym.slug, userId: owner._id, gymId: gym._id, claimedAt: now }], { session });
+      if (saasSubscription) await PublicTrialClaim.create([{ email: owner.email, gymSlug: gym.slug, userId: owner._id, gymId: gym._id, claimedAt: now }], { session });
       await Branch.create([{ _id: gym._id, gymId: gym._id, name: "Main branch", isDefault: true }], { session });
       if (invoiceTerms) {
         [createdInvoice] = await PlatformInvoice.create([{

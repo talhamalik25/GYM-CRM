@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
       : 0;
     const validation = validateAccountStatusChange({ actorId: actor?._id, targetId: target._id, desiredActive: body.isActive, targetRole: target.role, otherActiveSuperadmins });
     if (validation) return errorResponse(validation.message, validation.status);
-    const updated = await User.findOneAndUpdate({ _id: target._id, isActive: { $ne: body.isActive } }, { $set: { isActive: body.isActive } }, { new: true, runValidators: true }).select("fullName email role isActive createdAt").lean();
+    const updated = await User.findOneAndUpdate({ _id: target._id, isActive: { $ne: body.isActive } }, { $set: { isActive: body.isActive } }, { returnDocument: "after", runValidators: true }).select("fullName email role isActive createdAt").lean();
     return successResponse(serializeAdminUser(updated || { ...target, isActive: body.isActive }));
   } catch (error) {
     console.error("Admin user status update failed:", error?.message);

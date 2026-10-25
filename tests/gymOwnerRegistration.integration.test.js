@@ -274,6 +274,7 @@ test("public trial onboarding, expiry, verified reactivation and existing-gym is
       const managed = await Gym.findById(claimedGym._id).lean();
       assert.equal(managed.saasSubscription.trialEndsAt - managed.saasSubscription.trialStartedAt, 2 * 86400000);
       assert.deepEqual(managed.publicTrial, claimedGym.publicTrial);
+      assert.equal(managed.trialUsedAt.getTime(), claimedGym.trialUsedAt.getTime());
       assert.equal(await PublicTrialClaim.countDocuments({}), claimsBefore);
       assert.deepEqual(await readLegacy(), originalLegacy);
     });

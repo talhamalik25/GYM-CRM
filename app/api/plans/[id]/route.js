@@ -40,7 +40,7 @@ export async function PATCH(request, context) {
     delete update.branchId;
     if (typeof update.name === "string") update.name = update.name.trim();
     if (typeof update.description === "string") update.description = update.description.trim();
-    const plan = await Plan.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { new: true, runValidators: true }).lean();
+    const plan = await Plan.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { returnDocument: "after", runValidators: true }).lean();
     if (!plan) return errorResponse("Plan was not found.", 404);
     return successResponse(plan);
   } catch (error) {

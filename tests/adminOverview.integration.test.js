@@ -92,6 +92,7 @@ test("platform overview counts Gym and account statuses and rejects non-superadm
       await GymMembership.deleteMany({ userId: { $in: users }, gymId: { $in: gyms } });
       await User.deleteMany({ _id: { $in: users } });
       await Gym.deleteMany({ _id: { $in: gyms } });
+      await mongoose.connection.dropDatabase();
     }
     await mongoose.disconnect();
     if (previousUri === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previousUri;

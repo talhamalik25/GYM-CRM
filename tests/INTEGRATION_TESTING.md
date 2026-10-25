@@ -32,7 +32,8 @@ npm test
 
 The test harness does not fall back to `MONGODB_URI`. An absent test URI skips
 the integration suites; a configured URI that fails validation stops the test
-run before connecting. Tests clean up their generated records and do not drop
-databases or collections. See
+run before connecting. Every suite writes only to its uniquely generated
+per-run database and drops that database during cleanup, including collections
+created by Mongoose. See
 [`docs/SAFE_DATABASE_INTEGRATION_TESTING.md`](../docs/SAFE_DATABASE_INTEGRATION_TESTING.md)
 for the safety checks and test-data lifecycle.

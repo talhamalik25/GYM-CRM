@@ -26,7 +26,7 @@ export async function PATCH(request) {
     const gym = await Gym.findOneAndUpdate(
       { _id: getRequestGymId(request), status: "active" },
       { $set: { name: validation.name, timezone: validation.timezone } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).select("name slug timezone status").lean();
     if (!gym) return errorResponse("Gym workspace was not found or is unavailable.", 404);
     return successResponse(serializeGymSettings(gym));

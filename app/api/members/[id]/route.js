@@ -92,7 +92,7 @@ async function handlePATCH(request, context) {
 
     delete update.gymId;
     delete update.branchId;
-    const updated = await Member.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { new: true, runValidators: true }).populate({ path: "planId", match: tenantFilter(request), select: "name price" }).populate({ path: "trainerId", match: tenantFilter(request), select: "fullName status" }).lean();
+    const updated = await Member.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { returnDocument: "after", runValidators: true }).populate({ path: "planId", match: tenantFilter(request), select: "name price" }).populate({ path: "trainerId", match: tenantFilter(request), select: "fullName status" }).lean();
     return successResponse(serializeMember(updated));
   } catch (error) {
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);

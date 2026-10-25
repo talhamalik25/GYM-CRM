@@ -88,7 +88,7 @@ export async function POST(request, { params }) {
       const updated = await Subscription.findOneAndUpdate(
         { _id: id, ...scope, __v: (subscription.__v || 0) + 1, status: { $ne: "cancelled" }, "renewalHistory.renewalKey": { $ne: key } },
         { $push: { renewalHistory: term }, $set: { planId: plan._id, startDate: start, expiryDate: expiry, originalPrice: plan.price, agreedPrice, planSnapshot, status: "pending" }, $inc: { __v: 1 } },
-        { new: true, session },
+        { returnDocument: "after", session },
       );
       if (!updated) throw Object.assign(new Error("Subscription changed while renewing. Retry with the same request key."), { status: 409 });
       await syncMemberSubscriptionFields(member, session, gymId, {

@@ -26,7 +26,7 @@ export async function POST(_request, { params }) {
     const updated = await Attendance.findOneAndUpdate(
       tenantFilter(_request, { _id: id, date: today, checkOutAt: null }),
       { $set: { checkOutAt: new Date() } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     );
     if (!updated) {
       const latest = await Attendance.findOne(tenantFilter(_request, { _id: id })).lean();

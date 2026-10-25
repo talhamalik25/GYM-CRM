@@ -39,7 +39,7 @@ async function handlePATCH(request, { params }) {
     if (typeof update.joiningDate === "string") update.joiningDate = new Date(`${update.joiningDate}T00:00:00.000Z`);
     if (typeof update.profileImage === "string") update.profileImage = update.profileImage.trim();
     if (typeof update.notes === "string") update.notes = update.notes.trim();
-    const trainer = await Trainer.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { new: true, runValidators: true }).lean();
+    const trainer = await Trainer.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { returnDocument: "after", runValidators: true }).lean();
     if (!trainer) return errorResponse("Trainer was not found.", 404);
     const assignedMemberCount = await Member.countDocuments(tenantFilter(request, { trainerId: id }));
     return successResponse(serializeTrainer(trainer, assignedMemberCount));

@@ -60,7 +60,7 @@ export async function PATCH(request, context) {
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
 
     await connectToDatabase();
-    const gym = await Gym.findOneAndUpdate({ _id: id }, { $set: { status: validation.status } }, { new: true, runValidators: true }).lean();
+    const gym = await Gym.findOneAndUpdate({ _id: id }, { $set: { status: validation.status } }, { returnDocument: "after", runValidators: true }).lean();
     if (!gym) return errorResponse("Gym was not found.", 404);
     const memberships = await GymMembership.find({ gymId: gym._id, role: "gym_owner", status: "active" })
       .select("gymId userId").populate("userId", "fullName email").lean();

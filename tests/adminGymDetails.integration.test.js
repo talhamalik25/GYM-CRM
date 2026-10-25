@@ -74,8 +74,12 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
     const response = await getGym(request(`/api/admin/gyms/${gym._id}`, adminToken), { params: Promise.resolve({ id: String(gym._id) }) });
     assert.equal(response.status, 200);
     const payload = await response.json();
-    assert.deepEqual(Object.keys(payload.data).sort(), ["createdAt", "id", "name", "owners", "slug", "status", "timezone", "updatedAt"].sort());
+    assert.deepEqual(Object.keys(payload.data).sort(), ["createdAt", "id", "name", "owners", "planChangeRequest", "plans", "slug", "status", "subscription", "timezone", "updatedAt"].sort());
     assert.deepEqual(payload.data.owners, [{ name: "Gym Owner", email: owner.email }]);
+    assert.equal(payload.data.subscription, null);
+    assert.equal(payload.data.planChangeRequest, null);
+    assert.deepEqual(payload.data.plans.map(({ name }) => name), [`Provisioning ${suffix}`]);
+    assert.deepEqual(Object.keys(payload.data.plans[0]).sort(), ["createdAt", "currency", "description", "id", "interval", "isActive", "limits", "name", "price"].sort());
     assert.equal(JSON.stringify(payload).includes("passwordHash"), false);
     assert.equal(JSON.stringify(payload).includes("tokenHash"), false);
     assert.equal(JSON.stringify(payload).includes("Other Fixture Gym"), false);
@@ -137,6 +141,7 @@ test("superadmin gym detail endpoint validates ids and returns only the selected
       await Gym.deleteMany({ _id: { $in: gyms } });
       await PlatformInvoice.deleteMany({ gymId: { $in: gyms } });
       await SaaSPlan.deleteMany({ name: `Provisioning ${suffix}` });
+      await mongoose.connection.dropDatabase();
     }
     await mongoose.disconnect();
     if (previousUri === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previousUri;

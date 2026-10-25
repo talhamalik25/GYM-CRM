@@ -8,9 +8,13 @@ import { NextRequest } from "next/server.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
 // Next resolves extensionless application imports. Match that resolution only for
-// existing local JS files when exercising the actual handlers in Node tests.
+// existing project JS files when exercising the actual handlers in Node tests.
+const projectUrl = new URL("../", import.meta.url).href;
 registerHooks({ resolve(specifier, context, nextResolve) {
-  if (specifier.startsWith(".") && !/\.[a-z]+$/i.test(specifier)) {
+  if (context.parentURL?.startsWith(projectUrl)
+    && !context.parentURL.includes("/node_modules/")
+    && specifier.startsWith(".")
+    && !/\.[a-z]+$/i.test(specifier)) {
     const candidate = new URL(`${specifier}.js`, context.parentURL);
     if (existsSync(candidate)) return nextResolve(candidate.href, context);
   }
@@ -179,8 +183,10 @@ test("SaaS API enforcement, transactions, branch isolation, billing and reversib
       await PlatformInvoice.updateOne({ _id: renewalData.invoice.id }, { $set: { periodStart: elapsedStart, periodEnd: new Date(elapsedStart.getTime() + 86400000) } });
       const renewed = await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "reconcile_invoice", invoiceId: renewalData.invoice.id, verifiedAmount: renewalData.invoice.amountDue, verifiedReference: "verified-renewal", verificationNotes: "Matched renewal transfer in receiving bank", paymentIndependentlyVerified: true })));
       const renewedGym = await Gym.findById(basic.gym._id).lean();
-      assert.equal(renewedGym.saasSubscription.periodStart.getTime(), new Date(renewed.invoice.paidAt).getTime());
-      assert.equal(renewedGym.saasSubscription.periodEnd.getTime(), addBillingInterval(renewed.invoice.paidAt, "monthly").getTime());
+      assert.equal(renewedGym.saasSubscription.periodStart.getTime(), verifiedInvoice.paidAt.getTime(), "renewal preserves the already-paid period start");
+      assert.equal(renewedGym.saasSubscription.periodEnd.getTime(), new Date(renewed.invoice.periodEnd).getTime());
+      assert.equal(new Date(renewed.invoice.periodStart).getTime(), new Date(renewed.invoice.paidAt).getTime(), "an elapsed renewal starts at verification");
+      assert.equal(new Date(renewed.invoice.periodEnd).getTime(), addBillingInterval(renewed.invoice.paidAt, "monthly").getTime());
       const voidGym = await fixture("void-invoice-gym", plans[0]);
       const voidIssued = await data(await adminBilling(req("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(voidGym.gym._id), planId: String(plans[1]._id), mode: "invoice" })), 201);
       const beforeVoid = (await Gym.findById(voidGym.gym._id).lean()).saasSubscription;

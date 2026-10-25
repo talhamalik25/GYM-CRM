@@ -137,6 +137,7 @@ test("MongoDB payment ledger transactions remain consistent under retries and co
       if (plan) await Plan.deleteOne({ _id: plan._id });
       if (gym) await Gym.deleteOne({ _id: gym._id });
       if (gym) await Counter.deleteMany({ gymId: gym._id });
+      await mongoose.connection.dropDatabase();
     }
     await mongoose.disconnect();
     if (priorMongoUri === undefined) delete process.env.MONGODB_URI;

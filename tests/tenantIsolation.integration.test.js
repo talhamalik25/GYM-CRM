@@ -136,6 +136,7 @@ test("synthetic gym A queries cannot read, update, or delete gym B records", { s
         Gym.deleteMany({ _id: { $in: gyms } }),
       ]);
     }
+    if (mongoose.connection.readyState === 1) await mongoose.connection.dropDatabase();
     await mongoose.disconnect();
     if (priorMongoUri === undefined) delete process.env.MONGODB_URI;
     else process.env.MONGODB_URI = priorMongoUri;

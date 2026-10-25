@@ -61,6 +61,7 @@ test("owner profile is session-derived and cannot change protected account or Gy
       await GymMembership.deleteMany({ userId: { $in: users }, gymId: { $in: gyms } });
       await User.deleteMany({ _id: { $in: users } });
       await Gym.deleteMany({ _id: { $in: gyms } });
+      await mongoose.connection.dropDatabase();
     }
     await mongoose.disconnect();
     if (previousUri === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previousUri;
