@@ -48,7 +48,7 @@ export async function GET(request) {
     const limit = Math.min(requestedLimit, 50);
     const [items, total] = await Promise.all([Subscription.find(tenantFilter(request, filter)).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(), Subscription.countDocuments(tenantFilter(request, filter))]);
     return successResponse({ items: await Promise.all(items.map((item) => serialize(item, request))), total, page, limit, today: gymToday() });
-  } catch (error) { console.error("Subscriptions API error:", error?.message); return errorResponse("Could not load subscriptions.", 500); }
+  } catch (error) { console.error("Subscriptions API error:"); return errorResponse("Could not load subscriptions.", 500); }
 }
 
 export async function POST(request) {
@@ -132,6 +132,6 @@ export async function POST(request) {
       } catch { /* Preserve the safe conflict response below. */ }
       return errorResponse("This subscription request was already processed.", 409);
     }
-    console.error("Subscriptions API error:", error?.message); return errorResponse("Could not create subscription.", 500);
+    console.error("Subscriptions API error:"); return errorResponse("Could not create subscription.", 500);
   }
 }

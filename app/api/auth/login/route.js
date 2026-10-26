@@ -1,6 +1,8 @@
 import connectToDatabase from "../../../../lib/db.js";
 import { createSession, validateRequestOrigin } from "../../../../lib/auth.js";
-import { verifyPassword } from "../../../../lib/passwords.js";
+import { verifyPassword, DUMMY_PASSWORD_HASH } from "../../../../lib/passwords.js";
+import { consumeLoginAttempt } from "../../../../lib/loginSecurity.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import User from "../../../../models/User.js";
 
 const invalidCredentials = () => Response.json({ success: false, error: { message: "The email or password is incorrect." } }, {
@@ -8,17 +10,14 @@ const invalidCredentials = () => Response.json({ success: false, error: { messag
   headers: { "Cache-Control": "no-store" },
 });
 
-function logDevelopmentRejection(reason) {
-  if (process.env.NODE_ENV !== "production") console.warn(`[auth:login] Rejected: ${reason}.`);
-}
-
 export async function POST(request) {
   const originError = validateRequestOrigin(request);
   if (originError) return originError;
   let body;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return Response.json({ success: false, error: { message: "Enter a valid email address and password." } }, { status: 400 });
   }
   if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.email !== "string" || typeof body.password !== "string" || body.email.length > 254 || Buffer.byteLength(body.password, "utf8") > 128) {
@@ -29,20 +28,12 @@ export async function POST(request) {
 
   try {
     await connectToDatabase();
-    const user = await User.findOne({ email }).select("+passwordHash isActive").lean();
-    if (!user) {
-      logDevelopmentRejection("account not found in the configured database");
-      return invalidCredentials();
-    }
-    if (user.isActive === false) {
-      logDevelopmentRejection("account is inactive");
-      return invalidCredentials();
-    }
-    if (!(await verifyPassword(body.password, user.passwordHash))) {
-      logDevelopmentRejection("password did not match the stored hash");
-      return invalidCredentials();
-    }
-    return await createSession(user._id);
+    const limit = await consumeLoginAttempt(email);
+    if (!limit.allowed) return Response.json({ success: false, error: { message: "Too many sign-in attempts. Try again later." } }, { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(limit.retryAfter) } });
+    const user = await User.findOne({ email }).select("+passwordHash +authVersion isActive").lean();
+    const validPassword = await verifyPassword(body.password, user?.isActive !== false && user?.passwordHash ? user.passwordHash : DUMMY_PASSWORD_HASH);
+    if (!user || user.isActive === false || !validPassword) return invalidCredentials();
+    return await createSession(user._id, { expectedAuthVersion: user.authVersion ?? 0 });
   } catch {
     console.error("Authentication login failed.");
     return Response.json({ success: false, error: { message: "Sign-in is temporarily unavailable. Please try again." } }, {

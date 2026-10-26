@@ -23,5 +23,5 @@ export async function GET(request, { params }) {
       return { ...item, _id: String(item._id), status: deriveSubscriptionStatus(item), plan, payments, amountDue: due, amountPaid: paid, balance: Math.max(0, due - paid), paymentStatus: paid >= due ? "paid" : paid ? "partial" : "pending" };
     }));
     return successResponse({ member, items });
-  } catch (error) { console.error("Member subscriptions API error:", error?.message); return errorResponse("Could not load member subscription history.", 500); }
+  } catch (error) { console.error("Member subscriptions API error:"); return errorResponse("Could not load member subscription history.", 500); }
 }

@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
   const { id } = await params;
   if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Subscription id is invalid.", 400);
   try { await connectToDatabase(); const subscription = await Subscription.findOne(tenantFilter(request, { _id: id })); return subscription ? successResponse(await responseFor(subscription, request)) : errorResponse("Subscription was not found.", 404); }
-  catch (error) { console.error("Subscription API error:", error?.message); return errorResponse("Could not load subscription.", 500); }
+  catch (error) { console.error("Subscription API error:"); return errorResponse("Could not load subscription.", 500); }
 }
 
 export async function PATCH(request, { params }) {
@@ -60,5 +60,5 @@ export async function PATCH(request, { params }) {
     if (result.missing) return errorResponse("Subscription was not found.", 404);
     if (result.alreadyCancelled) return errorResponse("Subscription is already cancelled.", 409);
     return successResponse(await responseFor(result.subscription, request));
-  } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); if (error?.status) return errorResponse(error.message, error.status); const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse); if (ledgerResponse) return ledgerResponse; console.error("Subscription API error:", error?.message); return errorResponse("Could not update subscription.", 500); }
+  } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); if (error?.status) return errorResponse(error.message, error.status); const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse); if (ledgerResponse) return ledgerResponse; console.error("Subscription API error:"); return errorResponse("Could not update subscription.", 500); }
 }

@@ -60,3 +60,19 @@ test("remote disposable database can be used only when explicitly acknowledged",
   );
   assert.match(new URL(result).pathname, /^\/test_[0-9a-f]{32}$/);
 });
+
+test("a disposable flag cannot authorize the application server or reused credentials", () => {
+  const options = { allowRemoteDisposable: true, applicationUris: ["mongodb+srv://app-user:app-password@application.example/app"] };
+  for (const uri of [
+    "mongodb+srv://test-user:test-password@application.example/fitivo_test",
+    "mongodb+srv://app-user:app-password@test.example/fitivo_test",
+  ]) assert.throws(() => isolatedTestUri(uri, "safety", options), /host or credentials are reused/);
+  assert.ok(isolatedTestUri("mongodb+srv://test-user:test-password@test.example/fitivo_test", "safety", options));
+});
+
+test("separate local ports are allowed but the application's default MongoDB port is refused", () => {
+  const options = { applicationUris: ["mongodb://localhost/app"] };
+  assert.throws(() => isolatedTestUri("mongodb://localhost:27017/fitivo_test", "safety", options), /host or credentials are reused/);
+  assert.throws(() => isolatedTestUri("mongodb://127.0.0.1:27017/fitivo_test", "safety", options), /host or credentials are reused/);
+  assert.ok(isolatedTestUri("mongodb://localhost:27018/fitivo_test", "safety", options));
+});

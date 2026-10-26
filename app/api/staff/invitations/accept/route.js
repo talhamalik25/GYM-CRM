@@ -1,4 +1,5 @@
 import { branchScope } from "../../../../../lib/branchRules.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../../lib/requestBody.js";
 import { assertGymLimit, EntitlementError, entitlementErrorResponse } from "../../../../../lib/entitlements.js";
 import Branch from "../../../../../models/Branch.js";
 import mongoose from "mongoose";
@@ -18,7 +19,10 @@ export async function POST(request) {
   const originError = validateRequestOrigin(request);
   if (originError) return originError;
   let body;
-  try { body = await request.json(); } catch { return json({ success: false, error: { message: "This invitation is invalid or expired." } }, 400); }
+  try { body = await readJsonBody(request); } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
+    return json({ success: false, error: { message: "This invitation is invalid or expired." } }, 400);
+  }
   if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["token", "fullName", "password"].includes(key)) || typeof body.token !== "string" || !/^[A-Za-z0-9_-]{40,60}$/.test(body.token)) {
     return json({ success: false, error: { message: "This invitation is invalid or expired." } }, 400);
   }

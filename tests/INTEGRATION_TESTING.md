@@ -20,6 +20,11 @@ per-run database from that URI. Loopback hosts are allowed by default; a remote
 host requires the explicit `MONGODB_TEST_DISPOSABLE=YES` designation after you
 have independently confirmed it is disposable.
 
+The disposable flag cannot override a match to the application's configured
+server or credentials. The preflight checks application environment files without
+printing or loading their values. `npm run test:unit` is the explicit database-free
+alternative; it skips integration suites even if `.env.test.local` is configured.
+
 For a separate local test replica set, start MongoDB with its own empty data
 directory and initialize the replica set. For example:
 

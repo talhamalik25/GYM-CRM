@@ -98,7 +98,7 @@ export async function POST(request) {
     if (error?.code === 20 || error?.codeName === "IllegalOperation" || /replica set|transaction numbers are only allowed/i.test(error?.message || "")) {
       return errorResponse("Atomic Gym provisioning requires MongoDB transaction support. Configure a replica-set MongoDB deployment.", 503);
     }
-    console.error("Gym provisioning could not be completed:", error?.message);
+    console.error("Gym provisioning could not be completed:");
     return errorResponse("Could not provision the Gym. No partial Gym or owner assignment was retained.", 503);
   } finally {
     if (session) await session.endSession();

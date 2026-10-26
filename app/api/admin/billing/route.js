@@ -207,25 +207,28 @@ export async function POST(request) {
   if (body.action === "renew_invoice") {
     if (typeof body.gymId !== "string" || !mongoose.isObjectIdOrHexString(body.gymId)) return errorResponse("Gym id is invalid.", 400, { gymId: "Choose a valid Gym." });
     try {
-      const gym = await Gym.findOne({ _id: body.gymId, status: "active" }).lean();
-      const subscription = gym?.saasSubscription;
-      if (!subscription || subscription.status === "cancelled") return errorResponse("This Gym has no renewable SaaS subscription.", 409);
-      if (subscription.planSnapshot.price === 0) return errorResponse("Free subscriptions do not need invoices.", 400);
-      if (subscription.pendingInvoiceId && await PlatformInvoice.exists({ _id: subscription.pendingInvoiceId, status: "open" })) return errorResponse("An open invoice already exists for this Gym.", 409);
-      const now = new Date();
-      const periodStart = subscription.periodEnd && subscription.periodEnd > now ? subscription.periodEnd : now;
-      const periodEnd = addBillingInterval(periodStart, subscription.planSnapshot.interval);
       const session = await mongoose.startSession();
       let invoice;
       try {
         await session.withTransaction(async () => {
+          // Read the terms after locking, including on transaction retries.
+          // Cancellation or a plan change must not leave a stale renewal invoice.
+          const gym = await lockGym(body.gymId, session);
+          const subscription = gym.saasSubscription;
+          if (gym.status !== "active" || !subscription || subscription.status === "cancelled") throw new EntitlementError("This Gym has no renewable SaaS subscription.", "SUBSCRIPTION_UNAVAILABLE", 409);
+          if (subscription.planSnapshot.price === 0) throw new EntitlementError("Free subscriptions do not need invoices.", "FREE_SUBSCRIPTION", 400);
+          if (subscription.pendingInvoiceId) throw new EntitlementError("An open invoice already exists for this Gym.", "INVOICE_PENDING", 409);
+          const now = new Date();
+          const periodStart = subscription.periodEnd && subscription.periodEnd > now ? subscription.periodEnd : now;
+          const periodEnd = addBillingInterval(periodStart, subscription.planSnapshot.interval);
           invoice = await createInvoice({ gymId: gym._id, planId: subscription.planId, snapshot: subscription.planSnapshot, periodStart, periodEnd, createdBy: actorId, session });
           const updated = await Gym.updateOne({ _id: gym._id, "saasSubscription.pendingInvoiceId": subscription.pendingInvoiceId || null }, { $set: { "saasSubscription.pendingInvoiceId": invoice._id }, $unset: { planChangeRequest: 1 } }, { session });
           if (updated.modifiedCount !== 1) throw new Error("Subscription changed; retry invoice creation.");
         });
       } finally { await session.endSession(); }
       return successResponse({ invoice: serializePlatformInvoice(invoice) }, 201);
-    } catch {
+    } catch (error) {
+      if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       return errorResponse("Could not issue the renewal invoice. Please try again.", 503);
     }
   }

@@ -1,4 +1,5 @@
 import connectToDatabase from "../../../../lib/db.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import { getAuthenticatedUserFromRequest, validateRequestOrigin } from "../../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
 import { serializeOwnerProfile, validateOwnerProfile } from "../../../../lib/userProfileRules.js";
@@ -30,8 +31,11 @@ export async function PATCH(request) {
   const originError = validateRequestOrigin(request);
   if (originError) return originError;
   let body;
-  try { body = await request.json(); }
-  catch { return errorResponse("Request body must be valid JSON.", 400); }
+  try { body = await readJsonBody(request); }
+  catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
+    return errorResponse("Request body must be valid JSON.", 400);
+  }
   const validation = validateOwnerProfile(body);
   if (validation.message) return errorResponse(validation.message, 400, validation.fields);
   try {

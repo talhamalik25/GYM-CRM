@@ -112,7 +112,7 @@ export async function POST(request, { params }) {
       } catch { /* Preserve the safe conflict response below. */ }
       return errorResponse("This renewal request was already processed.", 409);
     }
-    console.error("Subscription renewal error:", error?.message);
+    console.error("Subscription renewal error:");
     return errorResponse("Could not renew subscription.", 500);
   }
 }

@@ -39,11 +39,18 @@ active trial plan and the settings described in
 - `npm test` runs the Node test suite. MongoDB integration suites require an
   explicit disposable `MONGODB_TEST_URI`; see
   [`tests/INTEGRATION_TESTING.md`](tests/INTEGRATION_TESTING.md).
+- `npm run test:unit` explicitly disables database-backed tests.
 - `npm run lint` runs ESLint.
 - `npm run build` creates a production build.
+- `node scripts/browser-smoke.js` checks a local production build with database
+  credentials disabled. This does not test authenticated business workflows.
 
 Never point integration tests at `MONGODB_URI` or a production database. The
 test helper refuses unmarked database names and undesignated remote hosts.
+It also refuses the application's configured host or reused database credentials.
+
+The [2026-10-26 hardening report](docs/SECURITY_HARDENING_2026-10-26.md)
+records changes, verification, credential rotation requirements, and launch gates.
 
 ## Account utilities
 

@@ -1,4 +1,5 @@
 import Branch from "../../../../models/Branch.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import { createSession, validateRequestOrigin } from "../../../../lib/auth.js";
 import { publicRegistrationConfigured, publicTrialSubscription, registrationGymSlug, validateGymOwnerRegistrationBody } from "../../../../lib/gymOwnerRegistration.js";
@@ -24,8 +25,9 @@ export async function POST(request) {
 
   let body;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return jsonError("Enter valid registration details.", 400);
   }
 

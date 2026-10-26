@@ -27,7 +27,7 @@ async function loadMarketingData() {
     const trial = await getPublicRegistrationAvailability();
     return { plans: plans.map(serializeSaaSPlan), pricingAvailable: true, trialAvailable: trial.enabled, trialPlanName: trial.planName };
   } catch (error) {
-    console.error("Marketing catalog unavailable:", error?.message || "Unknown error");
+    console.error("Marketing catalog unavailable:");
     return { plans: [], pricingAvailable: false, trialAvailable: false, trialPlanName: "" };
   }
 }

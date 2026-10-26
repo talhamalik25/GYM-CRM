@@ -214,6 +214,19 @@ test("SaaS API enforcement, transactions, branch isolation, billing and reversib
       assert.equal((await downgrade.json()).error.code, "DOWNGRADE_REMEDIATION_REQUIRED");
       assert.equal((await adminBilling(req("/api/admin/billing", adminToken, { action: "assign_plan", gymId: String(basic.gym._id), planId: String(plans[0]._id), mode: "trial", trialDays: 7 }))).status, 409);
     });
+    await t.test("concurrent renewal and cancellation cannot attach an invoice to cancelled terms", async () => {
+      const target = await fixture("renewal-race", plans[0]);
+      const results = await Promise.all([
+        adminBilling(req("/api/admin/billing", adminToken, { action: "renew_invoice", gymId: String(target.gym._id) })),
+        adminBilling(req("/api/admin/billing", adminToken, { action: "cancel_subscription", gymId: String(target.gym._id) })),
+      ]);
+      const statuses = results.map((response) => response.status).sort();
+      assert.ok(JSON.stringify(statuses) === JSON.stringify([200, 409]) || JSON.stringify(statuses) === JSON.stringify([201, 409]));
+      const saved = await Gym.findById(target.gym._id).lean();
+      const open = await PlatformInvoice.countDocuments({ gymId: target.gym._id, status: "open" });
+      if (saved.saasSubscription.status === "cancelled") { assert.equal(open, 0); assert.equal(saved.saasSubscription.pendingInvoiceId, null); }
+      else { assert.equal(open, 1); assert.ok(saved.saasSubscription.pendingInvoiceId); }
+    });
     await t.test("expired subscription blocks operations while billing stays available", async () => {
       await Gym.updateOne({ _id: other.gym._id }, { $set: { "saasSubscription.periodEnd": new Date(0) } });
       const response = await listMembers(req("/api/members", other.token));

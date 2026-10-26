@@ -67,7 +67,7 @@ export async function POST(request, { params }) {
       } catch { /* Keep the sanitized route error below. */ }
       return errorResponse("This payment request was already processed. Retry using the original request key.", 409);
     }
-    console.error("Subscription payment error:", error?.message);
+    console.error("Subscription payment error:");
     return errorResponse("Could not record subscription payment.", 500);
   }
 }

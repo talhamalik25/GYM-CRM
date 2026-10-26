@@ -44,4 +44,13 @@ If an existing account cannot sign in, reset its password from the project root 
 npm run user:reset-password -- --email owner@example.com
 ```
 
-The command updates only an existing active account. It does not create or reactivate accounts.
+The command updates only an existing active account and invalidates its existing
+sessions. It does not create or reactivate accounts.
+
+## Verification utilities
+
+`npm test` runs `run-tests.js`, which validates database isolation before starting
+the Node suite. `npm run test:unit` disables database targets and skips integration
+tests. `browser-smoke.js` starts its own loopback server with database credentials
+disabled and uses headless Chrome against an existing production build; see
+`docs/SAFE_DATABASE_INTEGRATION_TESTING.md` for its limited scope.

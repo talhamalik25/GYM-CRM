@@ -106,8 +106,8 @@ test("tenant filters cannot be overridden by caller-supplied gym ids", () => {
 test("legacy login and database session contract remains present", async () => {
   const loginRoute = await readFile(fileURLToPath(new URL("../app/api/auth/login/route.js", import.meta.url)), "utf8");
   const auth = await readFile(fileURLToPath(new URL("../lib/auth.js", import.meta.url)), "utf8");
-  assert.match(loginRoute, /User\.findOne\(\{ email \}\)\.select\("\+passwordHash isActive"\)/);
-  assert.match(loginRoute, /return await createSession\(user\._id\)/);
+  assert.match(loginRoute, /User\.findOne\(\{ email \}\)\.select\("\+passwordHash \+authVersion isActive"\)/);
+  assert.match(loginRoute, /return await createSession\(user\._id, \{ expectedAuthVersion: user\.authVersion \?\? 0 \}\)/);
   assert.match(auth, /AuthSession\.findOne\(\{ tokenHash: hashToken\(token\), expiresAt: \{ \$gt: new Date\(\) \} \}\)/);
   assert.match(auth, /export async function getAuthenticatedUserFromRequest\(request\)/);
 });

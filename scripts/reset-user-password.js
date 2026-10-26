@@ -59,7 +59,7 @@ async function main() {
 
   const result = await User.updateOne(
     { _id: user._id, isActive: { $ne: false } },
-    { $set: { passwordHash: await hashPassword(password) } },
+    { $set: { passwordHash: await hashPassword(password) }, $inc: { authVersion: 1 } },
   );
   if (result.matchedCount !== 1) throw new Error("That account is inactive. Ask an active superadmin to reactivate it first.");
   process.stdout.write("Password reset complete. Sign in with the new password.\n");

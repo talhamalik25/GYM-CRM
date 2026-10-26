@@ -9,6 +9,9 @@ import Gym from "../models/Gym.js";
 import GymMembership from "../models/GymMembership.js";
 import User from "../models/User.js";
 import { hashPassword } from "../lib/passwords.js";
+import { createSession, getUserFromToken, revokeSession } from "../lib/auth.js";
+import { consumeLoginAttempt } from "../lib/loginSecurity.js";
+import AuthRateLimit from "../models/AuthRateLimit.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
 const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "user_profile");
@@ -55,6 +58,22 @@ test("owner profile is session-derived and cannot change protected account or Gy
     assert.equal(await GymMembership.countDocuments({ userId: owner._id, gymId: gym._id, role: "gym_owner", status: "active" }), 1);
     const forbidden = await GET(request("GET", undefined, staffToken));
     assert.equal(forbidden.status, 403);
+    // Password reset/deactivation must survive later reactivation without
+    // reviving any old token. The generation change is atomic with the write.
+    await User.updateOne({ _id: owner._id }, { $set: { passwordHash: await hashPassword("replacement-password") }, $inc: { authVersion: 1 } });
+    assert.equal(await getUserFromToken(ownerToken), null);
+    const fresh = (await createSession(owner._id)).cookies.get(cookieName).value;
+    assert.ok(await getUserFromToken(fresh));
+    await User.updateOne({ _id: owner._id }, { $set: { isActive: false }, $inc: { authVersion: 1 } });
+    await User.updateOne({ _id: owner._id }, { $set: { isActive: true } });
+    assert.equal(await getUserFromToken(fresh), null);
+    const logoutToken = (await createSession(owner._id)).cookies.get(cookieName).value;
+    await revokeSession(request("POST", {}, logoutToken));
+    assert.equal(await getUserFromToken(logoutToken), null);
+    await AuthRateLimit.init();
+    const now = Date.now();
+    const attempts = await Promise.all(Array.from({ length: 25 }, () => consumeLoginAttempt(owner.email, now)));
+    assert.equal(attempts.filter(({ allowed }) => allowed).length, 20);
   } finally {
     if (mongoose.connection.readyState === 1) {
       await AuthSession.deleteMany({ _id: { $in: sessions } });
