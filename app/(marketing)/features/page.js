@@ -1,8 +1,19 @@
-import MarketingPageIntro from "../../../components/marketing/marketing-page-intro.js";
-import { MARKETING_PAGES } from "../../../lib/marketing/site.js";
-
-export const metadata = { title: "Features | Fitivo", description: MARKETING_PAGES["features"].description };
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { PageHero, PageSection, PageActions, BulletList, IncludedGuidance, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
+import styles from "../../../components/marketing/marketing-pages.module.css";
+import { FEATURES } from "../../../lib/marketing/home.js";
+import { FEATURE_DETAILS } from "../../../lib/marketing/pages.js";
+import MarketingPreviewPlaceholder from "../../../components/marketing/marketing-preview-placeholder.js";
+export const metadata = { title: "Features | Fitivo", description: MARKETING_PAGES["features"].description, alternates: { canonical: SITE.url + "/features" } };
 
 export default function Page() {
-  return <MarketingPageIntro page="features" />;
+  return <div className={styles.pages}><PageHero eyebrow="The product / Connected operations" title="The work of a gym." accent="In one place." description={MARKETING_PAGES.features.description} aside={<MarketingPreviewPlaceholder compact title="Gym administration" description="People, memberships and daily records, connected to your gym." areas={["People", "Operations", "Reports"]} />}><PageActions secondary="#module-detail" secondaryLabel="Explore the modules" /></PageHero>
+    <PageSection eyebrow="Built around your members" title="Start with a person. Keep the details together." description="A membership belongs to a member. So does a check-in, a renewal and a payment. Give your team a shared record to work from.">
+      <div className={styles.split}><div><h3 className={styles.spotTitle}>From joining day<br />to the next renewal.</h3><p className={styles.bodyCopy}>Find contact details, membership status and payment history without moving between disconnected notes.</p><BulletList items={["Member profiles and trainer assignments", "Membership plans and expiry dates", "Recorded payments and renewal history"]} /><Link href="#member-management" className={styles.textLink}>Explore member records <ArrowRight size={16} aria-hidden="true" /></Link></div><MarketingPreviewPlaceholder compact title="Member records" description="A place for the details your team uses in each member conversation." areas={["Profile", "Membership", "Payment history"]} /></div>
+    </PageSection>
+    <PageSection eyebrow="People & daily operations" title="A clear place for the next task." tinted><div className={styles.cards}><article><span className={styles.number}>01 / The front desk</span><h3>Keep visits in view.</h3><p>Record check-ins and check-outs against the right member, with recent attendance easy to find.</p><Link className={styles.textLink} href="#attendance">Explore attendance <ArrowUpRight size={15} aria-hidden="true" /></Link></article><article><span className={styles.number}>02 / The trainer</span><h3>Know your assigned members.</h3><p>A focused trainer workspace brings assigned members, membership status and recent attendance together.</p><Link className={styles.textLink} href="#trainers">Explore team access <ArrowUpRight size={15} aria-hidden="true" /></Link></article><article><span className={styles.number}>03 / Fees & finance</span><h3>Follow the recorded payment.</h3><p>Keep member charges, recorded payments, receipts and outstanding dues connected.</p><Link className={styles.textLink} href="#fees">Explore fee records <ArrowUpRight size={15} aria-hidden="true" /></Link></article></div></PageSection>
+    <PageSection id="module-detail" eyebrow="The module detail" title="What’s inside Fitivo." description="Available tools follow your subscription and permissions. Planned capabilities are explicitly marked."><div className={styles.moduleGrid}>{FEATURES.map((feature, i) => <article id={feature.id} key={feature.id} className={styles.moduleCard} tabIndex={-1}><div className={styles.cardTop}><span className={styles.number}>0{i + 1}</span>{feature.status && <span className={styles.badge}>{feature.status}</span>}</div><h3>{feature.title}</h3><p>{feature.description}</p><BulletList items={FEATURE_DETAILS[feature.id]} /></article>)}</div></PageSection>
+    <IncludedGuidance /><PageClosing /></div>;
 }

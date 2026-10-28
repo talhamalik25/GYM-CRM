@@ -1,32 +1,27 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { Activity, Building2, CalendarCheck2, ChartNoAxesCombined, CreditCard, LayoutDashboard, Users } from "lucide-react";
-import MarketingProductPreview from "./marketing-product-preview.js";
-import styles from "./marketing.module.css";
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { PRODUCT_VIEWS } from "../../lib/marketing/home.js";
+import MarketingPreviewPlaceholder from "./marketing-preview-placeholder.js";
+import styles from "./marketing-home.module.css";
 
-const tabs = [["overview", "Dashboard", LayoutDashboard], ["members", "Members", Users], ["attendance", "Attendance", Activity], ["renewals", "Renewals", CalendarCheck2], ["payments", "Payments", CreditCard], ["reports", "Reports", ChartNoAxesCombined], ["branches", "Branches", Building2]];
-const descriptions = {
-  overview: "Start with a clear overview of members, collections, and the day ahead.",
-  members: "Give every member an organized record, from first visit to latest renewal.",
-  attendance: "Keep track of visits and understand your gym’s daily rhythm.",
-  renewals: "See expiring memberships and keep renewal history close at hand.",
-  payments: "Bring payment records, outstanding dues, and receipts into one view.",
-  reports: "Review performance with analytics and reports on eligible plans.",
-  branches: "Bring your locations together with Professional multi-branch management.",
-};
-
-export default function MarketingProductShowcase() {
-  const [active, setActive] = useState("overview");
-  const tabRefs = useRef([]);
+export default function MarketingProductShowcase({ showDetailsLink = true }) {
+  const [selected, setSelected] = useState(0);
+  const refs = useRef([]);
   const id = useId();
-  function handleKeyDown(event, index) {
-    const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null;
+  function selectWithKeyboard(event, index) {
+    const next = event.key === "ArrowRight" ? (index + 1) % PRODUCT_VIEWS.length : event.key === "ArrowLeft" ? (index - 1 + PRODUCT_VIEWS.length) % PRODUCT_VIEWS.length : event.key === "Home" ? 0 : event.key === "End" ? PRODUCT_VIEWS.length - 1 : null;
     if (next === null) return;
-    event.preventDefault(); setActive(tabs[next][0]); tabRefs.current[next]?.focus();
+    event.preventDefault();
+    setSelected(next);
+    refs.current[next]?.focus();
   }
   return <div className={styles.showcase}>
-    <div className={styles.productTabs} role="tablist" aria-label="Explore Fitivo product areas">{tabs.map(([key, label, Icon], index) => <button key={key} ref={(el) => { tabRefs.current[index] = el; }} type="button" role="tab" id={`${id}-tab-${key}`} aria-selected={active === key} aria-controls={`${id}-panel`} tabIndex={active === key ? 0 : -1} onClick={() => setActive(key)} onKeyDown={(event) => handleKeyDown(event, index)}><Icon size={16} aria-hidden="true" />{label}</button>)}</div>
-    <div id={`${id}-panel`} role="tabpanel" tabIndex={0} aria-labelledby={`${id}-tab-${active}`} className={styles.productPanel}><p className={styles.productDescription}>{descriptions[active]}</p><MarketingProductPreview kind={active} /></div>
+    <div className={styles.showcaseLabel}><span>Inside Fitivo</span><span>Four connected parts of your day</span></div>
+    <div className={styles.productTabs} role="tablist" aria-label="Explore Fitivo workspaces">{PRODUCT_VIEWS.map((view, index) => <button key={view.id} ref={el => { refs.current[index] = el; }} type="button" role="tab" id={`${id}-tab-${view.id}`} aria-controls={`${id}-panel-${view.id}`} aria-selected={selected === index} tabIndex={selected === index ? 0 : -1} onClick={() => setSelected(index)} onKeyDown={event => selectWithKeyboard(event, index)}>{view.label}</button>)}</div>
+    {PRODUCT_VIEWS.map((view, index) => <div key={view.id} role="tabpanel" id={`${id}-panel-${view.id}`} aria-labelledby={`${id}-tab-${view.id}`} hidden={selected !== index} tabIndex={0}><MarketingPreviewPlaceholder title={view.label} description={view.description} areas={view.areas} /></div>)}
+    <div className={styles.showcaseBottom}><p>One gym. Connected records. A clearer day.</p>{showDetailsLink && <Link href="/demo">Explore the workspaces <ArrowUpRight size={15} aria-hidden="true" /></Link>}</div>
   </div>;
 }

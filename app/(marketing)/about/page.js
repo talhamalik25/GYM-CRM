@@ -1,8 +1,16 @@
-import MarketingPageIntro from "../../../components/marketing/marketing-page-intro.js";
-import { MARKETING_PAGES } from "../../../lib/marketing/site.js";
-
-export const metadata = { title: "About | Fitivo", description: MARKETING_PAGES["about"].description };
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { PageHero, PageSection, PageActions, BulletList, IncludedGuidance, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
+import styles from "../../../components/marketing/marketing-pages.module.css";
+import { PRINCIPLES } from "../../../lib/marketing/pages.js";
+import MarketingPreviewPlaceholder from "../../../components/marketing/marketing-preview-placeholder.js";
+export const metadata = { title: "About Fitivo | Fitivo", description: MARKETING_PAGES["about"].description, alternates: { canonical: SITE.url + "/about" } };
 
 export default function Page() {
-  return <MarketingPageIntro page="about" />;
+  return <div className={styles.pages}><PageHero eyebrow="Fitivo / By AKTech Digital Solutions" title="For the people behind" accent="every gym day." description="A gym runs on the people who show up, teach, organize and keep things moving. Fitivo brings their daily records into one connected workspace." aside={<div className={styles.brandCard}><p className={styles.eyebrow}>Product / Fitivo</p><span className={styles.wordmark}>Fitivo<span>.</span></span><p>Your gym day.<br />Better connected.</p><div>{SITE.company}<br />{SITE.location}</div></div>}><PageActions primary="/features" primaryLabel="See the platform" secondary="/contact" secondaryLabel="Talk to AKTech" /></PageHero>
+    <PageSection eyebrow="Why the connections matter" title="A member’s visit is part of a bigger routine."><div className={styles.split}><div><p className={styles.bodyCopy}>A new member needs a plan. A trainer needs an assigned roster. A check-in needs a membership record. A receipt needs a recorded payment.</p><p className={styles.bodyCopy}>Keeping those details connected gives your team a clearer starting point for the next task and the next conversation.</p><BulletList items={["Member records with context", "Daily operations linked to the gym", "Reports grounded in recorded activity"]} /></div><MarketingPreviewPlaceholder compact title="Connected gym records" description="Members, memberships, attendance and fees belong to the same gym workspace." areas={["People", "Records", "Daily operations"]} /></div></PageSection>
+    <PageSection eyebrow="Our product approach" title="Practical software. A clear purpose." tinted><div className={styles.cards}>{PRINCIPLES.map((item, i) => <article key={item.title}><span className={styles.number}>0{i + 1}</span><h3>{item.title}</h3><p>{item.description}</p></article>)}</div></PageSection>
+    <PageSection eyebrow="The people to talk to" title="Built in Karachi. Open to your gym."><div className={styles.split}><div><p className={styles.bodyCopy}>Fitivo is a product of {SITE.company}, alongside Acadivo for school management. The products share an approach: connected records, clear responsibilities and guidance for the people using them.</p><p className={styles.bodyCopy}>Tell us how your gym works, what your team needs and where you want to start.</p><PageActions primary="/contact" primaryLabel="Talk to AKTech" /><a className={styles.textLink} href={SITE.companyUrl} target="_blank" rel="noopener noreferrer">Visit AKTech <ArrowUpRight size={16} aria-hidden="true" /><span className={styles.srOnly}> (opens in a new tab)</span></a></div><address className={styles.contactCard}><p className={styles.eyebrow}>AKTech Digital Solutions</p><h3>Let’s talk about your next step.</h3><a href={"mailto:" + SITE.email}>{SITE.email}</a><a href={SITE.phoneHref}>{SITE.phone}</a><span>{SITE.location}</span></address></div></PageSection>
+    <IncludedGuidance /><PageClosing /></div>;
 }
