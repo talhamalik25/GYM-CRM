@@ -29,3 +29,12 @@
 - Confirm trial approval operations, 24-hour payment review policy, final prices, annual discount and included onboarding services with AKTech.
 - Replace bank placeholders and supply approved product screenshots before accepting transfers on the public checkout.
 - Source constraints intentionally leave operational billing/auth untouched.
+
+## Step 4 — marketing sub-pages
+- Completed features, pricing, demo, guide, about, contact and free-trial pages using the shared indigo layout.
+- Added module detail anchors, a clearly provisional plan comparison, role-based demo tabs, practical role guides and reusable guidance/CTA sections.
+- Contact and trial forms validate fields and prepare an email draft for the visitor to review and send. They do not submit requests, create accounts or activate trials. Copy fallback is available; a dedicated backend remains TODO.
+- Preserved the proposed annual discount label, unconfirmed pricing and clearly labeled screenshot placeholders.
+- Validation: final production build passed; all seven pages checked at 375, 768 and 1280 pixels. Checked 31 internal links, role tabs, billing controls, FAQ keyboard access, draft encoding, validation and copy fallback. No browser errors or form submission requests were observed.
+- Fixed comparison-table overflow on narrow screens and isolated its text size from dashboard table styles. Auth, dashboard, database models and existing API routes were not changed.
+- Paused before Step 5: payment page UI.
