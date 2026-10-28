@@ -1,6 +1,4 @@
 import { Activity, ArrowRight, ArrowUpRight, Building2, CalendarCheck2, Check, ChartNoAxesCombined, CreditCard, Dumbbell, Layers3, LockKeyhole, Plus, ShieldCheck, UserPlus, Users } from "lucide-react";
-import MarketingFooter from "./marketing-footer.js";
-import MarketingNavigation from "./marketing-navigation.js";
 import MarketingProductShowcase from "./marketing-product-showcase.js";
 import MarketingProductPreview, { BranchPreview, MemberPreview } from "./marketing-product-preview.js";
 import MarketingPricing from "./marketing-pricing.js";
@@ -25,9 +23,7 @@ export default function MarketingHome({ plans, pricingAvailable, trialAvailable,
     ["Can I upgrade as my gym grows?", "Yes. Request a plan change from Plan & billing. Your current access stays in place while the request is reviewed. The new paid plan starts after payment verification, with a full billing term and no automatic proration or credit."],
   ];
 
-  return <div id="home" className={styles.marketing}>
-    <MarketingNavigation trialAvailable={trialAvailable} />
-    <main id="main-content" tabIndex={-1}>
+  return <>
       <section className={styles.hero}>
         <div className={`${styles.container} ${styles.heroContent}`}>
           <MarketingPill><span className={styles.statusDot} /> BUILT FOR THE BUSINESS OF FITNESS <ArrowUpRight size={13} aria-hidden="true" /></MarketingPill>
@@ -73,9 +69,7 @@ export default function MarketingHome({ plans, pricingAvailable, trialAvailable,
       <MarketingSection id="faq" tabIndex={-1}><div className={styles.faqLayout}><MarketingHeading eyebrow="A LITTLE MORE CLARITY" title={<>Good questions.<br />Straight answers.</>}>Everything you need to know before your next step.</MarketingHeading><div className={styles.faqList}>{faqItems.map(([question, answer]) => <details key={question} name="fitivo-faq"><summary>{question}<Plus size={18} aria-hidden="true" /></summary><p>{answer}</p></details>)}</div></div></MarketingSection>
 
       <section className={styles.finalSection}><div className={`${styles.container} ${styles.finalCta}`}><div className={styles.ctaMark} aria-hidden="true"><Layers3 size={28} /></div><p className={styles.eyebrow}>LESS ADMIN. MORE POSSIBILITY.</p><h2>Ready to run your<br />gym smarter?</h2><p>Bring your people, payments, and progress together.</p><div className={styles.heroActions}><MarketingPrimaryAction trialAvailable={trialAvailable} /><MarketingButton variant="outline" href="#product">Take a closer look <ArrowRight size={16} /></MarketingButton></div><span className={styles.ctaNote}><LockKeyhole size={13} /> One workspace. The right access for your team.</span></div></section>
-    </main>
-    <MarketingFooter trialAvailable={trialAvailable} />
-  </div>;
+  </>;
 }
 
 function LayoutIcon() { return <ShieldCheck size={14} aria-hidden="true" />; }

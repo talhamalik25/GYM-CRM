@@ -1,8 +1,8 @@
-import connectToDatabase from "../lib/db.js";
-import { getPublicRegistrationAvailability } from "../lib/publicRegistrationAvailability.js";
-import { serializeSaaSPlan } from "../lib/platformBillingRules.js";
-import SaaSPlan from "../models/SaaSPlan.js";
-import MarketingHome from "../components/marketing/marketing-home.js";
+import connectToDatabase from "../../lib/db.js";
+import { getPublicRegistrationAvailability } from "../../lib/publicRegistrationAvailability.js";
+import { serializeSaaSPlan } from "../../lib/platformBillingRules.js";
+import SaaSPlan from "../../models/SaaSPlan.js";
+import MarketingHome from "../../components/marketing/marketing-home.js";
 
 export const dynamic = "force-dynamic";
 

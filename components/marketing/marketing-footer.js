@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { MARKETING_SUPPORT_CHANNEL } from "../../lib/marketingConfig.js";
+import { SITE } from "../../lib/marketing/site.js";
 import { MarketingBrand } from "./marketing-primitives.js";
-import styles from "./marketing.module.css";
+import styles from "./marketing-shell.module.css";
 
-export default function MarketingFooter({ trialAvailable }) {
+export default function MarketingFooter() {
   return <footer className={styles.footer}>
     <div className={`${styles.container} ${styles.footerGrid}`}>
-      <div><MarketingBrand /><p className={styles.footerDescription}>Less admin. More momentum.<br />A better way to run your gym.</p><span className={styles.footerTag}>BUILT FOR THE BUSINESS OF FITNESS</span></div>
-      <nav aria-label="Explore Fitivo"><h3>Platform</h3><a href="#features">Features</a><a href="#product">Product tour</a><a href="#how-it-works">How it works</a><a href="#pricing">Pricing</a></nav>
-      <nav aria-label="Account and information"><h3>Resources</h3><a href="#faq">FAQs</a><Link href="/login">Log in <ArrowUpRight size={13} aria-hidden="true" /></Link>{trialAvailable && <Link href="/register">Start free trial</Link>}<Link href="/privacy">Privacy information</Link><Link href="/terms">Terms information</Link></nav>
-      <div><h3>Your next chapter</h3><p className={styles.footerDescription}>One connected workspace.<br />More time for your members.</p>{MARKETING_SUPPORT_CHANNEL && <a className={styles.textLink} href={MARKETING_SUPPORT_CHANNEL.href} rel={MARKETING_SUPPORT_CHANNEL.href.startsWith("https:") ? "noopener noreferrer" : undefined} target={MARKETING_SUPPORT_CHANNEL.href.startsWith("https:") ? "_blank" : undefined}>Contact Fitivo <ArrowUpRight size={15} aria-hidden="true" /></a>}</div>
+      <div className={styles.footerIntro}><MarketingBrand /><p className={styles.tagline}>{SITE.tagline}</p><p>{SITE.description}</p></div>
+      <nav aria-label="Explore Fitivo"><h2>Explore Fitivo</h2>{SITE.explore.map(({ label, href }) => <Link href={href} key={href}>{label}</Link>)}</nav>
+      <div className={styles.contactColumn}><h2>Talk to AKTech</h2><Link href="/about">About the product</Link><Link href="/contact">Contact & support</Link><address><a href={`mailto:${SITE.email}`}>{SITE.email}</a><a href={SITE.phoneHref}>{SITE.phone}</a><span>{SITE.location}</span></address></div>
     </div>
-    <div className={`${styles.container} ${styles.footerBottom}`}><span>© {new Date().getFullYear()} Fitivo. All rights reserved.</span><a href="#home">Back to top ↑</a></div>
+    <div className={`${styles.container} ${styles.footerBottom}`}>
+      <span>© {new Date().getFullYear()} {SITE.name}</span>
+      <a href={SITE.companyUrl} target="_blank" rel="noopener noreferrer">A product by {SITE.company} <ArrowUpRight size={14} aria-hidden="true" /><span className={styles.srOnly}> (opens in a new tab)</span></a>
+      <span>{SITE.location}</span>
+      <nav aria-label="Legal information"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav>
+    </div>
   </footer>;
 }
