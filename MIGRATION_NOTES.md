@@ -1,0 +1,32 @@
+# Tailwind migration notes
+
+## Baseline
+
+- Source of truth: commit `7b83601d077199d8472524da3a671b7c3b41df85`.
+- Original custom CSS: 12,999 lines in seven files. Full inventory and exact values: MIGRATION_PLAN.md.
+- Public route baseline: 42 full-page screenshots (14 routes × 375/768/1280 px), with computed styles, in ignored `test-results/tailwind-migration/baseline/`.
+- `scripts/tailwind-visual-check.mjs` runs an isolated production server with database connections disabled. It neither signs in nor sends mutations.
+
+## Completed
+
+### Foundation
+
+- Tailwind 4.3.3 was already configured with its PostCSS plugin. No UI or CSS dependencies were added.
+- Moved the existing variable declarations into globals.css and translated the existing JavaScript theme bridge to an inline v4 theme. Preserved exact values and added the remaining literal source tokens without rounding.
+- Added a small `cn` helper for conditional utility composition.
+- Build passed. All 42 public viewport captures have identical recorded computed styles. Forty PNGs match byte-for-byte; two home-page images show only low-level raster differences (maximum channel delta 5/255 at 375 px and 2/255 at 768 px), concentrated in the hero gradient. No geometry or typography differences were found. These are recorded rather than claimed as exact pixel matches.
+
+## Intentionally retained CSS
+
+- Root variables, font setup, resets, focus defaults, reduced-motion handling and keyframes remain global.
+- Existing component rules remain until their units have been migrated and checked.
+
+## Unresolved
+
+- Authenticated full-page screenshots require database-backed sessions. No authentication changes or fabricated sessions are permitted. Protected screens need isolated presentation checks and source comparison; do not count login redirects as protected-page screenshots.
+- Two foundation home-page captures have small raster differences described above.
+
+## Progress counts
+
+- Before: 12,999 lines of custom CSS.
+- After: pending completion of the component units; the foundation temporarily increases the token inventory while component rules remain.
