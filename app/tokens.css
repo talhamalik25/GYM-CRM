@@ -30,7 +30,7 @@
   --ink-inverse: var(--white);
 
   /* Surfaces */
-  --surface:        var(--white);
+  --surface: var(--white);
   --surface-raised: var(--grey-50);
   --canvas: #FAFAFB;
 
@@ -47,24 +47,36 @@
   --danger: #991B1B;
   --danger-hover: #991B1B;
   --danger-soft: #FEE2E2;
-  --error:        var(--danger);
-  --error-soft:   var(--danger-soft);
+  --error: var(--danger);
+  --error-soft: var(--danger-soft);
   --info: var(--brand-hover);
   --info-soft: var(--brand-soft);
 
   /* Presentation tokens only: these do not add statuses to application data. */
-  --status-active-bg: var(--success-soft); --status-active-fg: var(--success);
-  --status-expired-bg: var(--danger-soft); --status-expired-fg: var(--danger);
-  --status-pending-bg: var(--warning-soft); --status-pending-fg: var(--warning);
-  --status-paid-bg: var(--success-soft); --status-paid-fg: var(--success);
-  --status-overdue-bg: var(--danger-soft); --status-overdue-fg: var(--danger);
-  --status-present-bg: var(--success-soft); --status-present-fg: var(--success);
-  --status-absent-bg: var(--danger-soft); --status-absent-fg: var(--danger);
-  --status-inactive-bg: var(--grey-100); --status-inactive-fg: var(--ink-muted);
-  --status-partial-bg: var(--warning-soft); --status-partial-fg: var(--warning);
-  --status-expiring-bg: var(--warning-soft); --status-expiring-fg: var(--warning);
-  --status-upcoming-bg: var(--info-soft); --status-upcoming-fg: var(--info);
-  --status-cancelled-bg: var(--grey-100); --status-cancelled-fg: var(--ink-muted);
+  --status-active-bg: var(--success-soft);
+  --status-active-fg: var(--success);
+  --status-expired-bg: var(--danger-soft);
+  --status-expired-fg: var(--danger);
+  --status-pending-bg: var(--warning-soft);
+  --status-pending-fg: var(--warning);
+  --status-paid-bg: var(--success-soft);
+  --status-paid-fg: var(--success);
+  --status-overdue-bg: var(--danger-soft);
+  --status-overdue-fg: var(--danger);
+  --status-present-bg: var(--success-soft);
+  --status-present-fg: var(--success);
+  --status-absent-bg: var(--danger-soft);
+  --status-absent-fg: var(--danger);
+  --status-inactive-bg: var(--grey-100);
+  --status-inactive-fg: var(--ink-muted);
+  --status-partial-bg: var(--warning-soft);
+  --status-partial-fg: var(--warning);
+  --status-expiring-bg: var(--warning-soft);
+  --status-expiring-fg: var(--warning);
+  --status-upcoming-bg: var(--info-soft);
+  --status-upcoming-fg: var(--info);
+  --status-cancelled-bg: var(--grey-100);
+  --status-cancelled-fg: var(--ink-muted);
 
   /* Spacing: 4px base with half-steps for compact controls. */
   --space-0: 0px;
@@ -124,7 +136,7 @@
   --sidebar-bg: var(--surface);
   --sidebar-border: var(--line);
   --sidebar-width: 248px;
-  --topbar-height:   64px;
+  --topbar-height: 64px;
 
   /* Next/font owns --font-inter; this stack remains stable across CSS order. */
   --font-app: var(--font-inter, Inter), ui-sans-serif, system-ui, -apple-system, Arial, sans-serif;

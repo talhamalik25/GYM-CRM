@@ -4,7 +4,6 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { PLANS, PRICING, marketingPlanAmount } from "../../lib/marketing/plans.js";
-import { SITE } from "../../lib/marketing/site.js";
 import styles from "./marketing-home.module.css";
 
 const money = amount => new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(amount);
@@ -22,13 +21,12 @@ export default function MarketingPricing({ showDetailsLink = true }) {
     <p className={styles.paymentNote}>{PRICING.paymentNote}</p>
     <div className={styles.pricingGrid}>{PLANS.map(plan => {
       const total = PRICING.pricesConfirmed ? marketingPlanAmount(plan, cycle) : null;
-      const quote = `mailto:${SITE.email}?subject=${encodeURIComponent(`Fitivo ${plan.name} — ${cycle} quote request`)}`;
       return <article key={plan.id} className={`${styles.priceCard} ${plan.recommended ? styles.recommended : ""}`}>
         <div className={styles.planHeading}><h3>{plan.name}</h3>{plan.recommended && <span>For growing gyms</span>}</div>
         <p className={styles.planDescription}>{plan.description}</p>
         <div className={styles.planAmount} aria-live="polite"><span>{PRICING.currency}</span>{total === null ? <strong className={styles.unconfirmedPrice}>{PRICING.placeholderLabel}</strong> : <strong>{money(total)}<small> / {cycle === "annual" ? "year" : "month"}</small></strong>}</div>
         <p className={styles.planCycle}>{cycle === "annual" ? (PRICING.pricesConfirmed ? `Annual quote · 12 months for the price of ${12 - PRICING.annualFreeMonths}` : "Annual quote · Discount subject to confirmation") : "Monthly quote · Paid by bank transfer"}</p>
-        <a className={plan.recommended ? styles.primary : styles.secondary} href={quote}>Ask about {plan.name}<ArrowRight size={16} aria-hidden="true" /></a>
+        <Link className={plan.recommended ? styles.primary : styles.secondary} href={`/payment?plan=${plan.id}&cycle=${cycle}`}>Choose {plan.name}<ArrowRight size={16} aria-hidden="true" /></Link>
         <ul className={styles.planFeatures}>{plan.highlights.map(item => <li key={item}><Check size={16} aria-hidden="true" />{item}</li>)}</ul>
         <p className={styles.planSupport}>Portal guidance & setup help included</p>
       </article>;
