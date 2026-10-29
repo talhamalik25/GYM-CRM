@@ -38,3 +38,12 @@
 - Validation: final production build passed; all seven pages checked at 375, 768 and 1280 pixels. Checked 31 internal links, role tabs, billing controls, FAQ keyboard access, draft encoding, validation and copy fallback. No browser errors or form submission requests were observed.
 - Fixed comparison-table overflow on narrow screens and isolated its text size from dashboard table styles. Auth, dashboard, database models and existing API routes were not changed.
 - Paused before Step 5: payment page UI.
+
+## Step 5 — payment page UI
+- Added `/payment` within the marketing layout, with plan/cycle selection, a quote summary, bank details from the single BANK config, screenshot preview and manual review guidance.
+- Home and pricing plan cards now link to the selected plan and billing period. Invalid or repeated query values fall back to a visible, reviewable selection; URL parameters cannot set a payable amount.
+- Prices remain unconfirmed and bank placeholders are explicitly labeled. Quote requests open the visitor's email app. Access activates only after verification, with a stated review window of up to 24 hours.
+- Screenshot selection is local only, validates PNG/JPG/WebP files up to 5 MB, supports removal and clears previews when the selection changes. Submission stays disabled; authenticated storage, invoice association and review integration are marked TODO. Existing owners can use the unchanged Billing reference-claim flow.
+- Validation: production build passed. Browser checks passed for home/pricing handoff, 375/768/1280 layouts, keyboard billing selection, invalid queries, file type/size/decode errors, preview removal and cleanup. Production emitted no browser errors or submission requests. Refreshed the development server after detecting stale pricing markup.
+- Dashboard, auth, database models and existing API routes were not changed. Pre-existing global stylesheet edits were preserved.
+- Paused before Step 6: chatbot UI, API route and knowledge base.
