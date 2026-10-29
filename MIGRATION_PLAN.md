@@ -1,0 +1,1544 @@
+# Tailwind migration plan
+
+## Baseline and scope
+
+- Baseline commit: `7b83601d077199d8472524da3a671b7c3b41df85`. Working tree was clean.
+- Next.js 16.4.3; Tailwind 4.3.3; PostCSS plugin 4.3.3. Already installed and active.
+- JavaScript only; styling refactor only. Preserve DOM, content, API, auth and database behavior.
+- Existing Tailwind v3-style config is loaded through v4 `@config`; migrate its exact values into v4 theme without changing existing utility output.
+- Baseline CSS total: 12999 lines.
+
+## Stylesheet inventory and consumers
+
+### `app/tokens.css`
+
+200 lines; 1 rules; 169 declarations.
+
+Imported by globals.css; all routes inherit these CSS variables.
+
+
+### `app/globals.css`
+
+11654 lines; 1858 rules; 5626 declarations.
+
+Imported by app/layout.js; all routes inherit the base rules. Direct class consumers:
+- `lib/userProfileRules.js`
+- `lib/trainersService.js`
+- `lib/trainerApiHelpers.js`
+- `lib/tenantContext.js`
+- `lib/tenantAuthorization.js`
+- `lib/subscriptionsService.js`
+- `lib/subscriptionRules.js`
+- `lib/saasPlanRules.js`
+- `lib/saasBilling.js`
+- `lib/routeEntitlements.js`
+- `lib/reportRules.js`
+- `lib/publicTrialAccess.js`
+- `lib/platformBillingRules.js`
+- `lib/plansService.js`
+- `lib/planApiResponse.js`
+- `lib/paymentsService.js`
+- `lib/paymentRules.js`
+- `lib/paymentLedger.js`
+- `lib/paymentApiHelpers.js`
+- `lib/passwords.js`
+- `lib/ownerPageAccess.js`
+- `lib/membersService.js`
+- `lib/memberApiHelpers.js`
+- `app/terms/page.js`
+- `lib/marketing/site.js`
+- `lib/marketing/plans.js`
+- `lib/marketing/pages.js`
+- `lib/marketing/home.js`
+- `lib/marketing/bank.js`
+- `lib/loginSecurity.js`
+- `lib/gymOwnerRegistration.js`
+- `lib/gymDate.js`
+- `lib/generateReceiptNumber.js`
+- `lib/entitlements.js`
+- `lib/db.js`
+- `lib/dashboardKpiRules.js`
+- `lib/dashboardChartRules.js`
+- `lib/branchRules.js`
+- `lib/branchMigration.js`
+- `lib/branches.js`
+- `lib/auth.js`
+- `lib/attendanceService.js`
+- `lib/attendanceApiHelpers.js`
+- `lib/adminUserRules.js`
+- `components/ui/toast.js`
+- `components/ui/textarea.js`
+- `components/ui/tabs.js`
+- `components/ui/status-pill.js`
+- `lib/adminGymRules.js`
+- `lib/adminAnalyticsRules.js`
+- `components/ui/stat-card.js`
+- `components/ui/skeleton.js`
+- `components/ui/select.js`
+- `components/ui/search-bar.js`
+- `components/ui/page-header.js`
+- `components/ui/modal.js`
+- `components/ui/input.js`
+- `components/ui/field.js`
+- `components/ui/error-state.js`
+- `components/ui/empty-state.js`
+- `components/ui/dropdown.js`
+- `components/ui/data-table.js`
+- `components/ui/confirm-dialog.js`
+- `components/ui/chart-card.js`
+- `components/ui/card.js`
+- `components/ui/button.js`
+- `components/ui/badge.js`
+- `components/ui/avatar.js`
+- `components/staff/staff-manager.js`
+- `components/staff/accept-staff-invitation.js`
+- `app/privacy/page.js`
+- `app/layout.js`
+- `components/auth/register-form.js`
+- `components/auth/login-form.js`
+- `components/settings/gym-settings.js`
+- `components/plans/plans-manager.js`
+- `components/trainers/trainer-workspace.js`
+- `components/trainers/trainer-manager.js`
+- `components/trainers/trainer-form.js`
+- `components/trainers/trainer-detail.js`
+- `components/layout/dashboard-shell.js`
+- `components/memberships/membership-record.js`
+- `components/memberships/membership-manager.js`
+- `components/marketing/marketing-product-showcase.js`
+- `components/marketing/marketing-product-preview.js`
+- `components/marketing/marketing-primitives.js`
+- `components/marketing/marketing-pricing.js`
+- `components/marketing/marketing-payment.js`
+- `components/marketing/marketing-page-sections.js`
+- `components/marketing/marketing-page-intro.js`
+- `components/marketing/marketing-navigation.js`
+- `components/marketing/marketing-inquiry-form.js`
+- `components/marketing/marketing-home.js`
+- `components/marketing/marketing-feature-grid.js`
+- `components/marketing/marketing-demo-roles.js`
+- `components/reports/reports-manager.js`
+- `components/reports/entitled-reports.js`
+- `components/attendance/attendance-manager.js`
+- `components/payments/record-payment-modal.js`
+- `components/payments/payments-manager.js`
+- `components/payments/payment-receipt-modal.js`
+- `components/dashboard/use-dashboard-resource.js`
+- `components/dashboard/owner-revenue-chart.js`
+- `components/dashboard/owner-dashboard.js`
+- `components/dashboard/owner-dashboard-analytics.js`
+- `components/dashboard/analytics-bar-chart.js`
+- `app/api/trainers/[id]/route.js`
+- `app/api/trainers/route.js`
+- `components/branches/branch-switcher.js`
+- `components/branches/branch-manager.js`
+- `app/api/auth/register/route.js`
+- `app/api/cron/saas-expiry/route.js`
+- `components/admin/admin-user-manager.js`
+- `components/admin/admin-overview.js`
+- `components/admin/admin-gym-manager.js`
+- `components/admin/admin-gym-details.js`
+- `components/admin/admin-billing-manager.js`
+- `app/api/admin/users/[id]/route.js`
+- `app/api/admin/users/route.js`
+- `components/billing/trial-countdown.js`
+- `components/billing/plan-comparison.js`
+- `components/billing/owner-billing.js`
+- `app/api/branches/route.js`
+- `app/api/attendance/[id]/check-out/route.js`
+- `app/api/admin/overview/route.js`
+- `components/account/owner-profile.js`
+- `app/api/trainer/workspace/route.js`
+- `app/api/attendance/summary/route.js`
+- `app/api/attendance/route.js`
+- `app/api/account/profile/route.js`
+- `app/api/payments/[id]/route.js`
+- `app/api/attendance/check-in/route.js`
+- `app/api/admin/gyms/[id]/route.js`
+- `app/api/admin/gyms/route.js`
+- `app/api/gym/settings/route.js`
+- `app/api/payments/summary/route.js`
+- `app/api/payments/route.js`
+- `app/api/gym/billing/route.js`
+- `components/members/member-manager.js`
+- `components/members/member-form.js`
+- `components/members/member-detail.js`
+- `components/members/member-avatar.js`
+- `app/api/admin/gym-owners/route.js`
+- `app/api/gym/entitlements/route.js`
+- `app/api/payments/dues/route.js`
+- `app/(marketing)/pricing/page.js`
+- `app/api/exports/route.js`
+- `app/(dashboard)/workouts/page.js`
+- `app/api/subscriptions/[id]/route.js`
+- `app/api/admin/billing/route.js`
+- `app/api/members/route.js`
+- `app/api/subscriptions/route.js`
+- `app/api/payment-reports/route.js`
+- `app/api/reports/route.js`
+- `app/(dashboard)/loading.js`
+- `app/(dashboard)/layout.js`
+- `app/(marketing)/payment/page.js`
+- `app/(marketing)/page.js`
+- `app/(marketing)/layout.js`
+- `app/api/subscriptions/[id]/renew/route.js`
+- `app/api/subscriptions/[id]/payments/route.js`
+- `app/(dashboard)/dashboard/page.js`
+- `app/(marketing)/guide/page.js`
+- `app/api/members/[id]/subscriptions/route.js`
+- `app/api/members/[id]/route.js`
+- `app/(dashboard)/attendance/page.js`
+- `app/api/staff/manage/route.js`
+- `app/(marketing)/free-trial/page.js`
+- `app/api/staff/invitations/route.js`
+- `app/(dashboard)/billing/page.js`
+- `app/(dashboard)/payments/page.js`
+- `app/api/staff/invitations/accept/route.js`
+- `app/(auth)/login/page.js`
+- `app/(dashboard)/memberships/page.js`
+- `app/(marketing)/contact/page.js`
+- `app/(dashboard)/admin/users/page.js`
+- `app/(dashboard)/admin/page.js`
+- `app/(marketing)/about/page.js`
+- `app/(dashboard)/admin/gyms/page.js`
+- `app/(dashboard)/trainer/page.js`
+- `app/(marketing)/features/page.js`
+- `app/(marketing)/demo/page.js`
+
+### `components/marketing/marketing.module.css`
+
+571 lines; 541 rules; 1604 declarations.
+
+Direct imports:
+- `components/auth/login-form.js`
+- `components/marketing/marketing-product-preview.js`
+- `components/marketing/marketing-primitives.js`
+- `app/(marketing)/layout.js`
+
+### `components/marketing/marketing-shell.module.css`
+
+82 lines; 76 rules; 251 declarations.
+
+Direct imports:
+- `components/marketing/marketing-page-intro.js`
+- `components/marketing/marketing-navigation.js`
+- `components/marketing/marketing-footer.js`
+- `components/marketing/marketing-announcement.js`
+- `app/(marketing)/layout.js`
+
+### `components/marketing/marketing-payment.module.css`
+
+83 lines; 77 rules; 293 declarations.
+
+Direct imports:
+- `components/marketing/marketing-payment.js`
+
+### `components/marketing/marketing-pages.module.css`
+
+185 lines; 177 rules; 544 declarations.
+
+Direct imports:
+- `components/marketing/marketing-payment.js`
+- `components/marketing/marketing-page-sections.js`
+- `components/marketing/marketing-inquiry-form.js`
+- `components/marketing/marketing-demo-roles.js`
+- `app/(marketing)/pricing/page.js`
+- `app/(marketing)/payment/page.js`
+- `app/(marketing)/guide/page.js`
+- `app/(marketing)/free-trial/page.js`
+- `app/(marketing)/contact/page.js`
+- `app/(marketing)/about/page.js`
+- `app/(marketing)/features/page.js`
+- `app/(marketing)/demo/page.js`
+
+### `components/marketing/marketing-home.module.css`
+
+224 lines; 213 rules; 706 declarations.
+
+Direct imports:
+- `components/marketing/marketing-product-showcase.js`
+- `components/marketing/marketing-pricing.js`
+- `components/marketing/marketing-preview-placeholder.js`
+- `components/marketing/marketing-home.js`
+- `components/marketing/marketing-feature-grid.js`
+
+## Migration order and acceptance gates
+
+1. Foundation: exact theme aliases, shared cn helper, baseline screenshots and token inventory.
+2. Shared UI: buttons, fields, cards, badges, avatars, tables, headings, modals, drawers, skeletons and charts.
+3. Shared dashboard shell and marketing navigation/footer/primitives.
+4. Marketing home, subpages and payment.
+5. Login, registration and invitation screens.
+6. Dashboard analytics.
+7. Members, memberships/plans, trainers and staff.
+8. Attendance, payments and subscription billing.
+9. Reports, settings/profile/branches and administration.
+10. Final unused-selector audit, retained-global inventory and full build.
+
+Each completed unit gets a build, visual/source comparison and a separate commit. Original CSS stays available until the replacement passes its checks. After two failed attempts on a blocked item, retain the source rules and record the limitation in MIGRATION_NOTES.md, then continue.
+
+## Verification and cascade risks
+
+- Capture public pages at 375, 768 and 1280 pixels, including login and registration; compare full-page PNGs and computed styles.
+- Authentication requires database-backed sessions. Do not manufacture production sessions or change route guards. For inaccessible authenticated screens, use isolated presentation fixtures and selector-by-selector review; document any screen that cannot be validated.
+- Repeated selectors and late global overrides are intentional baseline behavior. Resolve the full cascade before replacing a rule.
+- Preserve inclusive max-width queries exactly; Tailwind built-in max variants use exclusive boundaries.
+- Preserve unlayered-versus-layered priority, pseudo-elements, print receipts, reduced motion and hover behavior (including legacy hover without a pointer media condition).
+- Dynamic chart geometry and progress widths remain dynamic styles.
+
+## Exact values found in source
+
+Values below are literal declarations, not rounded design approximations. Variables preserve their scope.
+
+### colors
+
+- `#161b2e`
+- `#171c30`
+- `#20253d`
+- `#252a40`
+- `#252b40`
+- `#282d45`
+- `#2b2e49`
+- `#30364b`
+- `#363c50`
+- `#37309b`
+- `#373d52`
+- `#393365`
+- `#3d3656`
+- `#3e3a68`
+- `#3f465d`
+- `#40376c`
+- `#40475b`
+- `#4338ca`
+- `#434a60`
+- `#434b61`
+- `#444a5f`
+- `#4d556b`
+- `#4f46e5`
+- `#514681`
+- `#5148a1`
+- `#514973`
+- `#51596d`
+- `#53586b`
+- `#555e72`
+- `#587b67`
+- `#5950b6`
+- `#5b528b`
+- `#5b537c`
+- `#5b5678`
+- `#5b6070`
+- `#5d6374`
+- `#5f6577`
+- `#6253ba`
+- `#62677b`
+- `#626879`
+- `#636778`
+- `#636b7d`
+- `#639584`
+- `#65687d`
+- `#656b7e`
+- `#665a83`
+- `#666b7c`
+- `#675b8c`
+- `#68637c`
+- `#695428`
+- `#6960a2`
+- `#69627f`
+- `#6a627f`
+- `#6a7080`
+- `#7166e6`
+- `#717687`
+- `#73798a`
+- `#746987`
+- `#747080`
+- `#74798b`
+- `#766bb1`
+- `#76728d`
+- `#76788f`
+- `#7770bc`
+- `#7770e9`
+- `#7770f4`
+- `#77718c`
+- `#77718e`
+- `#777b89`
+- `#7a7f90`
+- `#7b8091`
+- `#7c65b4`
+- `#808493`
+- `#8176b4`
+- `#818598`
+- `#827a9e`
+- `#838798`
+- `#838898`
+- `#848898`
+- `#84899a`
+- `#85809b`
+- `#858999`
+- `#878c9b`
+- `#8885a0`
+- `#8980b8`
+- `#898c9b`
+- `#898d9c`
+- `#8bb6a9`
+- `#8c85ed`
+- `#8d84c9`
+- `#9094a3`
+- `#9194a2`
+- `#919ab3`
+- `#9295a3`
+- `#9296a3`
+- `#9397a5`
+- `#991b1b`
+- `#9ca4be`
+- `#9da4ba`
+- `#9fa5bd`
+- `#a197ef`
+- `#a32935`
+- `#a3a5b6`
+- `#a6adc1`
+- `#a7a0d4`
+- `#a7a3c2`
+- `#a7adc4`
+- `#a8a1f1`
+- `#a8abc2`
+- `#aaa1ed`
+- `#aaa4d6`
+- `#aaa4e6`
+- `#aaa4f4`
+- `#aaa5ff`
+- `#ab7556`
+- `#aeb1c5`
+- `#b0a7f6`
+- `#b5aafa`
+- `#b5afd9`
+- `#b7b0ff`
+- `#b7b3cf`
+- `#b8b0e9`
+- `#bdc0ce`
+- `#bfbaff`
+- `#c5c3ed`
+- `#c8c3ef`
+- `#cfcaef`
+- `#d2d5e3`
+- `#d7d9e3`
+- `#dedbf9`
+- `#deddea`
+- `#dedfe8`
+- `#e4e1ff`
+- `#e7e8f0`
+- `#e7e8f1`
+- `#e9e7ff`
+- `#e9e9f3`
+- `#ececf5`
+- `#edeafa`
+- `#edf3ee`
+- `#eeebf8`
+- `#eeebfa`
+- `#eeedf5`
+- `#eeedfc`
+- `#eeedff`
+- `#eeeff5`
+- `#efedff`
+- `#f0eef9`
+- `#f0eeff`
+- `#f0eff966`
+- `#f1effd`
+- `#f1efff`
+- `#f2f1fc`
+- `#f3f1fc`
+- `#f3f1ff`
+- `#f3f2ff`
+- `#f4f3fc`
+- `#f5f3ff`
+- `#f5f4fc`
+- `#f5f4ff`
+- `#f6f5fd`
+- `#f6f5ff`
+- `#f7f6fc`
+- `#f7f6fd`
+- `#f7f7fd`
+- `#f7f8fc`
+- `#f8f7fc`
+- `#f8f7fd`
+- `#f8f7ff`
+- `#f8f8fc`
+- `#f8f9fc`
+- `#f9f9ff`
+- `#faeee7`
+- `#faf9fd`
+- `#faf9fe`
+- `#faf9ff`
+- `#fafafb`
+- `#fafafd`
+- `#fbfaff`
+- `#fbfbfd`
+- `#fbfbfe`
+- `#fcfcfe`
+- `#fff`
+- `#fff6f6`
+- `#ffffff08`
+- `#ffffff10`
+- `#ffffff20`
+- `#ffffff30`
+- `0 50%`
+- `1`
+- `1.7`
+- `1.75`
+- `100% 50%`
+- `2`
+- `2.5`
+- `3`
+- `3 5`
+- `400% 100%`
+- `color-mix(in srgb, var(--kpi-accent) 13%, var(--line))`
+- `color-mix(in srgb, var(--kpi-accent) 32%, var(--line))`
+- `color-mix(in srgb, var(--kpi-soft) 76%, var(--surface))`
+- `conic-gradient(var(--brand) var(--attendance-progress), var(--surface-raised) var(--attendance-progress) 360deg)`
+- `conic-gradient(var(--kpi-accent) var(--kpi-progress), var(--line) var(--kpi-progress))`
+- `currentColor`
+- `inherit`
+- `light`
+- `linear-gradient(180deg, #76c7a7, #16865d)`
+- `linear-gradient(180deg, #f0c269, #b77913)`
+- `linear-gradient(180deg, #fafaff, #f4f4fb)`
+- `linear-gradient(180deg, #fafaff, #f6f5fd)`
+- `linear-gradient(180deg, color-mix(in srgb, var(--kpi-accent) 68%, white), var(--kpi-accent))`
+- `linear-gradient(90deg, var(--surface-raised) 25%, var(--surface) 38%, var(--surface-raised) 63%)`
+- `linear-gradient(90deg, var(--surface-raised) 25%, var(--surface-raised) 38%, var(--surface-raised) 63%)`
+- `none`
+- `radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--kpi-soft) 76%, transparent), transparent 56%), var(--surface)`
+- `radial-gradient(ellipse at 50% 0, #eeebff 0%, #f6f5ff 60%, #fafaff 100%)`
+- `radial-gradient(ellipse at 50% 61%, #eeedfe 0%, #f8f8ff 37%, #fff 72%)`
+- `radial-gradient(ellipse at 80% 65%, #302a60 0%, #171c34 55%, #13182d 100%)`
+- `repeating-linear-gradient(to bottom, transparent 0, transparent 35px, var(--surface-raised) 36px)`
+- `repeating-linear-gradient(to bottom, transparent 0, transparent 43px, var(--surface-raised) 44px, transparent 45px)`
+- `repeating-linear-gradient(to top, #eeeff5 0px, #eeeff5 1px, transparent 1px, transparent 33.33%)`
+- `rgb(255 255 255 / 94%)`
+- `rgb(255 255 255 / 97%)`
+- `round`
+- `transparent`
+- `var(--auth-story-description)`
+- `var(--auth-story-footer)`
+- `var(--brand)`
+- `var(--brand-hover)`
+- `var(--brand-muted)`
+- `var(--brand-soft)`
+- `var(--brand-soft-text)`
+- `var(--canvas)`
+- `var(--chart-sparkline)`
+- `var(--danger)`
+- `var(--danger-hover)`
+- `var(--danger-soft)`
+- `var(--dashboard-card-border)`
+- `var(--divider)`
+- `var(--error)`
+- `var(--error-soft)`
+- `var(--grey-100)`
+- `var(--grey-200)`
+- `var(--grey-700)`
+- `var(--info)`
+- `var(--info-soft)`
+- `var(--ink)`
+- `var(--ink-inverse)`
+- `var(--ink-muted)`
+- `var(--ink-subtle)`
+- `var(--kpi-accent)`
+- `var(--line)`
+- `var(--line-control)`
+- `var(--line-strong)`
+- `var(--m-ink)`
+- `var(--m-ink, #161b2e)`
+- `var(--m-line, #e7e8ef)`
+- `var(--m-muted)`
+- `var(--m-navy)`
+- `var(--m-tint)`
+- `var(--on-brand)`
+- `var(--overlay)`
+- `var(--shell-brand)`
+- `var(--shell-ink)`
+- `var(--shell-muted)`
+- `var(--status-active-bg)`
+- `var(--status-active-fg)`
+- `var(--status-expired-bg)`
+- `var(--status-expired-fg)`
+- `var(--status-inactive-bg)`
+- `var(--status-inactive-fg)`
+- `var(--status-pending-bg)`
+- `var(--status-pending-fg)`
+- `var(--success)`
+- `var(--success-soft)`
+- `var(--surface)`
+- `var(--surface-raised)`
+- `var(--table-header)`
+- `var(--warning)`
+- `var(--warning-soft)`
+- `var(--white)`
+- `white`
+
+### fonts
+
+- `Georgia, "Times New Roman", serif`
+- `var(--font-app)`
+
+### fontSizes
+
+- `0`
+- `10px`
+- `110px`
+- `11px`
+- `12px`
+- `13px`
+- `14px`
+- `15px`
+- `16px`
+- `170px`
+- `17px`
+- `18px`
+- `19px`
+- `20px`
+- `21px`
+- `22px`
+- `23px`
+- `24px`
+- `25px`
+- `26px`
+- `27px`
+- `28px`
+- `29px`
+- `30px`
+- `31px`
+- `32px`
+- `33px`
+- `34px`
+- `38px`
+- `39px`
+- `42px`
+- `44px`
+- `64px`
+- `6px`
+- `7px`
+- `8px`
+- `9px`
+- `clamp(16px, 2vw, 25px)`
+- `clamp(20px, 2vw, 26px)`
+- `clamp(26px, 2vw, 32px)`
+- `clamp(27px, 2.15vw, 34px)`
+- `clamp(27px, 2.4vw, 34px)`
+- `clamp(27px, 2.8vw, 35px)`
+- `clamp(29px, 3vw, 40px)`
+- `clamp(30px, 3.4vw, 43px)`
+- `clamp(30px, 3.6vw, 44px)`
+- `clamp(32px, 3.3vw, 44px)`
+- `clamp(32px, 3.4vw, 45px)`
+- `clamp(33px, 3.6vw, 51px)`
+- `clamp(35px,4vw,51px)`
+- `clamp(36px, 5vw, 64px)`
+- `clamp(37px, 4.3vw, 55px)`
+- `clamp(38px, 8.7vw, 55px)`
+- `clamp(39px, 4.8vw, 62px)`
+- `clamp(40px, 10.7vw, 58px)`
+- `clamp(40px, 4.7vw, 60px)`
+- `clamp(44px, 5.3vw, 70px)`
+- `clamp(45px, 5.8vw, 78px)`
+- `var(--text-base)`
+- `var(--text-sm)`
+- `var(--text-xl)`
+- `var(--text-xs)`
+- `var(--type-body)`
+- `var(--type-page)`
+- `var(--type-section)`
+- `var(--type-stat)`
+
+### spacing
+
+- `-10px 0 0`
+- `-1px`
+- `-2px 0 0`
+- `-4px`
+- `-4px 28px 22px 0`
+- `-8px`
+- `0`
+- `0 0 10px`
+- `0 0 12px`
+- `0 0 13px`
+- `0 0 14px`
+- `0 0 15px`
+- `0 0 16px`
+- `0 0 18px`
+- `0 0 20px`
+- `0 0 22px`
+- `0 0 24px`
+- `0 0 26px`
+- `0 0 28px`
+- `0 0 4px`
+- `0 0 5px`
+- `0 0 6px`
+- `0 0 7px`
+- `0 0 8px`
+- `0 0 9px`
+- `0 0 var(--space-3)`
+- `0 10px`
+- `0 11px`
+- `0 12px`
+- `0 12px 12px`
+- `0 12px 8px`
+- `0 13px`
+- `0 14px`
+- `0 15px`
+- `0 16px`
+- `0 16px 12px`
+- `0 20px`
+- `0 24px 0 9px`
+- `0 24px 18px`
+- `0 25px 0 9px`
+- `0 30px 24px 0`
+- `0 32px 24px 0`
+- `0 4px`
+- `0 6px`
+- `0 6px 7px`
+- `0 8px`
+- `0 9px`
+- `0 9px 6px`
+- `0 auto`
+- `0 auto 10px`
+- `0 auto 10px 4px`
+- `0 auto 18px`
+- `0 auto 22px`
+- `0 auto 40px`
+- `0 auto 44px`
+- `0 var(--space-3)`
+- `100%`
+- `100svh`
+- `100vh`
+- `1020px`
+- `1050px`
+- `1056px`
+- `105px`
+- `108px`
+- `10px`
+- `10px 0`
+- `10px 0 0`
+- `10px 12px`
+- `10px 13px`
+- `10px 14px`
+- `10px 18px`
+- `10px 1px 0`
+- `10px 3px 11px`
+- `10px 5px`
+- `10px var(--page-padding-x)`
+- `11%`
+- `110px`
+- `1120px`
+- `112px`
+- `116px`
+- `118px`
+- `11px`
+- `11px 0`
+- `11px 10px`
+- `11px 12px`
+- `11px 13px`
+- `11px 15px`
+- `11px 16px`
+- `11px 20px`
+- `11px 7px`
+- `120px`
+- `122px`
+- `125px`
+- `12px`
+- `12px 0`
+- `12px 0 0`
+- `12px 0 22px`
+- `12px 0 24px`
+- `12px 10px`
+- `12px 13px`
+- `12px 14px`
+- `12px 15px`
+- `12px 16px`
+- `12px 18px`
+- `12px 20px`
+- `12px 21px`
+- `12px 24px`
+- `12px 4px`
+- `12px 5px`
+- `12px 8px`
+- `12px 9px`
+- `12px var(--page-padding-x) 20px`
+- `12rem`
+- `130px`
+- `132px`
+- `139px`
+- `13px`
+- `13px 14px`
+- `13px 15px`
+- `13px 16px`
+- `13px 20px`
+- `13px 23px`
+- `13px 7px`
+- `13px 8px`
+- `13px auto`
+- `145px`
+- `148px`
+- `14px`
+- `14px 0`
+- `14px 0 0`
+- `14px 0 26px`
+- `14px 13px`
+- `14px 16px`
+- `14px 18px 18px`
+- `14px 23px`
+- `14px 8px`
+- `15%`
+- `150px`
+- `155px`
+- `1560px`
+- `158px`
+- `15px`
+- `15px 0`
+- `15px 0 0`
+- `15px 12px`
+- `15px 12px 12px`
+- `15px 16px 14px`
+- `15px 18px`
+- `15rem`
+- `16%`
+- `1600px`
+- `165px`
+- `16px`
+- `16px 0 0`
+- `16px 0 5px`
+- `16px 17px`
+- `16px 17px 14px`
+- `16px 18px`
+- `16px 18px 18px`
+- `16px 24px`
+- `16px 24px 20px`
+- `16px 32px 24px`
+- `16px 7px`
+- `16px 8px`
+- `16px auto 12px`
+- `175px`
+- `17px`
+- `17px 0`
+- `17px 0 5px`
+- `17px 0 6px`
+- `17px 0 8px`
+- `17px 16px`
+- `17px 18px`
+- `17px 24px`
+- `17px 26px`
+- `180px`
+- `185px`
+- `18mm`
+- `18px`
+- `18px 0`
+- `18px 0 0`
+- `18px 0 36px`
+- `18px 11px`
+- `18px 18px 14px`
+- `18px 20px`
+- `18px 24px`
+- `18px 24px 22px`
+- `18rem`
+- `190px`
+- `19px`
+- `1px`
+- `1px 0 0`
+- `1px 0 3px`
+- `1px 0 4px`
+- `200px`
+- `208px`
+- `20px`
+- `20px 0 0`
+- `20px 0 18px`
+- `20px 0 24px`
+- `20px 16px`
+- `20px 16px max(20px, env(safe-area-inset-bottom))`
+- `20px 23px 22px`
+- `20px 24px`
+- `20px 24px 16px`
+- `210px`
+- `21px`
+- `21px 23px`
+- `220px`
+- `228px`
+- `22px`
+- `22px 0`
+- `22px 0 0`
+- `22px 14px`
+- `22px 16px`
+- `22px 24px`
+- `22px 24px 18px`
+- `22px 28px`
+- `232px`
+- `239px`
+- `23px`
+- `23px 0`
+- `23px 13px 17px`
+- `23px 24px 18px`
+- `23px 26px`
+- `240px`
+- `245px`
+- `24px`
+- `24px 0`
+- `24px 0 0`
+- `24px 0 12px`
+- `24px 0 36px`
+- `24px 0 8px`
+- `24px 16px`
+- `24px 20px`
+- `24px 24px 20px`
+- `24px 61px`
+- `24px auto 0`
+- `250px`
+- `255px`
+- `25px`
+- `25px 0`
+- `25px 0 0`
+- `25px 17px`
+- `25px 20px`
+- `25px 22px`
+- `25px 22px 0`
+- `25px auto 0`
+- `26%`
+- `260px`
+- `26px`
+- `26px 0`
+- `26px 20px`
+- `26px 22px`
+- `26px 30px`
+- `27px`
+- `280px`
+- `28px`
+- `28px 0`
+- `28px 0 12px`
+- `28px 0 22px`
+- `28px 22px`
+- `28px 24px`
+- `28px 25px`
+- `28px 32px 22px`
+- `29px`
+- `29px -9px -1px 6px`
+- `2px`
+- `2px 0`
+- `2px 0 14px`
+- `2px 0 18px`
+- `2px 5px`
+- `2px 7px`
+- `300px`
+- `30px`
+- `30px 16px`
+- `30px 26px`
+- `30px 27px`
+- `30px 30px 0`
+- `30px 9px 0`
+- `310px`
+- `31px`
+- `320px`
+- `325px`
+- `32px`
+- `32px 0 0`
+- `330px`
+- `33px`
+- `33px 0 37px`
+- `34%`
+- `34px`
+- `350px`
+- `35px`
+- `35px 20px`
+- `35px auto 0`
+- `365px`
+- `36px`
+- `370px`
+- `37px`
+- `38px`
+- `38px 48px 24px`
+- `390px`
+- `39px`
+- `3px`
+- `3px 0`
+- `3px 0 0`
+- `3px 0 5px`
+- `3px 6px`
+- `3px 7px`
+- `3px 9px`
+- `400px`
+- `40px`
+- `40px 17px`
+- `40px 20px`
+- `410px`
+- `415px`
+- `41px`
+- `420px`
+- `42px`
+- `42px 15px`
+- `42px 48px 30px`
+- `43%`
+- `430px`
+- `43px`
+- `440px`
+- `44px`
+- `44px 15px`
+- `45%`
+- `45px`
+- `45px 15px`
+- `46px`
+- `47px`
+- `48px`
+- `48px 24px`
+- `48px auto 0`
+- `49px`
+- `4px`
+- `4px 0 0`
+- `4px 0 10px`
+- `4px 8px`
+- `500px`
+- `50px`
+- `520px`
+- `52px`
+- `52px 0 0`
+- `530px`
+- `53px`
+- `540px`
+- `54px`
+- `55%`
+- `550px`
+- `55px`
+- `560px`
+- `56px`
+- `570px`
+- `57px`
+- `57px 24px`
+- `580px`
+- `58ch`
+- `58px`
+- `590px`
+- `5px`
+- `5px 0`
+- `5px 0 0`
+- `5px 0 17px`
+- `5px 0 8px`
+- `5px 6px`
+- `5px 7px`
+- `5px 8px`
+- `5px 9px`
+- `60%`
+- `600px`
+- `60px`
+- `60vh`
+- `61px`
+- `620px`
+- `62px`
+- `64px`
+- `64px 0 44px`
+- `65%`
+- `650px`
+- `65px`
+- `66%`
+- `665px`
+- `680px`
+- `68px`
+- `6px`
+- `6px 0 0`
+- `6px 0 13px`
+- `6px 0 20px`
+- `6px 10px`
+- `6px 16px`
+- `6px 24px`
+- `6px 7px`
+- `6px 8px 16px`
+- `6px 9px`
+- `700px`
+- `70px`
+- `72%`
+- `72px`
+- `75%`
+- `75px`
+- `760px`
+- `76px`
+- `780px`
+- `78px`
+- `7px`
+- `7px 0`
+- `7px 0 10px 41px`
+- `7px 0 14px`
+- `7px 10px`
+- `7px 12px`
+- `7px 4px`
+- `7px 9px`
+- `800px`
+- `80px`
+- `810px`
+- `820px`
+- `830px`
+- `84px`
+- `850px`
+- `8px`
+- `8px 0`
+- `8px 0 0`
+- `8px 0 12px`
+- `8px 0 16px`
+- `8px 0 4px`
+- `8px 10px`
+- `8px 13px`
+- `8px 14px`
+- `8px 15px`
+- `8px 24px`
+- `8px 2px 0`
+- `8px 4px 0`
+- `8px 6px`
+- `8px 9px`
+- `90%`
+- `900px`
+- `90px`
+- `920px`
+- `94px`
+- `95px`
+- `96px`
+- `980px`
+- `9px`
+- `9px 0`
+- `9px 0 0`
+- `9px 0 17px`
+- `9px 0 5px`
+- `9px 10px`
+- `9px 12px`
+- `9px 15px`
+- `9px 2px`
+- `9px 8px`
+- `9rem`
+- `auto`
+- `auto -5px 0`
+- `auto 0 0`
+- `calc(100% - 24px)`
+- `calc(100% - 32px)`
+- `calc(100% - 40px)`
+- `calc(100dvh - 68px)`
+- `calc(100dvh - 72px)`
+- `calc(100dvh - 84px)`
+- `calc(var(--topbar-height) + var(--space-4))`
+- `clamp(56px, 7vw, 92px)`
+- `clamp(64px, 7.8vw, 100px)`
+- `clamp(64px, 8vw, 112px)`
+- `fit-content`
+- `max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))`
+- `max(60px, calc((100vw - 1400px) / 3))`
+- `max-content`
+- `min(100%, 440px)`
+- `min(100%, 480px)`
+- `min(100%, 540px)`
+- `min(1184px, calc(100% - 64px))`
+- `min(20rem, calc(100vw - var(--space-8)))`
+- `min(21px, 74%)`
+- `min(26rem, calc(100vw - var(--space-12)))`
+- `min(275px, 100%)`
+- `min(320px, 100%)`
+- `min(320px, calc(100vw - 40px))`
+- `min(340px, 100%)`
+- `min(400px, calc(100vw - 32px))`
+- `min(420px, 100%)`
+- `min(60%, 20rem)`
+- `min(64%, 16px)`
+- `min(680px, 68%)`
+- `min(85%, 32rem)`
+- `min(85vh, 700px)`
+- `min(88vh, 780px)`
+- `min(88vh, 820px)`
+- `none`
+- `var(--card-gap)`
+- `var(--card-padding)`
+- `var(--m-section, 96px)`
+- `var(--page-padding-y) var(--page-padding-x)`
+- `var(--section-gap)`
+- `var(--sidebar-width)`
+- `var(--space-0-5)`
+- `var(--space-1)`
+- `var(--space-1) 0`
+- `var(--space-1) 0 0`
+- `var(--space-1) var(--space-2)`
+- `var(--space-1-5)`
+- `var(--space-10)`
+- `var(--space-11)`
+- `var(--space-16)`
+- `var(--space-2)`
+- `var(--space-24)`
+- `var(--space-3)`
+- `var(--space-3) var(--space-1)`
+- `var(--space-4)`
+- `var(--space-4) 0`
+- `var(--space-4) var(--space-6)`
+- `var(--space-5)`
+- `var(--space-6)`
+- `var(--space-8)`
+- `var(--space-9)`
+- `var(--topbar-height)`
+
+### radii
+
+- `0`
+- `0 0 14px 14px`
+- `0 6px 6px 0`
+- `0.25rem`
+- `1.25rem`
+- `10px`
+- `11px`
+- `12px`
+- `12px 12px 0 0`
+- `13px`
+- `13px 13px 0 0`
+- `14px`
+- `15px`
+- `16px`
+- `18px`
+- `1rem`
+- `20px`
+- `20px 20px 0 0`
+- `24px`
+- `2px`
+- `3px`
+- `3px 3px 0 0`
+- `4px`
+- `4px 4px 0 0`
+- `4px 4px 1px 1px`
+- `50%`
+- `5px`
+- `5px 5px 0 0`
+- `6px`
+- `6px 0 0 6px`
+- `7px`
+- `8px`
+- `9999px`
+- `999px`
+- `99px`
+- `9px`
+- `calc(var(--radius-md) - 2px)`
+- `inherit`
+- `var(--dashboard-card-radius)`
+- `var(--m-radius)`
+- `var(--radius-card)`
+- `var(--radius-input)`
+- `var(--radius-lg)`
+- `var(--radius-md)`
+- `var(--radius-pill)`
+- `var(--radius-sm)`
+- `var(--radius-xl)`
+
+### shadows
+
+- `0 -12px 60px #6960c30a`
+- `0 0 0 3px #4f46e514`
+- `0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent)`
+- `0 10px 30px #161b2e08`
+- `0 12px 26px color-mix(in srgb, var(--ink) 9%, transparent)`
+- `0 12px 32px rgb(15 23 42 / 8%)`
+- `0 12px 35px #161b2e08`
+- `0 16px 48px -30px #25244930`
+- `0 16px 50px -35px #30214433`
+- `0 1px 2px rgba(15, 23, 42, 0.04)`
+- `0 20px 30px #161b2e0a`
+- `0 24px 70px -25px rgb(32 35 80 / 22%), 0 3px 12px rgb(32 35 80 / 4%)`
+- `0 2px 2px #161b2e02`
+- `0 2px 2px #161b2e04`
+- `0 2px 3px #161b2e03`
+- `0 2px 4px #2524490a`
+- `0 2px 5px #161b2e0a`
+- `0 2px 5px #23233c0a`
+- `0 3px 6px #4f46e51c, inset 0 1px 0 #ffffff25`
+- `0 3px 8px #4f46e518`
+- `0 4px 16px rgb(15 23 42 / 6%)`
+- `0 4px 8px #4f46e514`
+- `0 5px 12px #4f46e50a`
+- `0 5px 18px color-mix(in srgb, var(--ink) 4%, transparent)`
+- `0 6px 18px #4f46e52b`
+- `0 6px 30px #4f46e510`
+- `0 8px 24px #30255c07`
+- `0 8px 24px rgba(15, 23, 42, 0.12)`
+- `0 8px 28px #2d236408`
+- `0 8px 30px #4f46e50a`
+- `inset 0 1px 0 #ffffff35`
+- `none`
+- `var(--focus-shadow)`
+- `var(--m-shadow, 0 15px 45px #161b2e16)`
+- `var(--shadow-card)`
+- `var(--shadow-lg)`
+- `var(--shadow-md)`
+- `var(--shadow-sm)`
+
+### breakpoints
+
+- `(max-width: 1000px)`
+- `(max-width: 1023px)`
+- `(max-width: 1050px)`
+- `(max-width: 1099px)`
+- `(max-width: 1100px)`
+- `(max-width: 1199px)`
+- `(max-width: 359px)`
+- `(max-width: 480px)`
+- `(max-width: 600px)`
+- `(max-width: 639px)`
+- `(max-width: 640px)`
+- `(max-width: 680px)`
+- `(max-width: 760px)`
+- `(max-width: 767px)`
+- `(max-width: 768px)`
+- `(max-width: 899px)`
+- `(max-width: 900px)`
+- `(max-width:1100px)`
+- `(max-width:430px)`
+- `(max-width:760px)`
+- `(min-width: 1024px)`
+- `(min-width: 1500px)`
+- `(min-width:1400px)`
+- `(prefers-reduced-motion: no-preference)`
+- `(prefers-reduced-motion: reduce)`
+- `print`
+
+### zIndex
+
+- `1`
+- `100`
+- `15`
+- `30`
+- `5`
+- `50`
+- `60`
+- `70`
+- `8`
+- `80`
+
+### variables
+
+- `--auth-orbit: rgba(255, 255, 255, 0.1)`
+- `--auth-spinner-track: rgba(255, 255, 255, 0.4)`
+- `--auth-story-description: rgba(255, 255, 255, 0.68)`
+- `--auth-story-footer: rgba(255, 255, 255, 0.48)`
+- `--black: #000000`
+- `--brand-hover: #4338CA`
+- `--brand-muted: #C7D2FE`
+- `--brand-soft-text-strong: #3730A3`
+- `--brand-soft-text: #4338CA`
+- `--brand-soft: #EEF2FF`
+- `--brand: #4F46E5`
+- `--canvas: #FAFAFB`
+- `--card-gap: 16px`
+- `--card-padding: 20px`
+- `--chart-baseline: #DDE1E8`
+- `--chart-grid: #EDEFF3`
+- `--chart-heat-1: #EEF2FF`
+- `--chart-heat-2: #C7D2FE`
+- `--chart-heat-3: #A5B4FC`
+- `--chart-heat-4: #6366F1`
+- `--chart-heat-5: #4338CA`
+- `--chart-plan-long: #312E81`
+- `--chart-plan-medium: #4F46E5`
+- `--chart-plan-short: #818CF8`
+- `--chart-soft: #C7D2FE`
+- `--chart-sparkline: var(--grey-400)`
+- `--danger-hover: #991B1B`
+- `--danger-soft: #FEE2E2`
+- `--danger: #991B1B`
+- `--dashboard-card-border: var(--line)`
+- `--dashboard-card-radius: var(--radius-card)`
+- `--dashboard-space: 24px`
+- `--divider: #F1F5F9`
+- `--error-soft: var(--danger-soft)`
+- `--error: var(--danger)`
+- `--focus-color: var(--brand)`
+- `--focus-offset: 3px`
+- `--focus-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 12%, transparent)`
+- `--focus-width: 2px`
+- `--font-app: var(--font-inter, Inter), ui-sans-serif, system-ui, -apple-system, Arial, sans-serif`
+- `--grey-100: #F1F5F9`
+- `--grey-200: #E5E7EB`
+- `--grey-300: #CBD5E1`
+- `--grey-400: #94A3B8`
+- `--grey-500: #64748B`
+- `--grey-50: #F8FAFC`
+- `--grey-600: #475569`
+- `--grey-700: #334155`
+- `--grey-800: #1E293B`
+- `--grey-900: #0F172A`
+- `--info-soft: var(--brand-soft)`
+- `--info: var(--brand-hover)`
+- `--ink-inverse: var(--white)`
+- `--ink-muted: #475569`
+- `--ink-subtle: #64748B`
+- `--ink: #0F172A`
+- `--kpi-accent: #16865d`
+- `--kpi-accent: #3974cc`
+- `--kpi-accent: #7357d8`
+- `--kpi-accent: #b77913`
+- `--kpi-accent: var(--brand)`
+- `--kpi-soft: #e3f5ed`
+- `--kpi-soft: #e8f0ff`
+- `--kpi-soft: #eee9ff`
+- `--kpi-soft: #fff2d7`
+- `--kpi-soft: var(--brand-soft)`
+- `--leading-2xl: 2rem`
+- `--leading-3xl: 2.25rem`
+- `--leading-4xl: 2.5rem`
+- `--leading-base: 1.5rem`
+- `--leading-body: 1.5`
+- `--leading-lg: 1.75rem`
+- `--leading-sm: 1.25rem`
+- `--leading-xl: 1.75rem`
+- `--leading-xs: 1rem`
+- `--line-control: #E5E7EB`
+- `--line-strong: #E5E7EB`
+- `--line: #E5E7EB`
+- `--m-accent: var(--brand, #4f46e5)`
+- `--m-ink: #161b2e`
+- `--m-line: #e7e8ef`
+- `--m-muted: #646979`
+- `--m-navy: #13182d`
+- `--m-radius: 20px`
+- `--m-section: clamp(72px, 7.5vw, 112px)`
+- `--m-shadow: 0 24px 70px -25px rgb(32 35 80 / 22%), 0 3px 12px rgb(32 35 80 / 4%)`
+- `--m-tint: #f7f8fc`
+- `--motion-fast: 150ms`
+- `--motion-normal: 200ms`
+- `--on-brand: var(--white)`
+- `--overlay: rgb(15 23 42 / 40%)`
+- `--page-padding-x: 32px`
+- `--page-padding-y: 28px`
+- `--radius-2xl: 1.25rem`
+- `--radius-button: 10px`
+- `--radius-card: 16px`
+- `--radius-input: 10px`
+- `--radius-lg: 16px`
+- `--radius-md: 10px`
+- `--radius-pill: 9999px`
+- `--radius-sm: 0.25rem`
+- `--radius-xl: 1rem`
+- `--section-gap: 24px`
+- `--shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04)`
+- `--shadow-lg: 0 12px 32px rgb(15 23 42 / 8%)`
+- `--shadow-md: 0 4px 16px rgb(15 23 42 / 6%)`
+- `--shadow-sm: none`
+- `--shadow-tooltip: 0 8px 24px rgba(15, 23, 42, 0.12)`
+- `--shadow-xs: none`
+- `--shell-brand: #4f46e5`
+- `--shell-ink: #171c30`
+- `--shell-line: #e7e8ef`
+- `--shell-muted: #5d6374`
+- `--sidebar-bg: var(--surface)`
+- `--sidebar-border: var(--line)`
+- `--sidebar-width: 248px`
+- `--space-0-5: 0.125rem`
+- `--space-0: 0px`
+- `--space-1-5: 0.375rem`
+- `--space-10: 2.5rem`
+- `--space-11: 2.75rem`
+- `--space-12: 3rem`
+- `--space-14: 3.5rem`
+- `--space-16: 4rem`
+- `--space-18: 4.5rem`
+- `--space-1: 0.25rem`
+- `--space-2-5: 0.625rem`
+- `--space-20: 5rem`
+- `--space-22: 5.5rem`
+- `--space-24: 6rem`
+- `--space-2: 0.5rem`
+- `--space-3-5: 0.875rem`
+- `--space-3: 0.75rem`
+- `--space-4-5: 1.125rem`
+- `--space-4: 1rem`
+- `--space-5-5: 1.375rem`
+- `--space-5: 1.25rem`
+- `--space-6: 1.5rem`
+- `--space-7: 1.75rem`
+- `--space-8: 2rem`
+- `--space-9: 2.25rem`
+- `--status-absent-bg: var(--danger-soft)`
+- `--status-absent-fg: var(--danger)`
+- `--status-active-bg: var(--success-soft)`
+- `--status-active-fg: var(--success)`
+- `--status-cancelled-bg: var(--grey-100)`
+- `--status-cancelled-fg: var(--ink-muted)`
+- `--status-expired-bg: var(--danger-soft)`
+- `--status-expired-fg: var(--danger)`
+- `--status-expiring-bg: var(--warning-soft)`
+- `--status-expiring-fg: var(--warning)`
+- `--status-inactive-bg: var(--grey-100)`
+- `--status-inactive-fg: var(--ink-muted)`
+- `--status-overdue-bg: var(--danger-soft)`
+- `--status-overdue-fg: var(--danger)`
+- `--status-paid-bg: var(--success-soft)`
+- `--status-paid-fg: var(--success)`
+- `--status-partial-bg: var(--warning-soft)`
+- `--status-partial-fg: var(--warning)`
+- `--status-pending-bg: var(--warning-soft)`
+- `--status-pending-fg: var(--warning)`
+- `--status-present-bg: var(--success-soft)`
+- `--status-present-fg: var(--success)`
+- `--status-upcoming-bg: var(--info-soft)`
+- `--status-upcoming-fg: var(--info)`
+- `--success-soft: #DCFCE7`
+- `--success: #166534`
+- `--surface-raised: var(--grey-50)`
+- `--surface: var(--white)`
+- `--table-header: #F8FAFC`
+- `--text-2xl: 1.5rem`
+- `--text-3xl: 1.875rem`
+- `--text-4xl: 2.25rem`
+- `--text-base: 1rem`
+- `--text-lg: 1.125rem`
+- `--text-sm: 0.875rem`
+- `--text-xl: 1.25rem`
+- `--text-xs: 0.75rem`
+- `--topbar-height: 64px`
+- `--tracking-label: 0.06em`
+- `--tracking-tight: -0.02em`
+- `--type-body: 14px`
+- `--type-caption: 12px`
+- `--type-page: 26px`
+- `--type-section: 16px`
+- `--type-stat: 32px`
+- `--warning-soft: #FEF3C7`
+- `--warning: #92400E`
+- `--weight-bold: 700`
+- `--weight-extrabold: 700`
+- `--weight-medium: 500`
+- `--weight-regular: 400`
+- `--weight-semibold: 600`
+- `--white: #FFFFFF`
+
+### motion
+
+- `.01ms`
+- `0.01ms`
+- `background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s`
+- `background 0.15s, color 0.15s`
+- `background 160ms, border-color 160ms`
+- `background 160ms, color 160ms`
+- `background 180ms, box-shadow 180ms`
+- `background 180ms, box-shadow 180ms, transform 180ms, border-color 180ms`
+- `background var(--motion-fast), color var(--motion-fast)`
+- `background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease`
+- `border-color .15s ease, box-shadow .15s ease, transform .15s ease`
+- `border-color .15s, background-color .15s`
+- `border-color 0.15s, box-shadow 0.15s`
+- `border-color 180ms, box-shadow 180ms`
+- `box-shadow 200ms, border-color 200ms, transform 200ms`
+- `color 180ms`
+- `color 180ms, background 180ms, box-shadow 180ms`
+- `enter 180ms`
+- `enter 200ms`
+- `enter 650ms both`
+- `enter 800ms 100ms both`
+- `enter both`
+- `entry 0% entry 20%`
+- `member-shimmer 1.4s ease infinite`
+- `membership-shimmer 1.4s ease infinite`
+- `none`
+- `opacity .15s ease`
+- `reveal both`
+- `skeleton-pulse 1.4s ease infinite`
+- `transform .18s ease, box-shadow .18s ease, border-color .18s ease`
+- `transform 160ms`
+- `transform 180ms`
+- `transform 200ms`
+- `transform 200ms, box-shadow 200ms`
+- `ui-skeleton-pulse 1.6s ease-in-out infinite`
+- `ui-spin .8s linear infinite`
+- `view()`
+
