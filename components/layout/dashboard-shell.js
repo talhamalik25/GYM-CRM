@@ -44,31 +44,31 @@ function getPageTitle(pathname) {
 function SidebarContent({ pathname, links, homeHref, roleName, accountEmail, profileHref, onNavigate, onLogout, loggingOut, logoutError }) {
   const groups = [...new Set(links.map(({ group }) => group))];
   return <>
-    <Link href={homeHref} className="brand" onClick={onNavigate} aria-label="Fitivo home">
-      <span className="brand-mark"><Zap size={22} strokeWidth={1.75} aria-hidden="true" /></span>
-      <span className="brand-copy"><span className="fitivo-wordmark">Fitivo</span><span className="workspace-caption">{roleName} workspace</span></span>
+    <Link href={homeHref} className={"brand exact:flex exact:items-center exact:[gap:10px] exact:[flex-shrink:0] exact:[min-height:44px] exact:[border-radius:var(--radius-input)]"} onClick={onNavigate} aria-label="Fitivo home">
+      <span className={"brand-mark exact:grid exact:[place-items:center] exact:[flex:0_0_36px] exact:[width:36px] exact:[height:36px] exact:[border-radius:var(--radius-input)] exact:[background:var(--brand)] exact:[color:var(--on-brand)]"}><Zap size={22} strokeWidth={1.75} aria-hidden="true" /></span>
+      <span className={"brand-copy exact:grid exact:[min-width:0] exact:[gap:2px]"}><span className={"fitivo-wordmark exact:[font-size:18px] exact:[font-weight:700] exact:[letter-spacing:var(--tracking-tight)] exact:[line-height:1.2]"}>Fitivo</span><span className={"workspace-caption exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:[line-height:1.4]"}>{roleName} workspace</span></span>
     </Link>
-    <nav aria-label="Main navigation" className="side-nav">
+    <nav aria-label="Main navigation" className={"side-nav exact:grid exact:[gap:24px] exact:[margin-top:28px]"}>
       {groups.map((group) => <div className="nav-group" key={group}>
-        <p className="nav-label">{group}</p>
-        <ul className="nav-items">
+        <p className={"nav-label exact:[margin:0_12px_8px] exact:[color:var(--ink-subtle)] exact:[font-size:11px] exact:[font-weight:600] exact:[letter-spacing:.08em] exact:[text-transform:uppercase]"}>{group}</p>
+        <ul className={"nav-items exact:grid exact:[gap:4px] exact:[list-style:none] exact:[padding:0] exact:[margin:0]"}>
           {links.filter((link) => link.group === group).map(({ label, href, Icon }) => {
             const active = isActive(pathname, href);
-            return <li key={href}><Link href={href} onClick={onNavigate} className={`nav-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
-              <Icon className="nav-icon" size={18} strokeWidth={1.75} aria-hidden="true" /><span>{label}</span>
+            return <li key={href}><Link href={href} onClick={onNavigate} className={`nav-link exact:flex exact:items-center exact:[gap:10px] exact:[min-height:42px] exact:[padding:10px_12px] exact:[border-radius:var(--radius-input)] exact:[color:var(--grey-700)] exact:[font-size:14px] exact:[font-weight:500] exact:[transition:background_var(--motion-fast),_color_var(--motion-fast)] exact:[&:hover]:[background:var(--surface-raised)] exact:[&.active]:[background:var(--brand-soft)] exact:[&.active]:[color:var(--brand-soft-text)] exact:[&.active]:[font-weight:600] ${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
+              <Icon className={"nav-icon exact:[flex-shrink:0]"} size={18} strokeWidth={1.75} aria-hidden="true" /><span>{label}</span>
             </Link></li>;
           })}
         </ul>
       </div>)}
     </nav>
-    <div className="sidebar-bottom">
-      <div className="shell-account-card">
-        <Link className="profile-button" href={profileHref} onClick={onNavigate}>
+    <div className={"sidebar-bottom exact:[margin-top:auto] exact:[padding-top:24px]"}>
+      <div className={"shell-account-card exact:[padding:10px] exact:[border:1px_solid_var(--line)] exact:[border-radius:12px]"}>
+        <Link className={"profile-button exact:flex exact:items-center exact:[gap:10px] exact:[padding:4px] exact:[border-radius:var(--radius-input)] exact:[&:hover]:[background:var(--surface-raised)]"} href={profileHref} onClick={onNavigate}>
           <Avatar name={accountEmail} size="sm" />
-          <span className="profile-copy"><strong>{roleName}</strong><small title={accountEmail || undefined}>{accountEmail || 'Signed in'}</small></span>
+          <span className={"profile-copy exact:[min-width:0] exact:[&_strong]:block exact:[&_strong]:[font-size:13px] exact:[&_strong]:[font-weight:600] exact:[&_small]:block exact:[&_small]:overflow-hidden exact:[&_small]:[text-overflow:ellipsis] exact:[&_small]:[white-space:nowrap] exact:[&_small]:[color:var(--ink-subtle)] exact:[&_small]:[font-size:12px] exact:[&_small]:[margin-top:2px]"}><strong>{roleName}</strong><small title={accountEmail || undefined}>{accountEmail || 'Signed in'}</small></span>
         </Link>
-        <Button type="button" variant="ghost" className="shell-signout" onClick={onLogout} loading={loggingOut} loadingLabel="Signing out…"><LogOut size={16} strokeWidth={1.75} aria-hidden="true" />Sign out</Button>
-        {logoutError && <p className="shell-account-error" role="alert">{logoutError}</p>}
+        <Button type="button" variant="ghost" className={"shell-signout exact:[width:100%] exact:[justify-content:flex-start] exact:[margin-top:8px]"} onClick={onLogout} loading={loggingOut} loadingLabel="Signing out…"><LogOut size={16} strokeWidth={1.75} aria-hidden="true" />Sign out</Button>
+        {logoutError && <p className={"shell-account-error exact:[color:var(--danger)] exact:[font-size:13px] exact:[overflow-wrap:anywhere] exact:[margin:8px_4px_0]"} role="alert">{logoutError}</p>}
       </div>
     </div>
   </>;
@@ -115,25 +115,25 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
     { id: 'logout', label: loggingOut ? 'Signing out…' : 'Sign out', onSelect: handleLogout, disabled: loggingOut },
   ];
 
-  return <div className="app-shell">
-    <a href="#main-content" className="shell-skip-link">Skip to content</a>
-    <aside className="sidebar desktop-sidebar" aria-label={`${roleName} workspace`}><SidebarContent {...sidebarProps} /></aside>
-    <Drawer open={menuOpen} side="left" onClose={() => setMenuOpen(false)} title="Navigation" className="shell-navigation-drawer">
-      <div className="shell-drawer-content"><SidebarContent {...sidebarProps} logoutError={logoutError} onNavigate={() => setMenuOpen(false)} /></div>
+  return <div className={"app-shell exact:[min-height:100vh]"}>
+    <a href="#main-content" className={"shell-skip-link exact:fixed exact:[top:12px] exact:[left:12px] exact:[z-index:100] exact:[transform:translateY(-200%)] exact:[padding:12px_16px] exact:[border-radius:var(--radius-input)] exact:[background:var(--surface)] exact:[color:var(--ink)] exact:[box-shadow:var(--shadow-md)] exact:[&:focus]:[transform:translateY(0)]"}>Skip to content</a>
+    <aside className={"sidebar exact:fixed exact:[inset:0_auto_0_0] exact:[z-index:30] exact:flex exact:flex-col exact:[width:var(--sidebar-width)] exact:[padding:20px_16px] exact:[overflow-y:auto] exact:[overscroll-behavior:contain] exact:[background:var(--surface)] exact:[color:var(--ink)] exact:[border-right:1px_solid_var(--line)] desktop-sidebar exact:at-most-1023:hidden"} aria-label={`${roleName} workspace`}><SidebarContent {...sidebarProps} /></aside>
+    <Drawer open={menuOpen} side="left" onClose={() => setMenuOpen(false)} title="Navigation" className={"shell-navigation-drawer exact:[&_.ui-modal-header]:[padding:12px_16px] exact:[&_.ui-modal-header]:items-center exact:[&_.ui-modal-header_h2]:[font-size:14px] exact:[&_.ui-icon-button]:[width:44px] exact:[&_.ui-icon-button]:[height:44px] exact:[&_.ui-modal-content]:flex exact:[&_.ui-modal-content]:[padding:20px_16px_max(20px,_env(safe-area-inset-bottom))]"}>
+      <div className={"shell-drawer-content exact:flex exact:flex-col exact:[width:100%] exact:[min-width:0] exact:[flex-shrink:0]"}><SidebarContent {...sidebarProps} logoutError={logoutError} onNavigate={() => setMenuOpen(false)} /></div>
     </Drawer>
-    <div className="main-column">
-      <header className="topbar">
-        <div className="topbar-left">
-          <button type="button" className="menu-toggle" aria-label="Open navigation menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={20} strokeWidth={1.75} aria-hidden="true" /></button>
-          <span className="topbar-title">{getPageTitle(pathname)}</span>
+    <div className={"main-column exact:flex exact:flex-col exact:[min-width:0] exact:[min-height:100vh] exact:[margin-left:var(--sidebar-width)] exact:at-most-1023:[margin-left:0]"}>
+      <header className={"topbar exact:sticky exact:[top:0] exact:[z-index:15] exact:flex exact:items-center exact:[justify-content:space-between] exact:[gap:16px] exact:[min-height:var(--topbar-height)] exact:[padding:10px_var(--page-padding-x)] exact:[background:var(--surface)] exact:[border-bottom:1px_solid_var(--line)] exact:[&_.ui-dropdown>button]:[min-height:42px] exact:[&_.ui-dropdown_svg]:[stroke-width:1.75] exact:at-most-1023:[padding-inline:24px] exact:at-most-600:[gap:8px] exact:at-most-600:[padding-inline:16px]"}>
+        <div className={"topbar-left exact:flex exact:items-center exact:[gap:12px] exact:[min-width:0] exact:at-most-600:[gap:8px]"}>
+          <button type="button" className={"menu-toggle exact:hidden exact:at-most-1023:grid exact:at-most-1023:[place-items:center] exact:at-most-1023:[flex-shrink:0] exact:at-most-1023:[width:44px] exact:at-most-1023:[height:44px] exact:at-most-1023:[padding:0] exact:at-most-1023:[border:1px_solid_var(--line)] exact:at-most-1023:[border-radius:var(--radius-input)] exact:at-most-1023:[background:var(--surface)] exact:at-most-1023:[color:var(--ink)] exact:at-most-1023:[&:hover]:[background:var(--surface-raised)]"} aria-label="Open navigation menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={20} strokeWidth={1.75} aria-hidden="true" /></button>
+          <span className={"topbar-title exact:[font-size:14px] exact:[font-weight:600] exact:overflow-hidden exact:[white-space:nowrap] exact:[text-overflow:ellipsis]"}>{getPageTitle(pathname)}</span>
         </div>
-        <div className="topbar-actions">{!isSuperadmin && <BranchSwitcher />}<span className="topbar-context">{roleName} workspace</span><Dropdown label="Account" items={accountItems} disabled={loggingOut} /></div>
+        <div className={"topbar-actions exact:flex exact:items-center exact:[gap:12px] exact:[min-width:0] exact:[flex-shrink:0]"}>{!isSuperadmin && <BranchSwitcher />}<span className={"topbar-context exact:[color:var(--ink-subtle)] exact:[font-size:13px] exact:at-most-600:hidden"}>{roleName} workspace</span><Dropdown label="Account" items={accountItems} disabled={loggingOut} /></div>
       </header>
-      <main id="main-content" tabIndex={-1} className="main-content">
-        {logoutError && <p className="shell-logout-error" role="alert">{logoutError}</p>}
+      <main id="main-content" tabIndex={-1} className={"main-content exact:[flex:1] exact:[width:100%] exact:[min-width:0] exact:[max-width:1600px] exact:[padding:var(--page-padding-y)_var(--page-padding-x)] exact:[margin:0_auto] exact:at-most-1023:[padding:24px] exact:at-most-600:[padding:24px_16px]"}>
+        {logoutError && <p className={"shell-logout-error exact:[color:var(--danger)] exact:[font-size:13px] exact:[overflow-wrap:anywhere] exact:[padding:12px_16px] exact:[margin:0_0_24px] exact:[border-radius:var(--radius-input)] exact:[background:var(--danger-soft)]"} role="alert">{logoutError}</p>}
         {children}
       </main>
-      <footer className="app-footer"><span>Fitivo</span><span>Your gym, in sync.</span></footer>
+      <footer className={"app-footer exact:flex exact:[justify-content:space-between] exact:[gap:16px] exact:[padding:12px_var(--page-padding-x)_20px] exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:at-most-1023:[padding-inline:24px] exact:at-most-600:[padding-inline:16px]"}><span>Fitivo</span><span>Your gym, in sync.</span></footer>
     </div>
   </div>;
 }

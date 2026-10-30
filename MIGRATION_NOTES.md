@@ -34,6 +34,11 @@
 - Added an isolated workspace renderer using the actual React components and inert router contexts. Its shell fixture matches the original compiled CSS at all three widths, with no changed pixels or computed styles. These are presentation fixtures, not authenticated production screenshots.
 - Mobile navigation opening, Escape dismissal and focus return pass. A repeat of the unchanged features build produced a 1/255 gradient raster variation at 768 px; the comparator now records raw changed pixels and maximum channel delta while allowing at most 5/255 only when all recorded styles and image dimensions match.
 
+### Dashboard shell
+
+- Migrated the shared desktop sidebar, mobile drawer treatment, skip link, top bar, account panel, main column and footer into exact-value Tailwind utilities. The existing navigation, route matching, drawer behavior and logout logic are unchanged.
+- Production build passed. The isolated shell fixture has identical computed styles at 375/768/1280 px; 375 and 768 match pixel-for-pixel, while 1280 has 731 low-level raster-only pixel changes with no recorded style difference.
+
 - Root variables, font setup, resets, focus defaults, reduced-motion handling and keyframes remain global.
 - Existing component rules remain until their units have been migrated and checked.
 
