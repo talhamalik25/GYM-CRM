@@ -26,6 +26,14 @@
 - Presentation probes match the original compiled CSS at 375/600/760/768/1280 px. All 32 hover, focus, disabled, ARIA-disabled, invalid-input and selected-tab cases match their original computed styles.
 - Kept the existing receipt-print rules and page-specific descendant overrides for their later units.
 
+### Marketing shell
+
+- Migrated announcement, navigation, footer and shared introductory-page styles from their CSS module into utilities; reused a shared `MarketingShellAction` for the repeated link treatment.
+- Build passed. Features, pricing and payment match all nine baseline viewport PNGs and their computed styles. The existing homepage gradient raster variation remains separately documented.
+- The emptied shell module has no remaining imports and was removed after verification.
+- Added an isolated workspace renderer using the actual React components and inert router contexts. Its shell fixture matches the original compiled CSS at all three widths, with no changed pixels or computed styles. These are presentation fixtures, not authenticated production screenshots.
+- Mobile navigation opening, Escape dismissal and focus return pass. A repeat of the unchanged features build produced a 1/255 gradient raster variation at 768 px; the comparator now records raw changed pixels and maximum channel delta while allowing at most 5/255 only when all recorded styles and image dimensions match.
+
 - Root variables, font setup, resets, focus defaults, reduced-motion handling and keyframes remain global.
 - Existing component rules remain until their units have been migrated and checked.
 

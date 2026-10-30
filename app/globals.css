@@ -1,6 +1,8 @@
 @import "tailwindcss";
+@custom-variant at-most-1099 { @media (max-width:1099px) { @slot; } }
 @custom-variant at-most-768 { @media (max-width:768px) { @slot; } }
 @custom-variant at-most-760 { @media (max-width:760px) { @slot; } }
+@custom-variant at-most-639 { @media (max-width:639px) { @slot; } }
 @custom-variant at-most-600 { @media (max-width:600px) { @slot; } }
 @custom-variant less-motion { @media (prefers-reduced-motion:reduce) { @slot; } }
 @custom-variant exact (&);

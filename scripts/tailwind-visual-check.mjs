@@ -1,5 +1,6 @@
 // Local, database-free visual checks. Baselines and PNGs stay in ignored test-results.
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { chromium } from "@playwright/test";
@@ -50,19 +51,32 @@ try {
       if (mode !== "baseline") {
         const before = PNG.sync.read(fs.readFileSync(`${root}/baseline/${name}.png`));
         const after = PNG.sync.read(fs.readFileSync(`${current}.png`));
-        let pixels = 0;
+        let pixels = 0, maxChannelDelta = 0;
         if (before.width !== after.width || before.height !== after.height) pixels = -1;
-        else for (let i = 0; i < before.data.length; i += 4) if (!before.data.subarray(i, i + 4).equals(after.data.subarray(i, i + 4))) pixels++;
+        else for (let i = 0; i < before.data.length; i += 4) if (!before.data.subarray(i, i + 4).equals(after.data.subarray(i, i + 4))) { pixels++; for (let channel = 0; channel < 4; channel++) maxChannelDelta = Math.max(maxChannelDelta, Math.abs(before.data[i + channel] - after.data[i + channel])); }
         const oldStyles = JSON.parse(fs.readFileSync(`${root}/baseline/${name}.json`));
         const differences = computed.flatMap((element, i) => Object.entries(element.props).filter(([key, value]) => oldStyles[i]?.props[key] !== value).map(([key, value]) => ({ index: i, tag: element.tag, property: key, before: oldStyles[i]?.props[key], after: value })));
-        results.push({ name, pixels, beforeSize: [before.width, before.height], afterSize: [after.width, after.height], styleDifferences: differences.length });
+        results.push({ name, pixels, maxChannelDelta, beforeSize: [before.width, before.height], afterSize: [after.width, after.height], styleDifferences: differences.length });
         if (pixels || differences.length) fs.writeFileSync(`${current}.diff.json`, JSON.stringify(differences, null, 2));
         console.log(`${name}: ${pixels === 0 ? "identical" : `${pixels} changed pixels`}; ${differences.length} computed-style differences`);
       } else console.log(`${name}: baseline captured`);
     }
+    const menu = page.locator('button[aria-controls="fitivo-mobile-navigation"]');
+    if (await menu.count()) {
+      await page.setViewportSize({ width: 375, height: 900 });
+      await menu.click();
+      assert.equal(await menu.getAttribute("aria-expanded"), "true");
+      assert.equal(await page.locator("#fitivo-mobile-navigation").isVisible(), true);
+      await page.keyboard.press("Escape");
+      assert.equal(await menu.getAttribute("aria-expanded"), "false");
+      assert.equal(await menu.evaluate(element => element === document.activeElement), true);
+    }
   }
   fs.writeFileSync(`${root}/${mode}/results.json`, JSON.stringify({ results, errors }, null, 2));
-  if (errors.length || results.some(item => item.pixels !== 0)) process.exitCode = 1;
+  // Chromium gradient rasterization varies by a few channel levels between
+  // identical runs. Keep raw differences in the report; never excuse geometry
+  // or computed-style changes with this narrowly bounded raster tolerance.
+  if (errors.length || results.some(item => item.pixels < 0 || item.maxChannelDelta > 5 || item.styleDifferences)) process.exitCode = 1;
 } finally {
   if (browser) await browser.close();
   server.kill();

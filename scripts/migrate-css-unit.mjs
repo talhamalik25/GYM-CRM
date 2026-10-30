@@ -60,6 +60,7 @@ for (const rule of rules) {
 }
 function resets(later, earlier) {
   if (later === earlier) return true;
+  if (later === "border" && earlier.includes("radius")) return false;
   if (["padding", "margin", "border", "background", "font", "animation", "transition", "outline", "flex", "grid"].includes(later)) return earlier.startsWith(later + "-");
   return false;
 }
@@ -81,6 +82,9 @@ for (const group of groups.values()) {
   utilities[group.anchor] = [...(utilities[group.anchor] || []), ...classes];
 }
 const mapping = Object.fromEntries(Object.entries(utilities).map(([key, classes]) => [key, [namespace + key, ...new Set(classes)].join(" ")]));
+if (isModule) postcss.parse(original).walkRules(rule => {
+  for (const [, name] of rule.selector.matchAll(/\.([a-zA-Z_][\w-]*)/g)) if (!mapping[name]) mapping[name] = namespace + name;
+});
 const files = execFileSync("rg", ["--files", "app", "components"], { encoding: "utf8" }).trim().split(/\r?\n/).filter(name => /\.jsx?$/.test(name));
 const changed = [];
 for (const name of files) {
@@ -127,6 +131,9 @@ for (const name of files) {
     },
   });
   if (edits.length) {
+    const backup = `test-results/tailwind-migration/${label}/sources/${name.replaceAll("\\", "/")}`;
+    fs.mkdirSync(path.dirname(backup), { recursive: true });
+    fs.writeFileSync(backup, source);
     let updated = source;
     for (const edit of edits.sort((a, b) => b.start - a.start)) updated = updated.slice(0, edit.start) + edit.value + updated.slice(edit.end);
     fs.writeFileSync(name, updated); changed.push(name);
