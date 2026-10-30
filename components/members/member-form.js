@@ -12,6 +12,7 @@ import Select from "../ui/select";
 import { getMemberApi, getMembershipExpiryDate, saveMemberApi } from "../../lib/membersService";
 import { listPlans } from "../../lib/plansService";
 import { listTrainers } from "../../lib/trainersService";
+import Control from "../ui/control.js";
 
 const blankValues = {
   name: "",
@@ -268,13 +269,13 @@ export default function MemberForm({ memberId = null }) {
               readOnly
               hint={selectedPlan ? "Calculated from the selected plan duration." : "Choose a plan and start date to calculate expiry."}
             />
-            <label className="ui-field md:col-span-2">
-              <span className="ui-label">Notes (optional)</span>
-              <textarea
+            <label className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)] md:col-span-2"}>
+              <span className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"}>Notes (optional)</span>
+              <Control as="textarea"
                 id="member-notes"
                 name="notes"
                 rows={4}
-                className="ui-input"
+                className={""}
                 value={values.notes}
                 onChange={(event) => updateValue("notes", event.target.value)}
               />

@@ -7,6 +7,7 @@ import Input from "../ui/input";
 import Modal from "../ui/modal";
 import Select from "../ui/select";
 import { derivePaymentStatus, getInitialPaymentMembers, getPaymentMembers, paymentMethods, savePayment } from "../../lib/paymentsService";
+import Control from "../ui/control.js";
 
 const blankValues = { memberId: "", memberName: "", invoiceKey: "", amountPaid: "", method: "Cash", date: "", notes: "" };
 
@@ -117,11 +118,11 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   return (
     <Modal open={open} onClose={onClose} title="Record Payment" description="Enter the amount received from a member." className="payment-form-modal">
       <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-        <div className="ui-field">
-          <label className="ui-label" htmlFor="payment-member">Member</label>
-          <input
+        <div className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)]"}>
+          <label className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"} htmlFor="payment-member">Member</label>
+          <Control
             id="payment-member"
-            className={`ui-input ${errors.memberId ? "ui-input-error" : ""}`}
+            className={` ${errors.memberId ? "ui-input-error exact:[border-color:var(--error)]!" : ""}`}
             type="search"
             list="payment-member-options"
             autoComplete="off"
@@ -132,7 +133,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
             aria-describedby={errors.memberId ? "payment-member-error" : undefined}
           />
           <datalist id="payment-member-options">{members.map((member) => <option key={member.id} value={member.name} />)}</datalist>
-          {errors.memberId && <span className="ui-field-error" id="payment-member-error">{errors.memberId}</span>}
+          {errors.memberId && <span className={"ui-field-error exact:[font-size:12px] exact:[color:var(--error)]"} id="payment-member-error">{errors.memberId}</span>}
         </div>
         {selectedMember?.charges?.length > 1 && <Select id="payment-invoice" label="Outstanding invoice" value={values.invoiceKey} onChange={(event) => updateValue("invoiceKey", event.target.value)} error={errors.invoiceKey}>
           <option value="">Choose an invoice</option>
@@ -148,9 +149,9 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
           </Select>
           <Input id="payment-date" label="Payment date" type="date" value={values.date} onChange={(event) => updateValue("date", event.target.value)} error={errors.date} />
         </div>
-        <label className="ui-field">
-          <span className="ui-label">Notes (optional)</span>
-          <textarea id="payment-notes" className="ui-input min-h-24 py-2" rows={3} value={values.notes} onChange={(event) => updateValue("notes", event.target.value)} />
+        <label className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)]"}>
+          <span className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"}>Notes (optional)</span>
+          <Control as="textarea" id="payment-notes" className={"min-h-24 py-2"} rows={3} value={values.notes} onChange={(event) => updateValue("notes", event.target.value)} />
         </label>
         {previewStatus && <p className="text-sm text-ink-muted" aria-live="polite">Status: <Badge tone={statusTone(previewStatus)}>{previewStatus}</Badge></p>}
         <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">

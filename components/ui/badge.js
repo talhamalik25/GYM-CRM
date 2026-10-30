@@ -1,4 +1,5 @@
 const tones = { neutral: "neutral", success: "success", warning: "warning", error: "error", danger: "error", brand: "brand", info: "info" };
+const toneClasses = { neutral: "ui-badge-neutral exact:[background:var(--canvas)] exact:[color:var(--ink-muted)]", success: "ui-badge-success exact:[background:var(--success-soft)] exact:[color:var(--success)]", warning: "ui-badge-warning exact:[background:var(--warning-soft)] exact:[color:var(--warning)]", error: "ui-badge-error exact:[background:var(--error-soft)] exact:[color:var(--error)]", brand: "ui-badge-brand exact:[background:var(--brand-soft)] exact:[color:var(--brand-soft-text)]", info: "ui-badge-info exact:[background:var(--info-soft)] exact:[color:var(--info)]" };
 export default function Badge({ tone = "neutral", className = "", children, ...props }) {
-  return <span className={`ui-badge ui-badge-${tones[tone] || tones.neutral} ${className}`.trim()} {...props}>{children}</span>;
+  return <span className={`ui-badge exact:inline-flex exact:items-center exact:[gap:5px] exact:[min-height:22px] exact:[padding:3px_9px] exact:[border-radius:999px] exact:[font-size:12px] exact:[font-weight:600] exact:[white-space:nowrap] ${toneClasses[tones[tone] || tones.neutral]} ${className}`.trim()} {...props}>{children}</span>;
 }

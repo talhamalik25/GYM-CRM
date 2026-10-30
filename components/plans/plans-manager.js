@@ -13,6 +13,7 @@ import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 import Skeleton from "../ui/skeleton";
 import { listPlans, createPlan, updatePlan, setPlanActive } from "../../lib/plansService";
+import Control from "../ui/control.js";
 
 const blankValues = { name: "", price: "", duration: "1", unit: "months", description: "" };
 
@@ -210,9 +211,9 @@ export default function PlansManager() {
               <option value="months">Months</option>
             </Select>
           </div>
-          <label className="ui-field">
-            <span className="ui-label">Description (optional)</span>
-            <textarea id="plan-description" className="ui-input min-h-24 py-2" rows={3} value={values.description} onChange={(event) => updateValue("description", event.target.value)} />
+          <label className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)]"}>
+            <span className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"}>Description (optional)</span>
+            <Control as="textarea" id="plan-description" className={"min-h-24 py-2"} rows={3} value={values.description} onChange={(event) => updateValue("description", event.target.value)} />
           </label>
           <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>

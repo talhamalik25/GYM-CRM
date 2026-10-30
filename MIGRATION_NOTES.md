@@ -18,8 +18,22 @@
 
 ## Intentionally retained CSS
 
+### Shared UI controls
+
+- Migrated 179 selector groups covering 105 shared UI class hooks into exact-value utilities: buttons, inputs/selects/textareas, fields, cards, badges, avatars, tables, headings, modals/drawers, tabs, dropdowns, notifications, skeletons and chart/stat surfaces.
+- Consolidated repeated native control styling in `Control`; reused `Button` for the existing raw button instances. Native DOM tags, props, event handlers, field associations and content are preserved.
+- Production build passed. Login, registration and invitation pages match all nine baseline PNGs and recorded computed-style sets at 375/768/1280 px.
+- Presentation probes match the original compiled CSS at 375/600/760/768/1280 px. All 32 hover, focus, disabled, ARIA-disabled, invalid-input and selected-tab cases match their original computed styles.
+- Kept the existing receipt-print rules and page-specific descendant overrides for their later units.
+
 - Root variables, font setup, resets, focus defaults, reduced-motion handling and keyframes remain global.
 - Existing component rules remain until their units have been migrated and checked.
+
+### Cascade compatibility
+
+- Existing unlayered CSS outranks normal Tailwind layers, including resets such as `button { font: inherit }`. Migrated utility classes use an identity `exact` variant and a small local PostCSS pass to keep the original unlayered priority without changing the priority of existing Tailwind classes.
+- The pass preserves media wrappers and places shorthand declarations before their longhands. It adds no selectors, DOM wrappers or runtime behavior. Inclusive media variants retain the original boundary values.
+- Named class hooks temporarily remain where still needed by descendant selectors, state modifiers and receipt print rules; their migrated declarations live in JSX utilities.
 
 ## Unresolved
 

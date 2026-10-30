@@ -21,7 +21,7 @@ export default function Tabs({ items, value, onChange, idPrefix, label = "Sectio
   }
 
   return (
-    <div className={`ui-tabs ${className}`.trim()} role="tablist" aria-label={label}>
+    <div className={`ui-tabs exact:flex exact:[gap:var(--space-4)] exact:[overflow-x:auto] exact:[border-bottom:1px_solid_var(--line)] ${className}`.trim()} role="tablist" aria-label={label}>
         {items.map((item, index) => {
           const selected = value === item.id;
           return (
@@ -36,7 +36,7 @@ export default function Tabs({ items, value, onChange, idPrefix, label = "Sectio
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(item.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className="ui-tab"
+              className={"ui-tab exact:[flex-shrink:0] exact:[min-height:var(--space-11)] exact:[padding:var(--space-3)_var(--space-1)] exact:[border:0] exact:[border-bottom:2px_solid_transparent] exact:[background:transparent] exact:[color:var(--ink-muted)] exact:[font-size:var(--text-sm)] exact:[font-weight:var(--weight-medium)] exact:cursor-pointer exact:[&[aria-selected='true']]:[border-bottom-color:var(--brand)] exact:[&[aria-selected='true']]:[color:var(--brand)] exact:[&:disabled]:[opacity:.5] exact:[&:disabled]:[cursor:not-allowed] exact:[&:focus-visible]:[outline-offset:-3px]"}
             >
               {item.label}
             </button>

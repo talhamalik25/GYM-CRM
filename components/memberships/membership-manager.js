@@ -7,6 +7,7 @@ import PageHeading from "../ui/page-heading";
 import { listPlans } from "../../lib/plansService";
 import { listMembersApi } from "../../lib/membersService";
 import { cancelSubscription, createSubscription, getSubscription, listSubscriptions, renewSubscription } from "../../lib/subscriptionsService";
+import Button from "../ui/button.js";
 
 const money = value => `Rs. ${Number(value || 0).toLocaleString("en-PK")}`;
 const dateLabel = value => value ? new Date(value).toLocaleDateString("en-PK", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" }) : "—";
@@ -81,7 +82,7 @@ export default function MembershipManager() {
     tabs[nextIndex].click();
   }
   return <main className="membership-manager mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
-    <PageHeading eyebrow="MEMBER EXPERIENCE" title="Memberships" description="Manage subscriptions, payments, and renewal history." action={tab === "subscriptions" && <button className="ui-button ui-button-primary ui-button-md" type="button" onClick={() => { setError(""); setCreating(true); }}>Create membership</button>} />
+    <PageHeading eyebrow="MEMBER EXPERIENCE" title="Memberships" description="Manage subscriptions, payments, and renewal history." action={tab === "subscriptions" && <Button variant="primary" className={"ui-button-md exact:[min-height:38px]"} type="button" onClick={() => { setError(""); setCreating(true); }}>Create membership</Button>} />
     <nav className="membership-tabs" aria-label="Membership management" role="tablist"><button id="memberships-subscriptions-tab" type="button" role="tab" aria-controls="memberships-panel" aria-selected={tab === "subscriptions"} tabIndex={tab === "subscriptions" ? 0 : -1} className={tab === "subscriptions" ? "active" : ""} onKeyDown={handleTabKeyDown} onClick={() => setTab("subscriptions")}>Subscriptions <span>({data.total})</span></button><button id="memberships-plans-tab" type="button" role="tab" aria-controls="memberships-panel" aria-selected={tab === "plans"} tabIndex={tab === "plans" ? 0 : -1} className={tab === "plans" ? "active" : ""} onKeyDown={handleTabKeyDown} onClick={() => setTab("plans")}>Plans</button></nav>
     <div id="memberships-panel" role="tabpanel" aria-labelledby={tab === "plans" ? "memberships-plans-tab" : "memberships-subscriptions-tab"} tabIndex={0}>
     {tab === "plans" ? <PlansManager /> : <>

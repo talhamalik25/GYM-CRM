@@ -11,7 +11,7 @@ const tones = {
 export default function StatusPill({ status, children, className = "", ...props }) {
   const label = children ?? status ?? "Unknown";
   const key = String(status ?? children ?? "").trim().toLowerCase().replaceAll("_", " ");
-  return <Badge {...props} tone={tones[key] || "neutral"} className={`ui-status-pill ${className}`.trim()}>
-    <span className="ui-status-dot" aria-hidden="true" />{label}
+  return <Badge {...props} tone={tones[key] || "neutral"} className={`ui-status-pill exact:[gap:var(--space-1-5)] ${className}`.trim()}>
+    <span className={"ui-status-dot exact:[width:var(--space-1-5)] exact:[height:var(--space-1-5)] exact:[border-radius:var(--radius-pill)] exact:[background:currentColor]"} aria-hidden="true" />{label}
   </Badge>;
 }

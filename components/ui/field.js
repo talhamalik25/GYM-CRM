@@ -13,10 +13,10 @@ export function useField({ id, hint, error, "aria-describedby": describedBy, "ar
 }
 
 export default function Field({ id, label, hint, error, children, className = "" }) {
-  return <div className={`ui-field ${className}`.trim()}>
-    {label && <label className="ui-label" htmlFor={id}>{label}</label>}
+  return <div className={`ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)] ${className}`.trim()}>
+    {label && <label className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"} htmlFor={id}>{label}</label>}
     {children}
-    {hint && <span className="ui-field-hint" id={`${id}-hint`}>{hint}</span>}
-    {error && <span className="ui-field-error" id={`${id}-error`} role="alert">{error}</span>}
+    {hint && <span className={"ui-field-hint exact:[font-size:12px] exact:[color:var(--ink-subtle)]"} id={`${id}-hint`}>{hint}</span>}
+    {error && <span className={"ui-field-error exact:[font-size:12px] exact:[color:var(--error)]"} id={`${id}-error`} role="alert">{error}</span>}
   </div>;
 }
