@@ -31,7 +31,20 @@ function formatDate(date) {
 function statusTone(status) {
   if (status === "Active") return "success";
   if (status === "Expiring") return "warning";
+  if (status === "Expired" || status === "Cancelled") return "error";
   return "neutral";
+}
+
+function MemberActions({ member, onToggle }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button href={`/members/${member.id}`} variant="ghost" size="sm">View</Button>
+      <Button href={`/members/${member.id}/edit`} variant="ghost" size="sm">Edit</Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => onToggle(member)}>
+        {member.isActive ? "Deactivate" : "Reactivate"}
+      </Button>
+    </div>
+  );
 }
 
 export default function MemberManager() {
@@ -110,9 +123,9 @@ export default function MemberManager() {
       key: "name",
       label: "Member",
       render: (member) => (
-        <div>
-          <Link href={"/members/" + member.id}>{member.name}</Link>
-          {member.email && <p>{member.email}</p>}
+        <div className="min-w-40">
+          <Link className="font-semibold text-ink hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={`/members/${member.id}`}>{member.name}</Link>
+          {member.email && <p className="mt-1 text-xs text-ink-muted">{member.email}</p>}
         </div>
       ),
     },
@@ -120,33 +133,23 @@ export default function MemberManager() {
     { key: "plan", label: "Plan" },
     { key: "startDate", label: "Start date", render: (member) => formatDate(member.startDate) },
     { key: "expiryDate", label: "Expiry date", render: (member) => formatDate(member.expiryDate) },
-    { key: "status", label: "Status", render: (member) => <Badge tone={statusTone(member.status)}>{member.status}</Badge> },
+    { key: "status", label: "Membership", render: (member) => <Badge tone={statusTone(member.status)}>{member.status}</Badge> },
     { key: "account", label: "Account", render: (member) => <Badge tone={member.isActive ? "success" : "neutral"}>{member.isActive ? "Active" : "Inactive"}</Badge> },
-    {
-      key: "actions",
-      label: "Actions",
-      render: (member) => (
-        <div className="members-row-actions">
-          <Link href={"/members/" + member.id}>View</Link>
-          <Link href={"/members/" + member.id + "/edit"}>Edit</Link>
-          <button type="button" onClick={() => toggleMemberActive(member)}>{member.isActive ? "Deactivate" : "Reactivate"}</button>
-        </div>
-      ),
-    },
+    { key: "actions", label: "Actions", render: (member) => <MemberActions member={member} onToggle={toggleMemberActive} /> },
   ];
 
   const hasFilters = Boolean(query || statusFilter !== "all" || planFilter);
 
   return (
-    <div className="members-page">
+    <div className="space-y-5 md:space-y-6">
       <PageHeader
         title="Members"
         description="Find and manage your gym members."
         actions={<Button href="/members/new"><UserPlus size={16} strokeWidth={1.75} aria-hidden="true" />Add member</Button>}
       />
 
-      <Card className="members-filter-card">
-        <div className="members-filter-grid">
+      <Card className="p-4 md:p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SearchBar
             id="member-search"
             label="Search members"
@@ -171,14 +174,14 @@ export default function MemberManager() {
       </Card>
 
       {loadError ? (
-        <Card className="members-state-card"><ErrorState title="Could not load members" description={loadError} onRetry={() => setRefreshKey((key) => key + 1)} /></Card>
+        <Card className="p-4 md:p-5"><ErrorState title="Could not load members" description={loadError} onRetry={() => setRefreshKey((key) => key + 1)} /></Card>
       ) : loading && page === 1 ? (
-        <Card className="members-state-card" role="status" aria-label="Loading members">
-          <div className="members-loading-heading"><Skeleton /><Skeleton /></div>
-          <div className="members-loading-rows">{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} />)}</div>
+        <Card className="space-y-4 p-4 md:p-5" role="status" aria-label="Loading members">
+          <Skeleton className="h-6 max-w-52" />
+          <div className="space-y-3">{Array.from({ length: 5 }, (_, index) => <Skeleton className="h-12" key={index} />)}</div>
         </Card>
       ) : total === 0 ? (
-        <Card className="members-state-card">
+        <Card className="p-4 md:p-5">
           <EmptyState
             title={hasFilters ? "No members match these filters" : "No members yet"}
             description={hasFilters ? "Try another search or adjust the membership status and plan." : "Add a member to begin managing your gym roster."}
@@ -188,21 +191,33 @@ export default function MemberManager() {
           />
         </Card>
       ) : (
-        <Card className="members-results-card">
-          <div className="members-results-heading">
-            <div><h2>Member directory</h2><p>Review membership details and account access.</p></div>
-            <span className="members-result-count">{total.toLocaleString("en-PK")} {total === 1 ? "member" : "members"}</span>
+        <Card className="overflow-hidden p-4 md:p-5">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 className="text-base font-semibold text-ink">Member directory</h2><p className="mt-1 text-sm text-ink-muted">Review membership details and account access.</p></div>
+            <span className="text-sm text-ink-muted">{total.toLocaleString("en-PK")} {total === 1 ? "member" : "members"}</span>
           </div>
-          <DataTable
-            caption="Member directory"
-            columns={columns}
-            rows={members}
-            getRowKey={(member) => member.id}
-            className="members-data-table"
-            emptyMessage="No members to show"
-          />
+          <div className="hidden md:block">
+            <DataTable caption="Member directory" columns={columns} rows={members} getRowKey={(member) => member.id} emptyMessage="No members to show" />
+          </div>
+          <ul className="divide-y divide-line md:hidden" aria-label="Member directory">
+            {members.map((member) => (
+              <li className="space-y-3 py-4 first:pt-1 last:pb-1" key={member.id}>
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0"><Link className="break-words font-semibold text-ink hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href={`/members/${member.id}`}>{member.name}</Link><p className="mt-1 break-all text-sm text-ink-muted">{member.phone}</p></div>
+                  <Badge tone={statusTone(member.status)}>{member.status}</Badge>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                  <div><dt className="text-xs text-ink-muted">Plan</dt><dd className="mt-0.5 break-words text-ink">{member.plan}</dd></div>
+                  <div><dt className="text-xs text-ink-muted">Expiry</dt><dd className="mt-0.5 text-ink">{formatDate(member.expiryDate)}</dd></div>
+                  <div><dt className="text-xs text-ink-muted">Account</dt><dd className="mt-0.5 text-ink">{member.isActive ? "Active" : "Inactive"}</dd></div>
+                  <div><dt className="text-xs text-ink-muted">Started</dt><dd className="mt-0.5 text-ink">{formatDate(member.startDate)}</dd></div>
+                </dl>
+                <MemberActions member={member} onToggle={toggleMemberActive} />
+              </li>
+            ))}
+          </ul>
           {members.length < total && (
-            <div className="members-load-more">
+            <div className="mt-4 flex justify-center border-t border-line pt-4">
               <Button variant="secondary" disabled={loading} loading={loading} loadingLabel="Loading members…" onClick={() => setPage((current) => current + 1)}>Load more</Button>
             </div>
           )}

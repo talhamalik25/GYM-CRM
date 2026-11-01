@@ -9,10 +9,10 @@ import EmptyState from "../ui/empty-state";
 import Input from "../ui/input";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
+import Textarea from "../ui/textarea";
 import { getMemberApi, getMembershipExpiryDate, saveMemberApi } from "../../lib/membersService";
 import { listPlans } from "../../lib/plansService";
 import { listTrainers } from "../../lib/trainersService";
-import Control from "../ui/control.js";
 
 const blankValues = {
   name: "",
@@ -269,17 +269,16 @@ export default function MemberForm({ memberId = null }) {
               readOnly
               hint={selectedPlan ? "Calculated from the selected plan duration." : "Choose a plan and start date to calculate expiry."}
             />
-            <label className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)] md:col-span-2"}>
-              <span className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"}>Notes (optional)</span>
-              <Control as="textarea"
-                id="member-notes"
-                name="notes"
-                rows={4}
-                className={""}
-                value={values.notes}
-                onChange={(event) => updateValue("notes", event.target.value)}
-              />
-            </label>
+            <Textarea
+              id="member-notes"
+              name="notes"
+              label="Notes (optional)"
+              rows={4}
+              fieldClassName="md:col-span-2"
+              value={values.notes}
+              onChange={(event) => updateValue("notes", event.target.value)}
+              error={errors.notes}
+            />
           </div>
           <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
             <Button href={editing ? "/members/" + memberId : "/members"} variant="secondary">Cancel</Button>

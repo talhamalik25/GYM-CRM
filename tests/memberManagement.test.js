@@ -28,9 +28,17 @@ test("member deactivation accepts only a boolean partial update", () => {
   assert.equal(validateMemberBody({ membershipCancelled: false }, { partial: true }).fields.membershipCancelled, "This field cannot be changed.");
 });
 
+test("member writes reject operator-shaped and unapproved fields", () => {
+  assert.equal(validateMemberBody({ ...validMember, $ne: null }).fields.$ne, "This field cannot be changed.");
+  assert.equal(validateMemberBody({ ...validMember, $where: "1" }).fields.$where, "This field cannot be changed.");
+  assert.equal(validateMemberBody({ ...validMember, "fullName.first": "Sam" }).fields["fullName.first"], "This field cannot be changed.");
+  assert.match(validateMemberBody({ ...validMember, fullName: { $ne: null } }).fields.fullName, /Full name is required/);
+});
+
 test("member CRUD reads and writes use trusted tenant scope and reject client-selected gym ownership", async () => {
   const collection = await readFile(fileURLToPath(new URL("../app/api/members/route.js", import.meta.url)), "utf8");
   const detail = await readFile(fileURLToPath(new URL("../app/api/members/[id]/route.js", import.meta.url)), "utf8");
+  const auditModel = await readFile(fileURLToPath(new URL("../models/AuditLog.js", import.meta.url)), "utf8");
   assert.equal((collection.match(/requireApiUser\(request\)/g) || []).length, 2);
   assert.equal((detail.match(/requireApiUser\((?:_request|request)\)/g) || []).length, 2);
   assert.match(collection, /Member\.find\(tenantFilter\(request, filter\)\)/);
@@ -44,6 +52,18 @@ test("member CRUD reads and writes use trusted tenant scope and reject client-se
   assert.match(detail, /Plan\.findOne\(tenantFilter\(request/);
   assert.match(detail, /Trainer\.findOne\(tenantFilter\(request/);
   assert.equal(validateMemberBody({ ...validMember, gymId: "507f1f77bcf86cd799439012" }).fields.gymId, "This field cannot be changed.");
+  assert.match(collection, /Member\.countDocuments\(tenantFilter\(request, filter\)\)/);
+  assert.match(collection, /action: "member\.created"/);
+  assert.match(collection, /getRequestActorId\(request\)/);
+  assert.match(detail, /action: "member\.edited"/);
+  assert.match(auditModel, /"member\.created"/);
+});
+
+test("member directory uses responsive Tailwind layouts without its legacy page classes", async () => {
+  const manager = await readFile(fileURLToPath(new URL("../components/members/member-manager.js", import.meta.url)), "utf8");
+  assert.match(manager, /hidden md:block/);
+  assert.match(manager, /md:hidden/);
+  assert.doesNotMatch(manager, /members-(?:page|filter-card|results-card|row-actions|data-table|state-card)/);
 });
 
 test("attendance denies inactive member accounts and cancelled memberships", async () => {

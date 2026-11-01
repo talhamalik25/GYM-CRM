@@ -1,3 +1,5 @@
+import { writeAuditLog } from "../../../../lib/auditLog.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import { withCapacityTransaction } from "../../../../lib/entitlements.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db";
@@ -9,7 +11,7 @@ import Plan from "../../../../models/Plan";
 import Trainer from "../../../../models/Trainer";
 import Subscription from "../../../../models/Subscription";
 import { isTrainerId, validateTrainerAssignment } from "../../../../lib/trainerApiHelpers";
-import { requireApiUser, tenantFilter } from "../../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter } from "../../../../lib/auth";
 
 function memberDate(value) {
   return new Date(`${value}T00:00:00.000Z`);
@@ -30,6 +32,7 @@ export async function GET(_request, context) {
     if (!member) return errorResponse("Member was not found.", 404);
     return successResponse(serializeMember(member));
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return handleMemberError(error);
   }
 }
@@ -40,7 +43,7 @@ async function handlePATCH(request, context) {
   try {
     const { id } = await context.params;
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Member id is invalid.", 400);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     // A client-supplied expiry is never applied, even when other fields are updated.
     const { expiryDate: _clientExpiryDate, ...memberBody } = body || {};
     const validation = validateMemberBody(memberBody, { partial: true });
@@ -93,8 +96,10 @@ async function handlePATCH(request, context) {
     delete update.gymId;
     delete update.branchId;
     const updated = await Member.findOneAndUpdate(tenantFilter(request, { _id: id }), update, { returnDocument: "after", runValidators: true }).populate({ path: "planId", match: tenantFilter(request), select: "name price" }).populate({ path: "trainerId", match: tenantFilter(request), select: "fullName status" }).lean();
+    await writeAuditLog({ gymId: getRequestGymId(request), actorId: getRequestActorId(request), action: "member.edited", resourceId: updated._id, changedFields: Object.keys(update) });
     return successResponse(serializeMember(updated));
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     return handleMemberError(error);
   }

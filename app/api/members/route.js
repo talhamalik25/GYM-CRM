@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../lib/requestBody.js";
 import { withCapacityTransaction } from "../../../lib/entitlements.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
@@ -8,8 +9,9 @@ import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
 import Trainer from "../../../models/Trainer";
 import { isTrainerId, validateTrainerAssignment } from "../../../lib/trainerApiHelpers";
-import { requireApiUser, getRequestGymId, tenantFilter, getRequestBranchId } from "../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter, getRequestBranchId } from "../../../lib/auth";
 import { gymToday } from "../../../lib/subscriptionRules.js";
+import { writeAuditLog } from "../../../lib/auditLog.js";
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -63,6 +65,7 @@ export async function GET(request) {
     ]);
     return successResponse({ items: members.map((member) => serializeMember(member, todayString)), total, page, limit, today: todayString });
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return handleMemberError(error);
   }
 }
@@ -71,7 +74,7 @@ async function handlePOST(request) {
   const authResponse = await requireApiUser(request);
   if (authResponse) return authResponse;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     // expiryDate is deliberately ignored: the selected plan and start date are authoritative.
     const { expiryDate: _clientExpiryDate, ...memberBody } = body || {};
     const validation = validateMemberBody(memberBody);
@@ -102,9 +105,17 @@ async function handlePOST(request) {
       expiryDate: memberDate(calculatedExpiry),
       notes: memberBody.notes?.trim() || "",
     });
-    await member.populate([{ path: "planId", select: "name price" }, { path: "trainerId", select: "fullName status" }]);
+    await writeAuditLog({
+      gymId: getRequestGymId(request),
+      actorId: getRequestActorId(request),
+      action: "member.created",
+      resourceId: member._id,
+      changedFields: ["fullName", "phone", "email", "gender", "dateOfBirth", "planId", "trainerId", "startDate", "expiryDate", "notes"],
+    });
+    await member.populate([{ path: "planId", match: tenantFilter(request), select: "name price" }, { path: "trainerId", match: tenantFilter(request), select: "fullName status" }]);
     return successResponse(serializeMember(member), 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     return handleMemberError(error);
   }
