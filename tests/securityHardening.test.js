@@ -98,6 +98,12 @@ test("cross-gym resource handlers reject foreign ids and ignore a forged gym que
   ];
   for (const [route, method, Model, body] of cases) await t.test(`${method} ${route}: Pass`, async (t) => {
     setup(t);
+    if (route === "trainers/[id]" && method === "GET") {
+      t.mock.method(Member, "find", (filter) => {
+        assert.equal(scopeGym(filter), gymA, "assigned-member lookup must constrain the authenticated gym");
+        return query([]);
+      });
+    }
     let reads = 0;
     for (const operation of ["findOne", "findOneAndUpdate", "exists"]) t.mock.method(Model, operation, (filter) => {
       assert.equal(scopeGym(filter), gymA, "resource lookup must constrain the authenticated gym"); reads++; return query(null);

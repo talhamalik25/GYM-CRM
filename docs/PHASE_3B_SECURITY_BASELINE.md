@@ -113,7 +113,7 @@ No Critical finding was confirmed from the source inspected. That is not a claim
 
 **Existing coverage in source:** `tests/tenantFoundation.test.js` checks role/membership decisions, forged tenant filters, and statically requires auth/query scoping across gym API routes; `tests/tenantIsolation.integration.test.js` covers two-Gym reads, cross-tenant IDs, updates/deletes and payment/attendance scoping; registration tests cover validation and paused behavior; `tests/adminUsers.test.js` covers platform-superadmin gating.
 
-**Skipped / NOT TESTED:** MongoDB integration tests require `MONGODB_TEST_URI`; none is explicitly configured in the process. `tenantIsolation.integration.test.js`, `paymentLedger.integration.test.js`, and the invitation integration test are therefore skipped by `npm test`. No DB connection was attempted. No deployed indexes, real records, cross-Gym refs, or actual transactions were tested. A passing source/unit test is not production isolation proof.
+**Skipped / NOT TESTED:** MongoDB integration tests require `MONGODB_URI_TEST`; none is explicitly configured in the process. `tenantIsolation.integration.test.js`, `paymentLedger.integration.test.js`, and the invitation integration test are therefore skipped by `npm test`. No DB connection was attempted. No deployed indexes, real records, cross-Gym refs, or actual transactions were tested. A passing source/unit test is not production isolation proof.
 
 ## Unknowns / blocked evidence
 

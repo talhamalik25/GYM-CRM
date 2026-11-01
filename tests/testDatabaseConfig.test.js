@@ -17,7 +17,7 @@ test("remote test databases require an explicit disposable designation", () => {
   const uri = "mongodb+srv://example.test/fitivo_test";
   assert.throws(
     () => isolatedTestUri(uri, "tenant_isolation", { allowRemoteDisposable: false, processId: 1, runId: "run" }),
-    /Remote MONGODB_TEST_URI refused/,
+    /Remote MONGODB_URI_TEST refused/,
   );
 });
 

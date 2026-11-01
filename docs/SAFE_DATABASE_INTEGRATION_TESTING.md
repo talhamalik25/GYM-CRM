@@ -15,7 +15,7 @@ The harness compares the test target against `MONGODB_URI` in the process and ap
 Configure the URI in the current PowerShell session without printing it:
 
 ```powershell
-$env:MONGODB_TEST_URI = 'mongodb://127.0.0.1:27017/fitivo_test?replicaSet=rs0'
+$env:MONGODB_URI_TEST = 'mongodb://127.0.0.1:27017/fitivo_test?replicaSet=rs0'
 ```
 
 For an independently verified remote disposable deployment, set the explicit acknowledgment in that same process session:

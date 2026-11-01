@@ -20,7 +20,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   }
   return nextResolve(specifier, context);
 } });
-const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "saas_entitlements");
+const testUri = isolatedTestUri(process.env.MONGODB_URI_TEST, "saas_entitlements");
 
 test("SaaS API enforcement, transactions, branch isolation, billing and reversible migration", { skip: !testUri }, async (t) => {
   const beforeEnv = { uri: process.env.MONGODB_URI, secret: process.env.AUTH_SESSION_SECRET };

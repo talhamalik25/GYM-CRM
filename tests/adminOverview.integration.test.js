@@ -10,7 +10,7 @@ import User from "../models/User.js";
 import GymMembership from "../models/GymMembership.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
-const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "admin_overview");
+const testUri = isolatedTestUri(process.env.MONGODB_URI_TEST, "admin_overview");
 const cookieName = process.env.NODE_ENV === "production" ? "__Host-fitivo_session" : "fitivo_session";
 
 function request(token) {

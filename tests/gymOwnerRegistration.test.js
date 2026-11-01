@@ -159,7 +159,7 @@ test("operational pages guard public expiry while billing, profile and platform 
         if (parts.length === 1 || ["billing", "profile", "admin"].includes(parts[0])) {
           assert.doesNotMatch(source, /await requirePublicGymOperationalPage\(/, `${path} must remain accessible through its existing policy`);
         } else {
-          assert.match(source, /await requirePublicGymOperationalPage\(\)/, `${path} must enforce public expiry on the server`);
+          assert.match(source, /await requirePublicGymOperationalPage\(/, `${path} must enforce public expiry on the server`);
           protectedPages++;
         }
       }

@@ -14,7 +14,7 @@ import { consumeLoginAttempt } from "../lib/loginSecurity.js";
 import AuthRateLimit from "../models/AuthRateLimit.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
-const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "user_profile");
+const testUri = isolatedTestUri(process.env.MONGODB_URI_TEST, "user_profile");
 const cookieName = process.env.NODE_ENV === "production" ? "__Host-fitivo_session" : "fitivo_session";
 
 function request(method, body, token) {

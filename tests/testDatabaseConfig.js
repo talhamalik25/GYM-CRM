@@ -36,11 +36,11 @@ export function isolatedTestUri(configuredUri, suiteName, {
   try {
     uri = new URL(configuredUri);
   } catch {
-    throw new Error("MONGODB_TEST_URI must be a valid MongoDB URI.");
+    throw new Error("MONGODB_URI_TEST must be a valid MongoDB URI.");
   }
 
   if (!["mongodb:", "mongodb+srv:"].includes(uri.protocol)) {
-    throw new Error("MONGODB_TEST_URI must use mongodb:// or mongodb+srv://.");
+    throw new Error("MONGODB_URI_TEST must use mongodb:// or mongodb+srv://.");
   }
 
   for (const applicationUri of applicationUris) {
@@ -60,7 +60,7 @@ export function isolatedTestUri(configuredUri, suiteName, {
 
   const sourceDatabase = decodeURIComponent(uri.pathname.slice(1));
   if (!sourceDatabase || !TEST_DATABASE_MARKER.test(sourceDatabase)) {
-    throw new Error("MONGODB_TEST_URI must name a database containing a test, testing, or disposable marker.");
+    throw new Error("MONGODB_URI_TEST must name a database containing a test, testing, or disposable marker.");
   }
 
   if (!/^[a-z][a-z0-9_]*$/i.test(suiteName)) {
@@ -70,7 +70,7 @@ export function isolatedTestUri(configuredUri, suiteName, {
   const host = uri.hostname.toLowerCase();
   const isLoopback = loopbackHosts.has(host);
   if (!isLoopback && !allowRemoteDisposable) {
-    throw new Error("Remote MONGODB_TEST_URI refused; explicitly designate the remote deployment as disposable with MONGODB_TEST_DISPOSABLE=YES.");
+    throw new Error("Remote MONGODB_URI_TEST refused; explicitly designate the remote deployment as disposable with MONGODB_TEST_DISPOSABLE=YES.");
   }
 
   const uniqueSuffix = createHash("sha256")

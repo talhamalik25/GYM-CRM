@@ -37,7 +37,7 @@ active trial plan and the settings described in
 ## Checks
 
 - `npm test` runs the Node test suite. MongoDB integration suites require an
-  explicit disposable `MONGODB_TEST_URI`; see
+  explicit disposable `MONGODB_URI_TEST`; see
   [`tests/INTEGRATION_TESTING.md`](tests/INTEGRATION_TESTING.md).
 - `npm run test:unit` explicitly disables database-backed tests.
 - `npm run lint` runs ESLint.
@@ -48,6 +48,17 @@ active trial plan and the settings described in
 Never point integration tests at `MONGODB_URI` or a production database. The
 test helper refuses unmarked database names and undesignated remote hosts.
 It also refuses the application's configured host or reused database credentials.
+
+Before enabling integration tests, create a separate test-only MongoDB cluster
+or a local replica set with its own empty data directory and a different host or
+port from the app database. Create a distinct, least-privilege test database
+user; do not reuse the app's username/password. Put the resulting test-only URI
+in the ignored `.env.test.local` as `MONGODB_URI_TEST=...` (not in `.env.local`
+or source control). The URI must name a database containing `test`, `testing`,
+or `disposable`; the harness uses a unique per-run database and drops it after
+each suite. Remote clusters also require `MONGODB_TEST_DISPOSABLE=YES` after
+you have independently confirmed that the cluster and user are disposable.
+Never point the test URI to a production or shared application deployment.
 
 The [2026-10-26 hardening report](docs/SECURITY_HARDENING_2026-10-26.md)
 records changes, verification, credential rotation requirements, and launch gates.

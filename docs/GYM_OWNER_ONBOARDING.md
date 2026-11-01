@@ -16,7 +16,7 @@ Successful registration sets the existing secure session cookie and redirects to
 
 Registration integration tests require a dedicated, disposable local replica set. Do not point them at a production or shared application database.
 
-For automated database tests, configure only the explicit `MONGODB_TEST_URI` described in [SAFE_DATABASE_INTEGRATION_TESTING.md](SAFE_DATABASE_INTEGRATION_TESTING.md). The test harness creates a unique per-run database name and refuses an unmarked database name or an undesignated remote host. Run:
+For automated database tests, configure only the explicit `MONGODB_URI_TEST` described in [SAFE_DATABASE_INTEGRATION_TESTING.md](SAFE_DATABASE_INTEGRATION_TESTING.md). The test harness creates a unique per-run database name and refuses an unmarked database name or an undesignated remote host. Run:
 
 ```powershell
 npm test -- tests/gymOwnerRegistration.integration.test.js

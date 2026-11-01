@@ -57,7 +57,7 @@ Rollback, with the same approval/backup/maintenance prerequisites, is `node scri
 - Deploy against MongoDB with transaction support. Retain `AUTH_SESSION_SECRET`, existing billing settings and cron configuration.
 - Ensure the new Branch and SaaSPlan key indexes exist. If automatic index creation is disabled, review/create these indexes explicitly. Do not run `syncIndexes` or remove existing indexes automatically.
 - Initialize the catalog explicitly through the Superadmin UI before provisioning new trial gyms. Set the public trial plan id only if public registration is already approved.
-- Tests use only `MONGODB_TEST_URI`, validated by `tests/testDatabaseConfig.js`; each suite creates a distinct `test_<hash>` database. Remote tests additionally require `MONGODB_TEST_DISPOSABLE=YES`. The safety helper is unchanged.
+- Tests use only `MONGODB_URI_TEST`, validated by `tests/testDatabaseConfig.js`; each suite creates a distinct `test_<hash>` database. Remote tests additionally require `MONGODB_TEST_DISPOSABLE=YES`. The safety helper is unchanged.
 - Added unit tests cover tier rules, snapshots, expiry/error distinctions, branch policy, downgrade counts and CSV injection protection. Added integration coverage exercises actual member/branch/report/billing APIs, concurrent limits, tenant/branch isolation and migration rollback.
 - Browser-level visual QA and authenticated integration behavior require a verified disposable database. Unit tests and a successful production build do not substitute for those checks.
 

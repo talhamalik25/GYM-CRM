@@ -13,7 +13,7 @@ import Counter from "../models/Counter.js";
 import Gym from "../models/Gym.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
-const configuredTestUri = process.env.MONGODB_TEST_URI;
+const configuredTestUri = process.env.MONGODB_URI_TEST;
 const testUri = isolatedTestUri(configuredTestUri, "payment_ledger");
 
 test("MongoDB payment ledger transactions remain consistent under retries and concurrent installments", { skip: !testUri }, async () => {

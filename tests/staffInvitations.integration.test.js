@@ -18,7 +18,7 @@ import User from "../models/User.js";
 import { createInvitationToken } from "../lib/staffInvitations.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
-const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "staff_invitations");
+const testUri = isolatedTestUri(process.env.MONGODB_URI_TEST, "staff_invitations");
 const cookieName = process.env.NODE_ENV === "production" ? "__Host-fitivo_session" : "fitivo_session";
 
 function request(url, body, token) {

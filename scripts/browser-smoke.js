@@ -17,7 +17,7 @@ const origin = `http://localhost:${port}`;
 const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
   // Empty values deliberately override Next's .env.local loading. Never fall
   // back to either application's or test cluster's credentials in this smoke.
-  env: { ...process.env, NODE_ENV: "production", MONGODB_URI: "", MONGODB_TEST_URI: "", AUTH_SESSION_SECRET: randomBytes(32).toString("hex"), PUBLIC_REGISTRATION_ENABLED: "false", PUBLIC_TRIAL_PLAN_ID: "", CRON_SECRET: "", SAAS_EXPIRY_CRON_SECRET: "" },
+  env: { ...process.env, NODE_ENV: "production", MONGODB_URI: "", MONGODB_URI_TEST: "", AUTH_SESSION_SECRET: randomBytes(32).toString("hex"), PUBLIC_REGISTRATION_ENABLED: "false", PUBLIC_TRIAL_PLAN_ID: "", CRON_SECRET: "", SAAS_EXPIRY_CRON_SECRET: "" },
   stdio: ["ignore", "ignore", "ignore"], windowsHide: true,
 });
 const stopped = once(server, "exit");

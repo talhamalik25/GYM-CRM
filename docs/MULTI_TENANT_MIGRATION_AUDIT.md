@@ -6,7 +6,7 @@
 
 ## Scope and evidence
 
-This is a static audit of the current repository: Mongoose schemas, tenant/authentication utilities, tenant API notes, seed scripts, and declared schema indexes. No MongoDB connection was attempted. The environment has no explicitly configured `MONGODB_AUDIT_URI` or `MONGODB_TEST_URI`, so this report does not claim to have inspected database records, deployed indexes, or Atlas state. The regular application `MONGODB_URI` is not an audit substitute and was not used.
+This is a static audit of the current repository: Mongoose schemas, tenant/authentication utilities, tenant API notes, seed scripts, and declared schema indexes. No MongoDB connection was attempted. The environment has no explicitly configured `MONGODB_AUDIT_URI` or `MONGODB_URI_TEST`, so this report does not claim to have inspected database records, deployed indexes, or Atlas state. The regular application `MONGODB_URI` is not an audit substitute and was not used.
 
 Consequently, all live collection totals, missing-ownership counts, invalid-reference counts, and cross-gym counts are **NOT QUERIED**, not zero. A safe, sanitized, non-production database snapshot and an explicitly configured audit-only connection are prerequisites for those figures.
 

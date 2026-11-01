@@ -32,7 +32,7 @@ import Member from "../models/Member.js";
 import Trainer from "../models/Trainer.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
-const testUri = isolatedTestUri(process.env.MONGODB_TEST_URI, "public_trial_registration");
+const testUri = isolatedTestUri(process.env.MONGODB_URI_TEST, "public_trial_registration");
 const cookieName = process.env.NODE_ENV === "production" ? "__Host-fitivo_session" : "fitivo_session";
 const valid = { fullName: "Public Owner", email: "public-owner@example.test", password: "public-owner-long-password", gymName: "Public Trial Gym" };
 function request(url, token, body) {

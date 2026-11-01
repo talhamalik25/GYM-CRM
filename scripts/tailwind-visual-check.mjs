@@ -13,7 +13,7 @@ const root = "test-results/tailwind-migration";
 fs.mkdirSync(`${root}/${mode}`, { recursive: true });
 const port = 3115;
 const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
-  env: { ...process.env, MONGODB_URI: "", MONGODB_TEST_URI: "", PUBLIC_REGISTRATION_ENABLED: "false", PUBLIC_TRIAL_PLAN_ID: "" },
+  env: { ...process.env, MONGODB_URI: "", MONGODB_URI_TEST: "", PUBLIC_REGISTRATION_ENABLED: "false", PUBLIC_TRIAL_PLAN_ID: "" },
   windowsHide: true, stdio: ["ignore", "ignore", "pipe"],
 });
 let serverError = "";

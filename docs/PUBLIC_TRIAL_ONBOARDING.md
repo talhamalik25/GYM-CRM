@@ -107,7 +107,7 @@ Superadmin gym details show trial status, start, exact expiry, remaining days
 ## Verification
 
 See `tests/INTEGRATION_TESTING.md`. Use only an explicitly disposable
-`MONGODB_TEST_URI`, never a production URI. The public registration suite uses
+`MONGODB_URI_TEST`, never a production URI. The public registration suite uses
 the existing safety helper and a randomly named database. It tests transaction
 rollback, concurrency, identity reuse, configuration failure, limits, the exact
 expiry boundary, billing/profile access, cross-tenant rejection, authorized

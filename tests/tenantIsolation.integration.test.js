@@ -16,7 +16,7 @@ import { recordMemberPayment, runLedgerTransaction, LedgerError } from "../lib/p
 import generateReceiptNumber from "../lib/generateReceiptNumber.js";
 import { isolatedTestUri } from "./testDatabaseConfig.js";
 
-const configuredTestUri = process.env.MONGODB_TEST_URI;
+const configuredTestUri = process.env.MONGODB_URI_TEST;
 const testUri = isolatedTestUri(configuredTestUri, "tenant_isolation");
 
 test("synthetic gym A queries cannot read, update, or delete gym B records", { skip: !testUri }, async () => {

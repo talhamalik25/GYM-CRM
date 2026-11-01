@@ -1,6 +1,6 @@
 # MongoDB integration tests
 
-Eight integration suites use MongoDB when `MONGODB_TEST_URI` is explicitly
+Eight integration suites use MongoDB when `MONGODB_URI_TEST` is explicitly
 configured:
 
 - `adminGymDetails.integration.test.js`
@@ -12,7 +12,8 @@ configured:
 - `tenantIsolation.integration.test.js`
 - `userProfile.integration.test.js`
 
-Use only a dedicated disposable MongoDB instance. Payment, registration,
+Use only a dedicated disposable MongoDB instance with a separate host/port and
+separate test credentials from the application database. Payment, registration,
 invitation, profile, tenant-isolation, and entitlement scenarios can use
 transactions and require a replica set. The test URI must name a database with
 `test`, `testing`, or `disposable` in its name. Each suite derives a unique
@@ -31,7 +32,7 @@ directory and initialize the replica set. For example:
 ```powershell
 mongod --replSet rs0 --bind_ip 127.0.0.1 --port 27018 --dbpath C:\mongo-fitivo-test-data
 mongosh "mongodb://127.0.0.1:27018/admin" --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:27018"}]})'
-$env:MONGODB_TEST_URI = "mongodb://127.0.0.1:27018/fitivo_test?replicaSet=rs0&retryWrites=true&w=majority"
+$env:MONGODB_URI_TEST = "mongodb://127.0.0.1:27018/fitivo_test?replicaSet=rs0&retryWrites=true&w=majority"
 npm test
 ```
 
