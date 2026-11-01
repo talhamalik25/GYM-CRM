@@ -10,9 +10,9 @@ export const metadata = {
     title: "Fitivo | Your whole gym. Working as one.",
     description: SITE.description,
     type: "website",
-    images: [{ url: "/fitivo-social.svg", width: 1200, height: 630, alt: "Fitivo gym management platform" }],
+    images: [{ url: "/logo.png", width: 866, height: 288, alt: "Fitivo" }],
   },
-  twitter: { card: "summary_large_image", title: "Fitivo | Your whole gym. Working as one.", description: SITE.description, images: ["/fitivo-social.svg"] },
+  twitter: { card: "summary_large_image", title: "Fitivo | Your whole gym. Working as one.", description: SITE.description, images: ["/logo.png"] },
 };
 
 export default function HomePage() {

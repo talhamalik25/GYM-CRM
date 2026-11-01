@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import Badge from "../ui/badge";
 import Button from "../ui/button";
 import Modal from "../ui/modal";
+import FitivoLogo from "../brand/fitivo-logo.js";
 
 function formatCurrency(amount) {
   return `PKR ${Number(amount || 0).toLocaleString("en-PK")}`;
@@ -29,7 +30,7 @@ export default function PaymentReceiptModal({ receipt, onClose }) {
         <div className="space-y-5">
           {receipt.voided && <p className="text-sm font-medium text-danger" role="status">Voided receipt. This amount is excluded from collections. Reason: {receipt.voidReason}</p>}
           <div className="flex items-center justify-between border-b border-line pb-4">
-            <span className="text-xl font-semibold tracking-tight text-ink">Fitivo</span>
+            <FitivoLogo width={108} height={36} />
             <Badge tone={statusTone(receipt.status)}>{receipt.status}</Badge>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">

@@ -3,7 +3,7 @@ import { ArrowRight, ArrowUpRight, Check, ClipboardList, Dumbbell, FileText, Mes
 import { SITE, FAQS, GUIDANCE, ONBOARDING, ROLES } from "../../config/site.js";
 import { MarketingButton, MarketingSection } from "./marketing-primitives.js";
 import MarketingProductShowcase from "./marketing-product-showcase.js";
-import MarketingPreviewPlaceholder from "./marketing-preview-placeholder.js";
+import MarketingCapabilityPanel from "./marketing-capability-panel.js";
 import MarketingFeatureGrid from "./marketing-feature-grid.js";
 import MarketingPricing from "./marketing-pricing.js";
 import styles from "./marketing-home.module.css";
@@ -46,13 +46,13 @@ export default function MarketingHome() {
     <MarketingSection id="trainer-workspace" className={`${styles.section} ${styles.tinted}`}>
       <div className={styles.spotlight}>
         <div><Heading eyebrow="The trainer workspace" description="Give trainers a focused view of the members assigned to them, with the context to make the next conversation useful.">Know who’s training.<br /><em>Keep the details close.</em></Heading><ul className={styles.checklist}>{["Assigned member roster", "Membership status and expiry dates", "Recent attendance for assigned members"].map(item => <li key={item}><Check size={17} aria-hidden="true" />{item}</li>)}</ul><Link href="/features#trainers" className={styles.textLink}>Explore the trainer workspace <ArrowRight size={16} aria-hidden="true" /></Link></div>
-        <MarketingPreviewPlaceholder compact title="Trainer workspace" description="A focused view of assigned members and their recent visits." areas={["Assigned members", "Recent attendance"]} />
+        <MarketingCapabilityPanel title="Trainer workspace" description="A focused view of assigned members and their recent visits." areas={["Assigned members", "Recent attendance"]} />
       </div>
     </MarketingSection>
 
     <MarketingSection id="fees-finance" className={styles.section}>
       <div className={`${styles.spotlight} ${styles.financeSpotlight}`}>
-        <MarketingPreviewPlaceholder compact title="Fees & finance" description="Follow the fee record, from the charge to the recorded payment." areas={["Member ledgers", "Payment records", "Receipts"]} />
+        <MarketingCapabilityPanel title="Fees & finance" description="Follow the fee record, from the charge to the recorded payment." areas={["Member ledgers", "Payment records", "Receipts"]} />
         <div><Heading eyebrow="Clarity for the front desk" description="Keep the payment conversation grounded in your gym’s records. See what has been recorded and what still needs attention.">A clear fee record.<br /><em>A simpler follow-up.</em></Heading><ul className={styles.checklist}>{["Member fee ledgers", "Payment records & receipts", "Reports from recorded transactions"].map(item => <li key={item}><Check size={17} aria-hidden="true" />{item}</li>)}</ul><Link href="/features#fees" className={styles.textLink}>Inside fees & finance <ArrowRight size={16} aria-hidden="true" /></Link></div>
       </div>
     </MarketingSection>

@@ -4,7 +4,7 @@ import { useId, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { PRODUCT_VIEWS } from "../../config/site.js";
-import MarketingPreviewPlaceholder from "./marketing-preview-placeholder.js";
+import MarketingCapabilityPanel from "./marketing-capability-panel.js";
 import styles from "./marketing-home.module.css";
 
 export default function MarketingProductShowcase({ showDetailsLink = true }) {
@@ -21,7 +21,7 @@ export default function MarketingProductShowcase({ showDetailsLink = true }) {
   return <div className={styles.showcase}>
     <div className={styles.showcaseLabel}><span>Inside Fitivo</span><span>Four connected parts of your day</span></div>
     <div className={styles.productTabs} role="tablist" aria-label="Explore Fitivo workspaces">{PRODUCT_VIEWS.map((view, index) => <button key={view.id} ref={el => { refs.current[index] = el; }} type="button" role="tab" id={`${id}-tab-${view.id}`} aria-controls={`${id}-panel-${view.id}`} aria-selected={selected === index} tabIndex={selected === index ? 0 : -1} onClick={() => setSelected(index)} onKeyDown={event => selectWithKeyboard(event, index)}>{view.label}</button>)}</div>
-    {PRODUCT_VIEWS.map((view, index) => <div key={view.id} role="tabpanel" id={`${id}-panel-${view.id}`} aria-labelledby={`${id}-tab-${view.id}`} hidden={selected !== index} tabIndex={0}><MarketingPreviewPlaceholder title={view.label} description={view.description} areas={view.areas} /></div>)}
+    {PRODUCT_VIEWS.map((view, index) => <div key={view.id} role="tabpanel" id={`${id}-panel-${view.id}`} aria-labelledby={`${id}-tab-${view.id}`} hidden={selected !== index} tabIndex={0}><MarketingCapabilityPanel title={view.label} description={view.description} areas={view.areas} screenshot={view.screenshot} /></div>)}
     <div className={styles.showcaseBottom}><p>One gym. Connected records. A clearer day.</p>{showDetailsLink && <Link href="/demo">Explore the workspaces <ArrowUpRight size={15} aria-hidden="true" /></Link>}</div>
   </div>;
 }

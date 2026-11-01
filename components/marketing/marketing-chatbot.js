@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Send, X } from "lucide-react";
 import { FAQS, SITE } from "../../config/site.js";
+import FitivoLogo from "../brand/fitivo-logo.js";
 
 const MAX_QUESTION_LENGTH = 300;
 
@@ -47,7 +48,7 @@ export default function MarketingChatbot() {
   return <div className="fixed bottom-4 right-4 z-[60] sm:bottom-6 sm:right-6">
     {open && <section id="fitivo-help-panel" aria-label="Fitivo website help" className="mb-3 flex max-h-[min(70vh,34rem)] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-lg">
       <header className="flex items-start justify-between gap-3 border-b border-line bg-primary-soft p-4">
-        <div><h2 className="font-semibold text-ink">Fitivo website help</h2><p className="mt-1 text-xs leading-5 text-ink-muted">Answers come from public Fitivo information.</p></div>
+        <div className="flex min-w-0 items-center gap-3"><FitivoLogo width={78} height={26} /><div><h2 className="font-semibold text-ink">Website help</h2><p className="mt-1 text-xs leading-5 text-ink-muted">Answers come from public Fitivo information.</p></div></div>
         <button type="button" onClick={() => setOpen(false)} className="grid size-10 shrink-0 place-items-center rounded-lg text-ink-muted hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="Close help"><X size={18} /></button>
       </header>
       <div className="min-h-28 flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite" aria-relevant="additions">

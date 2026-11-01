@@ -87,3 +87,11 @@
 - Updated the tenant-route source assertion to recognize both current authenticated helpers (`requireApiUser` and `requireRole`), so owner-only routes such as exports are accepted while requiring a separate tenant scope assertion.
 - Test DB connection variable is now only `MONGODB_URI_TEST`. `.env.example` has a blank name-only entry; runner, integration fixtures, smoke scripts and current setup docs read/clear that variable. The host/credential reuse and test-name preflight remains unchanged. To run DB integration tests, create a dedicated cluster or local replica set on a separate host/port with distinct least-privilege test credentials, then set `MONGODB_URI_TEST` in ignored `.env.test.local`; see README.md and tests/INTEGRATION_TESTING.md. Remote clusters still require explicit disposable designation. No database URI was printed or changed.
 - Verification: targeted page-guard, foreign-resource/trainer, and tenant-route tests pass. Full `npm run test:unit`: 227 total, 219 passed, 0 failed, 8 database-backed suites skipped. Skips are expected for unit-only execution; no integration connection was attempted. `npm run lint` and `npm run build` both passed.
+
+## Logo and marketing image alignment
+
+- `public/logo.png` is the only supplied Fitivo logo asset. It is the full wordmark with dark lettering and is used on light surfaces; dark sections place it on a white surface. No icon-only, light wordmark, Apple touch icon, or approved social image was supplied.
+- The generic Next.js favicon and the prior separately drawn social graphic were removed. A proper branded favicon/app icon remains unavailable until an icon-only asset is provided.
+- Dashboard screenshots were not created. There is no `MONGODB_URI_TEST` configured and no local MongoDB service/binary available. I did not seed or inspect the configured application database. The marketing sections now describe actual product areas without simulated screen captures.
+- The login, register, free-trial, and marketing routes use the shared marketing brand. No forgot-password route exists in this project.
+- The receipt dialog is the only printable financial document found; its header now uses the supplied logo. No invoice or report print/export header was found.

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { MARKETING_SUPPORT_CHANNEL } from "../../lib/marketingConfig.js";
+import FitivoLogo from "../brand/fitivo-logo.js";
 
 
 export function MarketingButton({ href, variant = "primary", className = "", children, ...props }) {
@@ -21,8 +22,8 @@ export function MarketingPill({ children, className = "" }) {
 }
 
 export function MarketingBrand({ inverse = false, className = "" }) {
-  return <Link href="/" aria-label="Fitivo home" className={`${"m-marketing-brand exact:inline-flex exact:items-center exact:[gap:9px] exact:[color:var(--m-ink,_#161b2e)] exact:[font-size:27px] exact:[font-weight:700] exact:[letter-spacing:-1.3px] exact:[line-height:1] exact:[flex-shrink:0] exact:at-most-639:[font-size:25px]"} ${inverse ? "m-marketing-brandInverse exact:[color:white] exact:[&_.m-marketing-brandMark]:[background:#7770f4] exact:[&_.m-marketing-brandDot]:[color:#aaa5ff]" : ""} ${className}`}>
-    <span className={"m-marketing-brandMark exact:grid exact:[place-items:center] exact:[width:35px] exact:[height:37px] exact:[border-radius:11px] exact:[background:var(--brand)] exact:[color:white] exact:[box-shadow:inset_0_1px_0_#ffffff35] exact:at-most-639:[width:31px] exact:at-most-639:[height:33px] exact:at-most-639:[border-radius:10px]"}><Zap size={21} strokeWidth={2.4} aria-hidden="true" /></span><span>Fitivo<span className={"m-marketing-brandDot exact:[color:var(--brand)]"}>.</span></span>
+  return <Link href="/" aria-label="Fitivo home" className={`m-marketing-brand inline-flex shrink-0 items-center ${className}`}>
+    <FitivoLogo width={126} height={42} inverse={inverse} />
   </Link>;
 }
 
@@ -32,11 +33,4 @@ export function MarketingSection({ as: Element = "section", id, className = "", 
 
 export function MarketingHeading({ eyebrow, title, children, centered = false }) {
   return <div className={`${"m-marketing-sectionHeading exact:[max-width:620px] exact:[&_h2]:[margin:0] exact:[&_h2]:[font-size:clamp(30px,_3.6vw,_44px)] exact:[&_h2]:[line-height:1.18] exact:[&_h2]:[font-weight:600] exact:[&_h2]:[letter-spacing:-.045em] exact:[&_h2]:[text-wrap:balance] exact:at-most-639:[&_h2]:[font-size:32px]"} ${centered ? "m-marketing-centered exact:[margin:0_auto_44px] exact:text-center exact:at-most-639:[margin-bottom:30px]" : ""}`}><p className={"m-marketing-eyebrow exact:[margin:0_0_18px] exact:[color:var(--brand)] exact:[font-size:10px] exact:[line-height:1.5] exact:[font-weight:700] exact:[letter-spacing:.16em]"}>{eyebrow}</p><h2>{title}</h2>{children && <p className={"m-marketing-description exact:[margin-top:19px] exact:[color:var(--m-muted)] exact:[font-size:15px] exact:[line-height:1.8] exact:at-most-639:[font-size:14px]"}>{children}</p>}</div>;
-}
-
-export function MarketingPreviewCard({ children, className = "", label = "Illustrative workspace · Sample data", title = "Fitivo workspace" }) {
-  return <div className={`${"m-marketing-previewFrame exact:overflow-hidden exact:[background:white] exact:[color:#252b40] exact:[border:1px_solid_#dfe1ec] exact:[border-radius:12px] exact:[box-shadow:var(--m-shadow,_0_15px_45px_#161b2e16)]"} ${className}`}>
-    <div className={"m-marketing-previewChrome exact:flex exact:items-center exact:[gap:10px] exact:[height:35px] exact:[padding:0_15px] exact:[border-bottom:1px_solid_#e6e7ef] exact:[background:#fbfbfd] exact:[color:#7b8091] exact:[font-size:9px] exact:[&>span:nth-child(2)]:[flex:1] exact:[&>span:nth-child(2)]:text-center exact:at-most-639:[padding-inline:10px] exact:at-most-639:[height:29px] exact:at-most-639:[font-size:7px]"}><div className={"m-marketing-windowDots exact:flex exact:[gap:5px] exact:[&_i]:[width:6px] exact:[&_i]:[height:6px] exact:[&_i]:[border-radius:50%] exact:[&_i]:[background:#d7d9e3]"} aria-hidden="true"><i /><i /><i /></div><span>{title}</span><span className={"m-marketing-sampleBadge exact:[font-size:7px] exact:[letter-spacing:.08em] exact:[padding:2px_5px] exact:[border:1px_solid_#e3e4ee] exact:[border-radius:4px]"}>DEMO</span></div>
-    {children}<div className={"m-marketing-previewCaption exact:flex exact:items-center exact:[gap:6px] exact:[padding:8px_15px] exact:[color:#717687] exact:[font-size:9px] exact:[border-top:1px_solid_#e6e7ef] exact:[background:white] exact:[&>span]:[width:5px] exact:[&>span]:[height:5px] exact:[&>span]:[border-radius:50%] exact:[&>span]:[background:#8c85ed] exact:at-most-639:[padding:7px_10px] exact:at-most-639:[font-size:8px]"}><span />{label}</div>
-  </div>;
 }

@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Activity, CalendarCheck2, ChartNoAxesColumn, CreditCard, Dumbbell, LogOut, Menu, Settings, Users, UserRound, Zap } from 'lucide-react';
+import { Activity, CalendarCheck2, ChartNoAxesColumn, CreditCard, Dumbbell, LogOut, Menu, Settings, Users, UserRound } from 'lucide-react';
 
 import BranchSwitcher from '../branches/branch-switcher';
 import Avatar from '../ui/avatar';
 import Button from '../ui/button';
 import Drawer from '../ui/drawer';
 import Dropdown from '../ui/dropdown';
+import FitivoLogo from '../brand/fitivo-logo.js';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity, group: 'Overview' },
@@ -45,8 +46,8 @@ function SidebarContent({ pathname, links, homeHref, roleName, accountEmail, pro
   const groups = [...new Set(links.map(({ group }) => group))];
   return <>
     <Link href={homeHref} className={"brand exact:flex exact:items-center exact:[gap:10px] exact:[flex-shrink:0] exact:[min-height:44px] exact:[border-radius:var(--radius-input)]"} onClick={onNavigate} aria-label="Fitivo home">
-      <span className={"brand-mark exact:grid exact:[place-items:center] exact:[flex:0_0_36px] exact:[width:36px] exact:[height:36px] exact:[border-radius:var(--radius-input)] exact:[background:var(--brand)] exact:[color:var(--on-brand)]"}><Zap size={22} strokeWidth={1.75} aria-hidden="true" /></span>
-      <span className={"brand-copy exact:grid exact:[min-width:0] exact:[gap:2px]"}><span className={"fitivo-wordmark exact:[font-size:18px] exact:[font-weight:700] exact:[letter-spacing:var(--tracking-tight)] exact:[line-height:1.2]"}>Fitivo</span><span className={"workspace-caption exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:[line-height:1.4]"}>{roleName} workspace</span></span>
+      <FitivoLogo width={120} height={40} />
+      <span className={"workspace-caption exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:[line-height:1.4]"}>{roleName} workspace</span>
     </Link>
     <nav aria-label="Main navigation" className={"side-nav exact:grid exact:[gap:24px] exact:[margin-top:28px]"}>
       {groups.map((group) => <div className="nav-group" key={group}>
@@ -133,7 +134,7 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
         {logoutError && <p className={"shell-logout-error exact:[color:var(--danger)] exact:[font-size:13px] exact:[overflow-wrap:anywhere] exact:[padding:12px_16px] exact:[margin:0_0_24px] exact:[border-radius:var(--radius-input)] exact:[background:var(--danger-soft)]"} role="alert">{logoutError}</p>}
         {children}
       </main>
-      <footer className={"app-footer exact:flex exact:[justify-content:space-between] exact:[gap:16px] exact:[padding:12px_var(--page-padding-x)_20px] exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:at-most-1023:[padding-inline:24px] exact:at-most-600:[padding-inline:16px]"}><span>Fitivo</span><span>Your gym, in sync.</span></footer>
+      <footer className={"app-footer exact:flex exact:[justify-content:space-between] exact:[gap:16px] exact:[padding:12px_var(--page-padding-x)_20px] exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:at-most-1023:[padding-inline:24px] exact:at-most-600:[padding-inline:16px]"}><FitivoLogo width={72} height={24} /><span>Your gym, in sync.</span></footer>
     </div>
   </div>;
 }

@@ -46,6 +46,12 @@ try {
   await page.goto(`${origin}/login`);
   assert.equal(await page.locator('input[type="password"]').count(), 1);
   console.log("PASS login form renders");
+  const notFound = await page.goto(`${origin}/logo-smoke-not-found`);
+  assert.equal(notFound.status(), 404);
+  const notFoundLogo = page.locator('img[alt="Fitivo"]');
+  assert.equal(await notFoundLogo.count(), 1);
+  assert.ok(await notFoundLogo.evaluate((image) => image.complete && image.naturalWidth > 0));
+  console.log("PASS branded 404 page and logo render");
   for (const path of ["/dashboard", "/admin", "/members", "/billing"]) {
     await page.goto(`${origin}${path}`);
     assert.equal(new URL(page.url()).pathname, "/login");

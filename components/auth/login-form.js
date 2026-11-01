@@ -7,7 +7,7 @@ import Link from "next/link";
 import Button from "../ui/button";
 import Input from "../ui/input";
 import { MarketingBrand } from "../marketing/marketing-primitives.js";
-import MarketingProductPreview from "../marketing/marketing-product-preview.js";
+import MarketingCapabilityPanel from "../marketing/marketing-capability-panel.js";
 
 
 function validate(values) {
@@ -74,7 +74,7 @@ export default function LoginForm({ registrationAvailable = false }) {
         <div className={"m-marketing-authEyebrow exact:flex exact:items-center exact:[gap:8px] exact:[margin-bottom:20px] exact:[color:#b5afd9] exact:[font-size:9px] exact:[font-weight:500] exact:[letter-spacing:.12em] exact:[&>span]:[width:5px] exact:[&>span]:[height:5px] exact:[&>span]:[border-radius:50%] exact:[&>span]:[background:#a197ef]"}><span /> BUILT FOR THE BUSINESS OF FITNESS</div>
         <h2>Great gyms are built<br />on great experiences.<br /><span>Start with yours.</span></h2>
         <p>Less admin between you and your next big step. Your members, team, and business, connected.</p>
-        <div className={"m-marketing-authProduct exact:[margin-top:36px] exact:[max-width:650px]"}><MarketingProductPreview compact /></div>
+        <div className="mt-9 max-w-[650px]"><MarketingCapabilityPanel title="Connected gym records" description="Keep member profiles, memberships, attendance and payment records together in your workspace." areas={["Members", "Attendance", "Payments"]} /></div>
       </div>
       <div className={"m-marketing-authStoryFooter exact:flex exact:items-center exact:[gap:8px] exact:[color:#9ca4be] exact:[font-size:10px]"}><ShieldCheck size={14} aria-hidden="true" />Your gym. Your people. One connected workspace.</div>
     </aside>

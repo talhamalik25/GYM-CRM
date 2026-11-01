@@ -606,16 +606,6 @@
   background: #fff;
 }
 
-.wordmark {
-  font-size: 64px;
-  font-weight: 700;
-  letter-spacing: -.065em;
-}
-
-.wordmark>span {
-  color: #4f46e5;
-}
-
 .brandCard>p:not(.eyebrow) {
   font-size: 25px;
   line-height: 1.35;

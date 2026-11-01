@@ -13,7 +13,7 @@ Status: DRAFT v1. Where the existing app already defines a value (fonts, exact r
 ## 2. Brand
 - Product: Fitivo (by AKTech Digital Solutions)
 - Accent: indigo **#4F46E5**
-- Logo: not finalized yet; use text wordmark "Fitivo" until it is
+- Logo: use the supplied full wordmark at `public/logo.png`. Icon-only and light wordmark variants have not been supplied; place the dark wordmark on light surfaces.
 
 ## 3. Color tokens
 | Token | Value | Use |
