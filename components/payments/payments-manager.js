@@ -13,6 +13,7 @@ import Modal from "../ui/modal";
 import PageHeader from "../ui/page-header";
 import SearchBar from "../ui/search-bar";
 import Select from "../ui/select";
+import Skeleton from "../ui/skeleton";
 import StatCard from "../ui/stat-card";
 import Textarea from "../ui/textarea";
 import PaymentReceiptModal from "./payment-receipt-modal";
@@ -40,7 +41,7 @@ export default function PaymentsManager() {
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState({ collected: 0, pendingDues: 0, paymentCount: 0 });
   const [dues, setDues] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedRequestKey, setLoadedRequestKey] = useState("");
   const [open, setOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [voidingPayment, setVoidingPayment] = useState(null);
@@ -55,8 +56,11 @@ export default function PaymentsManager() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [loadError, setLoadError] = useState("");
+  const [loadErrorState, setLoadErrorState] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const requestKey = JSON.stringify([debouncedQuery, statusFilter, methodFilter, monthFilter, page, refreshKey]);
+  const loading = loadedRequestKey !== requestKey;
+  const loadError = loadErrorState?.key === requestKey ? loadErrorState.message : "";
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -65,8 +69,6 @@ export default function PaymentsManager() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setLoadError("");
     Promise.all([
       getPayments({ search: debouncedQuery, status: statusFilter, method: methodFilter, month: monthFilter, page, limit: 10 }),
       getPaymentSummary(),
@@ -77,13 +79,14 @@ export default function PaymentsManager() {
       setTotal(result.total);
       setSummary(nextSummary);
       setDues(nextDues);
+      setLoadErrorState(null);
     }).catch((error) => {
-      if (!cancelled) setLoadError(error.message || "Could not load payment data.");
+      if (!cancelled) setLoadErrorState({ key: requestKey, message: error.message || "Could not load payment data." });
     }).finally(() => {
-      if (!cancelled) setLoading(false);
+      if (!cancelled) setLoadedRequestKey(requestKey);
     });
     return () => { cancelled = true; };
-  }, [debouncedQuery, statusFilter, methodFilter, monthFilter, page, refreshKey]);
+  }, [requestKey, debouncedQuery, statusFilter, methodFilter, monthFilter, page, refreshKey]);
 
   function clearFilters() {
     setQuery("");
@@ -97,7 +100,7 @@ export default function PaymentsManager() {
     try {
       setReceipt(await getPaymentById(payment.id));
     } catch (error) {
-      setLoadError(error.message || "Could not load this receipt.");
+      setLoadErrorState({ key: requestKey, message: error.message || "Could not load this receipt." });
     }
   }
 
@@ -165,7 +168,7 @@ export default function PaymentsManager() {
         </div>
       </Card>
 
-      {loading ? <Card className="space-y-4 p-4 md:p-5" role="status" aria-label="Loading payments"><div className="h-5 w-48 animate-pulse rounded bg-surface-raised" />{Array.from({ length: 5 }, (_, index) => <div className="h-12 animate-pulse rounded bg-surface-raised" key={index} />)}</Card> : total === 0 ? (
+      {loading ? <Card className="space-y-4 p-4 md:p-5" role="status" aria-label="Loading payments"><Skeleton className="h-5 max-w-48" />{Array.from({ length: 5 }, (_, index) => <Skeleton className="h-12" key={index} />)}</Card> : loadError ? null : total === 0 ? (
         <Card className="p-4 md:p-5"><EmptyState icon={hasFilters ? <Search size={25} strokeWidth={1.7} /> : <CreditCard size={25} strokeWidth={1.7} />} title={hasFilters ? "No payments match these filters" : "No payments yet"} description={hasFilters ? "Try another member name, status, method, or month." : "Record a member payment to start the payment history."} action={hasFilters ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : <Button onClick={() => setOpen(true)}><CreditCard size={15} aria-hidden="true" />Record payment</Button>} /></Card>
       ) : (
         <Card className="overflow-hidden p-4 md:p-5">
@@ -184,7 +187,7 @@ export default function PaymentsManager() {
 
       <Card className="p-4 md:p-5">
         <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="text-base font-semibold text-ink">Members with dues</h2><p className="mt-1 text-sm text-ink-muted">Outstanding balances across member accounts.</p></div><UsersRound size={19} strokeWidth={1.75} aria-hidden="true" className="text-ink-muted" /></div>
-        {loading ? <p className="text-sm text-ink-muted" role="status">Loading outstanding balances…</p> : dues.length ? <ul className="divide-y divide-line">{dues.map((member) => <li key={member.memberId} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"><div><p className="font-medium text-ink">{member.memberName}</p><small className="text-xs text-ink-muted">{member.paymentCount} outstanding {member.paymentCount === 1 ? "payment" : "payments"}</small></div><strong className="text-ink">{formatCurrency(member.balance)}</strong></li>)}</ul> : <EmptyState title="No members have outstanding dues" description="Balances appear here when a membership has an unpaid amount." />}
+        {loading ? <p className="text-sm text-ink-muted" role="status">Loading outstanding balances…</p> : loadError ? null : dues.length ? <ul className="divide-y divide-line">{dues.map((member) => <li key={member.memberId} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"><div><p className="font-medium text-ink">{member.memberName}</p><small className="text-xs text-ink-muted">{member.paymentCount} outstanding {member.paymentCount === 1 ? "payment" : "payments"}</small></div><strong className="text-ink">{formatCurrency(member.balance)}</strong></li>)}</ul> : <EmptyState title="No members have outstanding dues" description="Balances appear here when a membership has an unpaid amount." />}
       </Card>
 
       <RecordPaymentModal open={open} onClose={() => setOpen(false)} onSaved={(saved) => { setNotice("Payment recorded. Receipt history is available below."); setRefreshKey((key) => key + 1); setReceipt(saved); }} />

@@ -65,6 +65,17 @@ test("invoice dues equal agreed charges less payments and never go negative", ()
   assert.equal(invoiceBalances.reduce((sum, balance) => sum + balance, 0), 5000);
 });
 
+test("voided legacy payments are excluded from payment dues and only owners receive void controls", async () => {
+  const duesRoute = await readFile(fileURLToPath(new URL("../app/api/payments/dues/route.js", import.meta.url)), "utf8");
+  const summaryRoute = await readFile(fileURLToPath(new URL("../app/api/payments/summary/route.js", import.meta.url)), "utf8");
+  const listRoute = await readFile(fileURLToPath(new URL("../app/api/payments/route.js", import.meta.url)), "utf8");
+  const detailRoute = await readFile(fileURLToPath(new URL("../app/api/payments/[id]/route.js", import.meta.url)), "utf8");
+  assert.match(duesRoute, /\.\.\.getRequestScope\(request\), subscriptionId: null, voided: \{ \$ne: true \}/);
+  assert.match(summaryRoute, /\.\.\.getRequestScope\(request\), subscriptionId: null, voided: \{ \$ne: true \}/);
+  assert.match(listRoute, /getRequestTenantContext\(request\)\?\.role === "gym_owner"/);
+  assert.match(detailRoute, /requireRole\(request, "gym_owner"\)/);
+});
+
 test("idempotency keys have an accepted length and character set", () => {
   assert.equal(isValidIdempotencyKey("3dcfcd5c-2ba7-4e25-b99a-f2107f6919bd"), true);
   assert.equal(isValidIdempotencyKey("short"), false);

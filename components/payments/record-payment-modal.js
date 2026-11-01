@@ -6,13 +6,13 @@ import Button from "../ui/button";
 import Input from "../ui/input";
 import Modal from "../ui/modal";
 import Select from "../ui/select";
+import Textarea from "../ui/textarea";
 import { derivePaymentStatus, getInitialPaymentMembers, getPaymentMembers, paymentMethods, savePayment } from "../../lib/paymentsService";
-import Control from "../ui/control.js";
 
 const blankValues = { memberId: "", memberName: "", invoiceKey: "", amountPaid: "", method: "Cash", date: "", notes: "" };
 
 function localDateValue(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(date);
 }
 
 function formatCurrency(amount) {
@@ -48,6 +48,7 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   const [values, setValues] = useState(blankValues);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const requestKey = useRef(null);
   const selectedMember = members.find((member) => member.id === values.memberId);
   const selectedCharge = selectedMember?.charges?.find((item) => `${item.subscriptionId}|${item.renewalKey}` === values.invoiceKey);
@@ -66,11 +67,12 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
     });
     requestKey.current = null;
     setSubmitting(false);
+    setLoadingMembers(true);
     getPaymentMembers("", initialMemberId).then((currentMembers) => {
       setMembers(currentMembers);
       const selected = currentMembers.find((member) => member.id === initialMemberId);
       if (selected) setValues((current) => ({ ...current, memberName: selected.name, invoiceKey: selected.charges?.length === 1 ? `${selected.charges[0].subscriptionId}|${selected.charges[0].renewalKey}` : "" }));
-    }).catch((error) => setErrors({ memberId: error.message }));
+    }).catch((error) => setErrors({ memberId: error.message })).finally(() => setLoadingMembers(false));
     setErrors({});
   }, [open, initialMemberId]);
 
@@ -116,24 +118,22 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Record Payment" description="Enter the amount received from a member." className="payment-form-modal">
+    <Modal open={open} onClose={onClose} title="Record Payment" description="Enter the amount received from a member." dismissible={!submitting}>
       <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-        <div className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)]"}>
-          <label className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"} htmlFor="payment-member">Member</label>
-          <Control
-            id="payment-member"
-            className={` ${errors.memberId ? "ui-input-error exact:[border-color:var(--error)]!" : ""}`}
-            type="search"
-            list="payment-member-options"
-            autoComplete="off"
-            placeholder="Search and select a member"
-            value={values.memberName}
-            onChange={(event) => updateValue("memberName", event.target.value)}
-            aria-invalid={errors.memberId ? "true" : undefined}
-            aria-describedby={errors.memberId ? "payment-member-error" : undefined}
-          />
+        <Input
+          id="payment-member"
+          label="Member"
+          type="search"
+          list="payment-member-options"
+          autoComplete="off"
+          placeholder="Search and select a member"
+          value={values.memberName}
+          onChange={(event) => updateValue("memberName", event.target.value)}
+          error={errors.memberId}
+          hint={loadingMembers ? "Loading member list…" : undefined}
+        />
+        <div className="sr-only" aria-hidden="true">
           <datalist id="payment-member-options">{members.map((member) => <option key={member.id} value={member.name} />)}</datalist>
-          {errors.memberId && <span className={"ui-field-error exact:[font-size:12px] exact:[color:var(--error)]"} id="payment-member-error">{errors.memberId}</span>}
         </div>
         {selectedMember?.charges?.length > 1 && <Select id="payment-invoice" label="Outstanding invoice" value={values.invoiceKey} onChange={(event) => updateValue("invoiceKey", event.target.value)} error={errors.invoiceKey}>
           <option value="">Choose an invoice</option>
@@ -149,14 +149,11 @@ export default function RecordPaymentModal({ open, onClose, initialMemberId = ""
           </Select>
           <Input id="payment-date" label="Payment date" type="date" value={values.date} onChange={(event) => updateValue("date", event.target.value)} error={errors.date} />
         </div>
-        <label className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)]"}>
-          <span className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"}>Notes (optional)</span>
-          <Control as="textarea" id="payment-notes" className={"min-h-24 py-2"} rows={3} value={values.notes} onChange={(event) => updateValue("notes", event.target.value)} />
-        </label>
+        <Textarea id="payment-notes" label="Notes (optional)" rows={3} value={values.notes} onChange={(event) => updateValue("notes", event.target.value)} error={errors.notes} />
         {previewStatus && <p className="text-sm text-ink-muted" aria-live="polite">Status: <Badge tone={statusTone(previewStatus)}>{previewStatus}</Badge></p>}
         <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : "Record Payment"}</Button>
+          <Button type="button" variant="secondary" disabled={submitting} onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={submitting} loadingLabel="Saving payment…">Record Payment</Button>
         </div>
       </form>
     </Modal>

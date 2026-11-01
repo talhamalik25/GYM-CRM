@@ -167,9 +167,14 @@ test("payment void preserves the receipt, audits the actor, excludes collections
   await assert.rejects(findIdempotentPayment("key", "same", session, gymA), { status: 409 });
   t.mock.method(Payment, "find", (filter) => { assert.equal(scopeGym(filter), gymA); assert.deepEqual(filter.voided, { $ne: true }); return query([]); });
   assert.equal(await sumTermPayments(planId, "term", session, gymA), 0);
-  assert.deepEqual(calculateOutstandingBalance(2000, [payment]), { paid: 0, outstanding: 2000 });
+  // The voided PKR 1,000 payment contributes zero paid against the PKR 2,000 invoice.
+  assert.deepEqual(calculateOutstandingBalance(2000, [payment]), { agreedAmount: 2000, paid: 0, outstanding: 2000 });
   payment = { ...payment, subscriptionId: null, voided: false };
-  await assert.rejects(voidMemberPayment({ id: resource, scope: { gymId: gymA }, actorId: actor, reason: "Legacy" }, session), { status: 409 });
+  await voidMemberPayment({ id: resource, scope: { gymId: gymA }, actorId: actor, reason: "Legacy payment correction" }, session);
+  assert.equal(payment.voided, true);
+  assert.equal(payment.receiptNumber, "SYNTHETIC");
+  assert.equal(audits.length, 2);
+  assert.equal(audits[1].action, "payment.voided");
 });
 
 test("public limiter uses per-identity and global budgets without leaking identities", async (t) => {

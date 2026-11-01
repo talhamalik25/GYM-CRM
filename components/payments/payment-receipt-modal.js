@@ -18,6 +18,7 @@ function formatDate(value) {
 function statusTone(status) {
   if (status === "Paid") return "success";
   if (status === "Partial") return "warning";
+  if (status === "Voided") return "error";
   return "neutral";
 }
 
