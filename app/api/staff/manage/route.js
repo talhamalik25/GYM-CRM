@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import User from "../../../../models/User.js";
 import Trainer from "../../../../models/Trainer.js";
 import { branchScope } from "../../../../lib/branchRules.js";
@@ -13,8 +14,9 @@ export async function PATCH(request) {
   if (denied) return denied;
   let session;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     if (!body || !mongoose.isObjectIdOrHexString(body.id) || Object.keys(body).some((key) => !["id", "action", "branchId", "role"].includes(key)) || !["revoke", "assign_branch", "revoke_invitation", "change_role"].includes(body.action)) return errorResponse("Choose a valid staff action.", 400);
+    if (body.action === "assign_branch" && !mongoose.isObjectIdOrHexString(body.branchId)) return errorResponse("Branch id is invalid.", 400);
     const context = getRequestTenantContext(request);
     session = await mongoose.startSession();
     await session.withTransaction(async () => {
@@ -43,10 +45,12 @@ export async function PATCH(request) {
         }
         membership.branchId = body.branchId;
       }
-      await membership.save({ session });
+      const saved = await GymMembership.updateOne({ _id: membership._id, gymId: context.gymId, status: "active" }, { $set: { role: membership.role, branchId: membership.branchId, status: membership.status } }, { session, runValidators: true });
+      if (saved.modifiedCount !== 1) throw new EntitlementError("Staff access changed. Refresh and retry.", "CONFLICT", 409);
     });
     return successResponse({ saved: true });
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof EntitlementError) return entitlementErrorResponse(error);
     return errorResponse("Could not update staff access.", 503);
   } finally { if (session) await session.endSession(); }

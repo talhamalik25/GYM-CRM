@@ -24,7 +24,7 @@ try {
   let ready = false;
   for (let i = 0; i < 100; i++) {
     if (server.exitCode !== null) throw new Error(serverError || "Preview server exited.");
-    try { ready = (await fetch(`http://127.0.0.1:${port}/login`)).ok; } catch {}
+    try { ready = (await fetch(`http://127.0.0.1:${port}/`)).ok; } catch {}
     if (ready) break;
     await new Promise(resolve => setTimeout(resolve, 200));
   }

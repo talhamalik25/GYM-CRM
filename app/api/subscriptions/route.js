@@ -1,8 +1,11 @@
+import { MAX_MONEY_RUPEES } from "../../../config/security.js";
+import { writeAuditLog } from "../../../lib/auditLog.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../lib/subscriptionRules";
-import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 import Member from "../../../models/Member";
 import Plan from "../../../models/Plan";
 import Payment from "../../../models/Payment";
@@ -19,7 +22,7 @@ async function serialize(subscription, request) {
   const [member, plan, payments] = await Promise.all([
     Member.findOne(tenantFilter(request, { _id: s.memberId })).select("fullName phone email").lean(),
     Plan.findOne(tenantFilter(request, { _id: s.planId })).select("name").lean(),
-    Payment.find(tenantFilter(request, { subscriptionId: s._id })).select("amountPaid amountDue paymentDate receiptNumber method").sort({ paymentDate: 1 }).lean(),
+    Payment.find(tenantFilter(request, { voided: { $ne: true }, subscriptionId: s._id })).select("amountPaid amountDue paymentDate receiptNumber method").sort({ paymentDate: 1 }).lean(),
   ]);
   const amountDue = s.renewalHistory.reduce((sum, term) => sum + term.planSnapshot.agreedPrice, 0);
   const amountPaid = payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
@@ -48,7 +51,8 @@ export async function GET(request) {
     const limit = Math.min(requestedLimit, 50);
     const [items, total] = await Promise.all([Subscription.find(tenantFilter(request, filter)).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(), Subscription.countDocuments(tenantFilter(request, filter))]);
     return successResponse({ items: await Promise.all(items.map((item) => serialize(item, request))), total, page, limit, today: gymToday() });
-  } catch (error) { console.error("Subscriptions API error:"); return errorResponse("Could not load subscriptions.", 500); }
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); console.error("Subscriptions API error:"); return errorResponse("Could not load subscriptions.", 500); }
 }
 
 export async function POST(request) {
@@ -56,7 +60,7 @@ export async function POST(request) {
   let requestFingerprint;
   let requestKey;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
     const fields = {};
     for (const field of Object.keys(body)) if (!["memberId", "planId", "startDate", "agreedPrice", "amountPaid", "method", "paymentDate"].includes(field)) fields[field] = "This field cannot be changed.";
@@ -64,7 +68,7 @@ export async function POST(request) {
     if (!mongoose.isObjectIdOrHexString(body.planId)) fields.planId = "Choose a valid plan.";
     if (!isDateOnly(body.startDate)) fields.startDate = "Enter a valid start date.";
     if (body.agreedPrice != null && (!Number.isSafeInteger(body.agreedPrice) || body.agreedPrice < 1)) fields.agreedPrice = "Price must be a positive whole number of rupees.";
-    if (body.amountPaid != null && (!Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0)) fields.amountPaid = "Payment must be a whole number of rupees.";
+    if (body.amountPaid != null && (!Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0 || body.amountPaid > MAX_MONEY_RUPEES)) fields.amountPaid = "Payment must be a whole number of rupees.";
     if (body.method != null && !methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (body.paymentDate != null && (!isDateOnly(body.paymentDate) || body.paymentDate > gymToday())) fields.paymentDate = "Choose a valid payment date no later than today.";
     const key = request.headers.get("Idempotency-Key");
@@ -85,7 +89,8 @@ export async function POST(request) {
       if (!member) throw Object.assign(new Error("The selected member was not found."), { status: 404, fields: { memberId: "Choose an existing member." } });
       if (member.isActive === false) throw Object.assign(new Error("Reactivate this member account before assigning a subscription."), { status: 409, fields: { memberId: "This member account is inactive." } });
       if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 404, fields: { planId: "Choose an active plan." } });
-      const agreedPrice = body.agreedPrice ?? plan.price;
+      const agreedPrice = plan.price;
+      if (body.agreedPrice != null && body.agreedPrice !== agreedPrice) throw Object.assign(new Error("Plan price changed or does not match. Refresh and retry."), { status: 400, fields: { agreedPrice: "Price must match the server plan price." } });
       const amountPaid = body.amountPaid ?? 0;
       if (amountPaid > agreedPrice) throw Object.assign(new Error("Amount paid cannot exceed the agreed price."), { status: 400, fields: { amountPaid: "Enter an amount at or below the agreed price." } });
       if (amountPaid > 0 && !body.method) throw Object.assign(new Error("Choose a payment method."), { status: 400, fields: { method: "A payment method is required when recording a payment." } });
@@ -104,22 +109,26 @@ export async function POST(request) {
       }], { session }))[0];
       if (amountPaid > 0) {
         const payment = (await Payment.create([{
+          receivedBy: getRequestActorId(request),
           gymId, branchId: getRequestBranchId(request),
           memberId: member._id, planId: plan._id, subscriptionId: subscription._id, renewalKey: key,
           amountDue: agreedPrice, amountPaid, method: body.method, paymentDate: dateOnly(body.paymentDate || gymToday()),
           receiptNumber: await generateReceiptNumber({ ...scope }), idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: String(subscription._id), renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || gymToday() }),
         }], { session }))[0];
+        await writeAuditLog({ gymId, actorId: getRequestActorId(request), action: "payment.created", resourceId: payment._id }, session);
         subscription.renewalHistory[0].paymentId = payment._id;
-        await subscription.save({ session });
+        const saved = await Subscription.updateOne({ _id: subscription._id, gymId }, { $set: { "renewalHistory.0.paymentId": payment._id } }, { session, runValidators: true });
+        if (saved.modifiedCount !== 1) throw Object.assign(new Error("Subscription changed while recording payment."), { status: 409 });
       }
       await syncMemberSubscriptionFields(member, session, gymId, {
         planId: plan._id, startDate: dateOnly(startDate), expiryDate: dateOnly(expiryDate), membershipCancelled: false,
-      }, { alreadyLocked: true });
+      }, { alreadyLocked: true, actorId: getRequestActorId(request) });
       return { subscription, duplicate: false };
     });
     return successResponse(await serialize(result.subscription, request), result.duplicate ? 200 : 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     if (error?.status) return errorResponse(error.message, error.status, error.fields);
     const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse);

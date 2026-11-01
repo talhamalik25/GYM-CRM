@@ -73,7 +73,7 @@ const utilities = {};
 const simple = { "display:flex": "flex", "display:grid": "grid", "display:block": "block", "display:none": "hidden", "display:inline-flex": "inline-flex", "display:inline-grid": "inline-grid", "position:relative": "relative", "position:absolute": "absolute", "position:fixed": "fixed", "position:sticky": "sticky", "align-items:center": "items-center", "justify-content:center": "justify-center", "flex-direction:column": "flex-col", "flex-wrap:wrap": "flex-wrap", "overflow:hidden": "overflow-hidden", "text-align:center": "text-center", "cursor:pointer": "cursor-pointer" };
 for (const group of groups.values()) {
   let suffix = group.selector.slice(group.anchor.length + 1);
-  if (isModule) suffix = suffix.replace(/\.([a-zA-Z_][\w-]*)/g, (_, name) => `.${namespace}${name}`);
+  if (isModule) suffix = suffix.replace(/:global\(([^)]+)\)/g, "$1").replace(/\.([a-zA-Z_][\w-]*)/g, (_, name) => name.startsWith("ui-") ? `.${name}` : `.${namespace}${name}`);
   const variants = group.conditions.map(condition => media.get(condition) ? media.get(condition) + ":" : `[@media${encode(condition)}]:`).join("") + (suffix ? `[&${encode(suffix)}]:` : "");
   const classes = group.declarations.map(({ property, value, important }) => {
     if (property.startsWith("animation")) for (const frame of keyframes) value = value.replace(new RegExp(`\\b${frame.name}\\b`, "g"), frame.renamed);

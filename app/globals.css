@@ -1,10 +1,14 @@
 @import "tailwindcss";
+@custom-variant at-least-1500 { @media (min-width:1500px) { @slot; } }
+@custom-variant at-most-1100 { @media (max-width:1100px) { @slot; } }
 @custom-variant at-most-1099 { @media (max-width:1099px) { @slot; } }
 @custom-variant at-most-1023 { @media (max-width:1023px) { @slot; } }
+@custom-variant at-most-899 { @media (max-width:899px) { @slot; } }
 @custom-variant at-most-768 { @media (max-width:768px) { @slot; } }
 @custom-variant at-most-760 { @media (max-width:760px) { @slot; } }
 @custom-variant at-most-639 { @media (max-width:639px) { @slot; } }
 @custom-variant at-most-600 { @media (max-width:600px) { @slot; } }
+@custom-variant at-most-359 { @media (max-width:359px) { @slot; } }
 @custom-variant less-motion { @media (prefers-reduced-motion:reduce) { @slot; } }
 @custom-variant exact (&);
 
@@ -11373,5 +11377,17 @@ button.owner-text-link {
   .reports-chart-grid .ui-chart-card-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+}
+/* Preserved marketing motion. */
+@keyframes m-marketing-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
