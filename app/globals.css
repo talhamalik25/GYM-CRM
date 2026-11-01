@@ -17,6 +17,18 @@
 /* Exact theme values. Named aliases preserve the previous utility contract.
    Exact-* tokens retain the literal values inventoried in MIGRATION_PLAN.md. */
 @theme inline {
+  --color-primary: #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-primary-soft: #EEF2FF;
+  --color-app-bg: #FAFAFB;
+  --color-app-surface: #FFFFFF;
+  --color-app-border: #E5E7EB;
+  --color-app-text: #0F172A;
+  --color-app-muted: #475569;
+  --color-app-success: #166534;
+  --color-app-warning: #92400E;
+  --color-app-danger: #991B1B;
+  --color-app-info: #4338CA;
   --color-white: var(--white);
   --color-black: var(--black);
   --color-background: var(--canvas);
