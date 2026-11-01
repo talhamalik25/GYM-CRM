@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { SITE } from "../../lib/marketing/site.js";
+import { SITE } from "../../config/site.js";
 
 
 export default function MarketingAnnouncement() {

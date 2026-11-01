@@ -1,15 +1,12 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { DEMO_ROLES as roles } from "../../config/site.js";
 import MarketingPreviewPlaceholder from "./marketing-preview-placeholder.js";
 import { BulletList } from "./marketing-page-sections.js";
 import styles from "./marketing-pages.module.css";
 
-const roles = [
-  { id: "owner", label: "Gym owner", title: "The wider view of your gym.", description: "Bring your people, memberships and daily records together.", items: ["Gym setup and membership plans", "Members, trainers and staff", "Payments and reports within your plan"] },
-  { id: "trainer", label: "Trainer", title: "A workspace for your assigned members.", description: "See the member details and recent attendance relevant to your work.", items: ["Assigned member roster", "Membership status and expiry dates", "Recent attendance"] },
-  { id: "staff", label: "Front desk & finance", title: "Keep the everyday records moving.", description: "Use authorized staff access for front-desk and payment responsibilities.", items: ["Member records and check-ins", "Recorded payments and receipts", "Outstanding dues and manual follow-ups"] },
-];
+
 
 export default function MarketingDemoRoles() {
   const [active, setActive] = useState(0);

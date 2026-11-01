@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, ClipboardList, Dumbbell, FileText, MessageCircle, Plus, Users } from "lucide-react";
-import { SITE } from "../../lib/marketing/site.js";
-import { FAQS, GUIDANCE, ONBOARDING, ROLES } from "../../lib/marketing/home.js";
+import { SITE, FAQS, GUIDANCE, ONBOARDING, ROLES } from "../../config/site.js";
 import { MarketingButton, MarketingSection } from "./marketing-primitives.js";
 import MarketingProductShowcase from "./marketing-product-showcase.js";
 import MarketingPreviewPlaceholder from "./marketing-preview-placeholder.js";

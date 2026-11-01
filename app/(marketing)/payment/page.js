@@ -1,5 +1,5 @@
-import { SITE } from "../../../lib/marketing/site.js";
-import { PLANS } from "../../../lib/marketing/plans.js";
+import { SITE } from "../../../config/site.js";
+import { PLANS } from "../../../config/plans.js";
 import { PageHero } from "../../../components/marketing/marketing-page-sections.js";
 import MarketingPayment from "../../../components/marketing/marketing-payment.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";

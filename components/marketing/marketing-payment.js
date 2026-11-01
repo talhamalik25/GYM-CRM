@@ -3,16 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Building2, Clock3, ImagePlus, ShieldCheck, X } from "lucide-react";
-import { BANK } from "../../lib/marketing/bank.js";
-import { PLANS, PRICING, marketingPlanAmount } from "../../lib/marketing/plans.js";
-import { SITE } from "../../lib/marketing/site.js";
+import { BANK, BANK_FIELDS as bankFields, PAYMENT_SCREENSHOT_PREVIEW } from "../../config/bank.js";
+import { PLANS, PRICING, marketingPlanAmount } from "../../config/plans.js";
+import { SITE } from "../../config/site.js";
 import shared from "./marketing-pages.module.css";
 import styles from "./marketing-payment.module.css";
 
-const bankFields = [["BANK_NAME", "Bank name"], ["ACCOUNT_TITLE", "Account title"], ["ACCOUNT_NUMBER", "Account number"], ["IBAN", "IBAN"]];
 const bankReady = BANK.configured && bankFields.every(([key]) => typeof BANK[key] === "string" && BANK[key].trim() && BANK[key].trim() !== key);
-const maxFileSize = 5 * 1024 * 1024;
-const imageTypes = ["image/png", "image/jpeg", "image/webp"];
+const maxFileSize = PAYMENT_SCREENSHOT_PREVIEW.maxBytes;
+const imageTypes = PAYMENT_SCREENSHOT_PREVIEW.mimeTypes;
 
 export default function MarketingPayment({ initialPlan, initialCycle, invalidSelection }) {
   const [planId, setPlanId] = useState(initialPlan);

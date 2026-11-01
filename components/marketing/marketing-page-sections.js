@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, Plus } from "lucide-react";
-import { SITE } from "../../lib/marketing/site.js";
-import { GUIDANCE, ONBOARDING } from "../../lib/marketing/home.js";
+import { SITE, GUIDANCE, ONBOARDING } from "../../config/site.js";
 import styles from "./marketing-pages.module.css";
 
 export function PageHero({ eyebrow, title, accent, description, children, aside }) {

@@ -1,5 +1,5 @@
 import MarketingHome from "../../components/marketing/marketing-home.js";
-import { SITE } from "../../lib/marketing/site.js";
+import { SITE } from "../../config/site.js";
 
 export const metadata = {
   metadataBase: new URL(SITE.url),

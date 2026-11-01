@@ -13,7 +13,7 @@ import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 import { formatSaaSPlanOption, getAssignableSaaSPlans, readAdminBillingResponse } from "../../lib/adminBillingPlans.js";
 
-const emptyPlan = { key: "basic", features: LAUNCH_PLANS[0].features, staff: "3", branches: "1", id: "", name: "", description: "", price: "", interval: "monthly", members: "", trainers: "" };
+const emptyPlan = { key: "basic", features: LAUNCH_PLANS[0].features, staff: String(LAUNCH_PLANS[0].limits.staff), branches: String(LAUNCH_PLANS[0].limits.branches), id: "", name: "", description: "", price: "", interval: "monthly", members: "", trainers: "" };
 const PAYMENT_METHODS = [{ type: "bank_transfer", label: "Bank transfer" }, { type: "jazzcash", label: "JazzCash" }, { type: "easypaisa", label: "Easypaisa" }];
 
 async function requestBilling(body) {

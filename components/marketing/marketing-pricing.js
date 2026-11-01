@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
-import { PLANS, PRICING, marketingPlanAmount } from "../../lib/marketing/plans.js";
+import { PLANS, PRICING, marketingPlanAmount } from "../../config/plans.js";
 import styles from "./marketing-home.module.css";
 
 const money = amount => new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(amount);

@@ -44,7 +44,10 @@ config/
   bank.js             # bank details (placeholders until confirmed)
 ```
 
+Current config organization (2026-11-01): `config/site.js` owns public identity/contact information, reusable marketing content, demo-role descriptions and optional public support-channel configuration. `config/plans.js` owns public placeholder pricing and the existing operational launch catalog/features/limits. `config/bank.js` owns public placeholder bank fields, review guidance and local screenshot-preview constraints. These modules are client-safe: never put secrets in them. Live SaaS prices and payment instructions remain database-backed; moving defaults does not change stored contracts. `lib/saasPlanRules.js` retains entitlement logic and re-exports its previous config exports for compatibility; `lib/marketingConfig.js` retains the support-channel export used by existing primitives. No working route groups were renamed.
+
 ## 4. Data models (draft)
+
 All tenant models include `gymId`, `createdAt`, `updatedAt`.
 
 - **Gym**: name, owner, phone, city, status (trial/active/suspended), subscription info
@@ -85,6 +88,8 @@ No WhatsApp API. Generate `https://wa.me/<number>?text=<encoded message>` from a
 
 ## 9. Environment variables
 Never hardcode. Keep `.env.example` updated with names only: `MONGODB_URI`, auth secret, optional LLM key, upload storage keys.
+
+The current `.env.example` contains empty assignments for implemented runtime, optional public support, isolated-test and administrative-script variables. `NEXT_PUBLIC_SUPPORT_EMAIL` and `NEXT_PUBLIC_SUPPORT_WHATSAPP` are public contact information, not secrets. Keep database/session/cron credentials server-only in ignored environment files or deployment settings. Blank `PUBLIC_REGISTRATION_ENABLED` leaves registration disabled; enable only with a valid configured trial plan. The application defaults an unset/blank gym timezone to Asia/Karachi. Test/migration variables are optional and must not reuse production credentials; consult the existing testing/migration docs before using them. No LLM/upload keys are listed until those integrations exist.
 
 ## 10. Rules for changing architecture
 Any new library, new database, auth change or model rename needs Talha's approval first.

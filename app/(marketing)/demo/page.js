@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { SITE, MARKETING_PAGES } from "../../../config/site.js";
 import { PageHero, PageSection, PageActions, NumberedSteps, IncludedGuidance, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";
 import MarketingProductShowcase from "../../../components/marketing/marketing-product-showcase.js";

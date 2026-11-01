@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { SITE, MARKETING_PAGES, FEATURES, FEATURE_DETAILS } from "../../../config/site.js";
 import { PageHero, PageSection, PageActions, BulletList, IncludedGuidance, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";
-import { FEATURES } from "../../../lib/marketing/home.js";
-import { FEATURE_DETAILS } from "../../../lib/marketing/pages.js";
 import MarketingPreviewPlaceholder from "../../../components/marketing/marketing-preview-placeholder.js";
 export const metadata = { title: "Features | Fitivo", description: MARKETING_PAGES["features"].description, alternates: { canonical: SITE.url + "/features" } };
 

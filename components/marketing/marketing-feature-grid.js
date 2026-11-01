@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Activity, ArrowUpRight, BellRing, CalendarDays, ChartNoAxesCombined, CreditCard, Dumbbell, Layers3, Users } from "lucide-react";
-import { FEATURES } from "../../lib/marketing/home.js";
+import { FEATURES } from "../../config/site.js";
 import styles from "./marketing-home.module.css";
 
 const icons = { members: Users, attendance: Activity, plans: Layers3, trainers: Dumbbell, schedule: CalendarDays, fees: CreditCard, renewals: BellRing, reports: ChartNoAxesCombined };

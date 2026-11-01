@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { PRODUCT_VIEWS } from "../../lib/marketing/home.js";
+import { PRODUCT_VIEWS } from "../../config/site.js";
 import MarketingPreviewPlaceholder from "./marketing-preview-placeholder.js";
 import styles from "./marketing-home.module.css";
 

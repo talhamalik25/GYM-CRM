@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
-import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { SITE, MARKETING_PAGES, TRIAL_STEPS } from "../../../config/site.js";
 import { PageHero, PageSection, IncludedGuidance } from "../../../components/marketing/marketing-page-sections.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";
-import { TRIAL_STEPS } from "../../../lib/marketing/pages.js";
 import MarketingInquiryForm from "../../../components/marketing/marketing-inquiry-form.js";
 export const metadata = { title: "Request a 14-day trial | Fitivo", description: MARKETING_PAGES["free-trial"].description, alternates: { canonical: SITE.url + "/free-trial" } };
 

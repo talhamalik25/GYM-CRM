@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { SITE, MARKETING_PAGES, GUIDE_ROLES } from "../../../config/site.js";
 import { PageHero, PageSection, PageActions, NumberedSteps, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";
-import { GUIDE_ROLES } from "../../../lib/marketing/pages.js";
 export const metadata = { title: "Portal guide & setup | Fitivo", description: MARKETING_PAGES["guide"].description, alternates: { canonical: SITE.url + "/guide" } };
 
 export default function Page() {

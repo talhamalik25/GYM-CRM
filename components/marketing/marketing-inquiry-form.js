@@ -2,8 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ArrowRight, Check, Copy } from "lucide-react";
-import { SITE } from "../../lib/marketing/site.js";
-import { CONTACT_TOPICS } from "../../lib/marketing/pages.js";
+import { SITE, CONTACT_TOPICS } from "../../config/site.js";
 import styles from "./marketing-pages.module.css";
 
 // TODO: Connect a dedicated inquiry/trial-review backend when authorized.

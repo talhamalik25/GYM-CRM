@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { SITE, MARKETING_PAGES } from "../../../config/site.js";
 import { PageHero, PageSection, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";
 import MarketingInquiryForm from "../../../components/marketing/marketing-inquiry-form.js";

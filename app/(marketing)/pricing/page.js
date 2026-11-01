@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, Check, Minus } from "lucide-react";
-import { SITE, MARKETING_PAGES } from "../../../lib/marketing/site.js";
+import { SITE, MARKETING_PAGES, PLAN_COMPARISON, PRICING_FAQS, PAYMENT_STEPS } from "../../../config/site.js";
 import { PageHero, PageSection, NumberedSteps, IncludedGuidance, PageFaq, PageClosing } from "../../../components/marketing/marketing-page-sections.js";
 import styles from "../../../components/marketing/marketing-pages.module.css";
 import MarketingPricing from "../../../components/marketing/marketing-pricing.js";
-import { PLANS } from "../../../lib/marketing/plans.js";
-import { BANK } from "../../../lib/marketing/bank.js";
-import { PLAN_COMPARISON, PRICING_FAQS, PAYMENT_STEPS } from "../../../lib/marketing/pages.js";
+import { PLANS } from "../../../config/plans.js";
+import { BANK } from "../../../config/bank.js";
 export const metadata = { title: "Plans & pricing | Fitivo", description: MARKETING_PAGES["pricing"].description, alternates: { canonical: SITE.url + "/pricing" } };
 
 export default function Page() {
