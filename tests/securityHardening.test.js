@@ -177,6 +177,34 @@ test("payment void preserves the receipt, audits the actor, excludes collections
   assert.equal(audits[1].action, "payment.voided");
 });
 
+test("member payment summary is gym scoped and rejects malformed or operator-shaped member queries", async (t) => {
+  setup(t);
+  let lookups = 0;
+  t.mock.method(Member, "findOne", (filter) => {
+    assert.equal(scopeGym(filter), gymA);
+    lookups += 1;
+    return query(null);
+  });
+  const { GET } = await import("../app/api/payments/summary/route.js");
+  const makeRequest = (memberId) => new NextRequest(`http://localhost/api/payments/summary?memberId=${memberId}&gymId=${gymB}`, {
+    headers: { cookie: `${cookie}=${randomBytes(32).toString("base64url")}` },
+  });
+  const foreign = await GET(makeRequest(resource));
+  assert.equal(foreign.status, 404);
+  assert.equal(lookups, 1);
+  const injection = await GET(makeRequest(encodeURIComponent('{"$ne":null}')));
+  assert.equal(injection.status, 400);
+  assert.equal(lookups, 1);
+});
+
+test("payment void route rejects NoSQL operator keys", async (t) => {
+  setup(t);
+  for (const body of [{ $ne: null }, { $where: "1" }]) {
+    const response = await call("payments/[id]", "PATCH", body);
+    assert.equal(response.status, 400, await response.text());
+  }
+});
+
 test("public limiter uses per-identity and global budgets without leaking identities", async (t) => {
   const counts = new Map();
   t.mock.method(AuthRateLimit, "findOneAndUpdate", (filter) => {

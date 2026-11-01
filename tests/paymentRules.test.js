@@ -76,6 +76,18 @@ test("voided legacy payments are excluded from payment dues and only owners rece
   assert.match(detailRoute, /requireRole\(request, "gym_owner"\)/);
 });
 
+test("member payment totals and dues are calculated in a gym-scoped server summary", async () => {
+  const summaryRoute = await readFile(fileURLToPath(new URL("../app/api/payments/summary/route.js", import.meta.url)), "utf8");
+  const service = await readFile(fileURLToPath(new URL("../lib/paymentsService.js", import.meta.url)), "utf8");
+  assert.match(summaryRoute, /mongoose\.isObjectIdOrHexString\(memberId\)/);
+  assert.match(summaryRoute, /Member\.findOne\(tenantFilter\(request, \{ _id: memberId \}\)\)/);
+  assert.match(summaryRoute, /Payment\.find\(tenantFilter\(request, \{ memberId, voided: \{ \$ne: true \} \}\)\)/);
+  assert.match(summaryRoute, /Subscription\.find\(tenantFilter\(request, \{ memberId \}\)\)/);
+  assert.match(summaryRoute, /totalPaid: payments\.reduce/);
+  assert.match(summaryRoute, /currentDues: legacyDues \+ subscriptionDues/);
+  assert.match(service, /getPaymentSummaryByMember\(memberId\)[\s\S]*\/api\/payments\/summary\?memberId=/);
+});
+
 test("idempotency keys have an accepted length and character set", () => {
   assert.equal(isValidIdempotencyKey("3dcfcd5c-2ba7-4e25-b99a-f2107f6919bd"), true);
   assert.equal(isValidIdempotencyKey("short"), false);
