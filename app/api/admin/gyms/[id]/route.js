@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db.js";
 import { errorResponse, successResponse } from "../../../../../lib/planApiResponse.js";
@@ -55,7 +56,7 @@ export async function PATCH(request, context) {
     const id = await readGymId(context);
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Gym id is invalid.", 400);
     let body;
-    try { body = await request.json(); } catch { return errorResponse("Request body must be valid JSON.", 400); }
+    try { body = await readJsonBody(request); } catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return errorResponse("Request body must be valid JSON.", 400); }
     const validation = validateGymStatusUpdate(body);
     if (validation.message) return errorResponse(validation.message, 400, validation.fields);
 

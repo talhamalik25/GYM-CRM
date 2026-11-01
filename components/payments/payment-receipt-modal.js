@@ -26,6 +26,7 @@ export default function PaymentReceiptModal({ receipt, onClose }) {
     <Modal open={Boolean(receipt)} onClose={onClose} title="Payment Receipt" description="Receipt details for this payment." className="payment-receipt-modal">
       {receipt && (
         <div className="space-y-5">
+          {receipt.voided && <p className="text-sm font-medium text-danger" role="status">Voided receipt. This amount is excluded from collections. Reason: {receipt.voidReason}</p>}
           <div className="flex items-center justify-between border-b border-line pb-4">
             <span className="text-xl font-semibold tracking-tight text-ink">Fitivo</span>
             <Badge tone={statusTone(receipt.status)}>{receipt.status}</Badge>

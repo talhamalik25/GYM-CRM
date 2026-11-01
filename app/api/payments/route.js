@@ -6,7 +6,7 @@ import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handlePaymentError, isDateOnly, paymentStatusMatch, serializePayment } from "../../../lib/paymentApiHelpers";
 import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
-import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, getRequestTenantContext, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 import { isValidIdempotencyKey, makePaymentFingerprint, paymentMonthRange } from "../../../lib/paymentRules";
 import { gymToday } from "../../../lib/subscriptionRules.js";
 import { paymentLedgerErrorResponse, recordMemberPayment, runLedgerTransaction } from "../../../lib/paymentLedger";
@@ -107,7 +107,8 @@ export async function GET(request) {
       Payment.find(tenantFilter(request, filter)).populate({ path: "memberId", match: tenantFilter(request), select: "fullName" }).populate({ path: "planId", match: tenantFilter(request), select: "name" }).sort({ paymentDate: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       Payment.countDocuments(tenantFilter(request, filter)),
     ]);
-    return successResponse({ items: records.map(serializePayment), total, page, limit });
+    const canVoid = getRequestTenantContext(request)?.role === "gym_owner";
+    return successResponse({ items: records.map((record) => ({ ...serializePayment(record), canVoid: canVoid && record.voided !== true })), total, page, limit });
   } catch (error) {
     if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return handlePaymentError(error); }
 }

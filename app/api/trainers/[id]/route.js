@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import { withCapacityTransaction } from "../../../../lib/entitlements.js";
 import connectToDatabase from "../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse";
@@ -18,7 +19,8 @@ export async function GET(request, { params }) {
     ]);
     if (!trainer) return errorResponse("Trainer was not found.", 404);
     return successResponse({ ...serializeTrainer(trainer, assignedMembers.length), assignedMembers: assignedMembers.map(member => ({ id: String(member._id), fullName: member.fullName, email: member.email || "", phone: member.phone })) });
-  } catch (error) { return handleTrainerError(error); }
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return handleTrainerError(error); }
 }
 
 async function handlePATCH(request, { params }) {
@@ -26,7 +28,7 @@ async function handlePATCH(request, { params }) {
   const { id } = await params;
   if (!isTrainerId(id)) return errorResponse("Trainer id is invalid.", 400);
   try {
-    const body = await request.json(); const validation = validateTrainerBody(body, { partial: true });
+    const body = await readJsonBody(request); const validation = validateTrainerBody(body, { partial: true });
     if (validation) return errorResponse(validation.message, 400, validation.fields);
     await connectToDatabase();
     const update = { ...body };
@@ -43,7 +45,8 @@ async function handlePATCH(request, { params }) {
     if (!trainer) return errorResponse("Trainer was not found.", 404);
     const assignedMemberCount = await Member.countDocuments(tenantFilter(request, { trainerId: id }));
     return successResponse(serializeTrainer(trainer, assignedMemberCount));
-  } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }
 }
 
 export const PATCH = withCapacityTransaction(handlePATCH, "trainers");

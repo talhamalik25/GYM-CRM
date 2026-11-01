@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import Gym from "../../../../models/Gym.js";
 import { getGymUsage, assertPlanFits, lockGym, EntitlementError, entitlementErrorResponse } from "../../../../lib/entitlements.js";
@@ -52,7 +53,7 @@ export async function POST(request) {
   if (denied) return denied;
   let session;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     if (body?.action === "submit_payment_claim") {
       if (Object.keys(body).some((key) => !["action", "invoiceId", "reference"].includes(key))) return errorResponse("Payment claim contains unsupported fields.", 400);
       const validation = validatePaymentClaim({ invoiceId: body.invoiceId, reference: body.reference });
@@ -66,10 +67,12 @@ export async function POST(request) {
           if (!invoice || String(gym.saasSubscription?.pendingInvoiceId) !== String(invoice._id)) throw new EntitlementError("This invoice is no longer pending for your Gym.", "INVOICE_NOT_PENDING", 409);
           if (invoice.paymentClaims.some((claim) => claim.status === "submitted")) throw new EntitlementError("A payment claim is already awaiting Superadmin review.", "PAYMENT_CLAIM_PENDING", 409);
           invoice.paymentClaims.push({ reference: validation.reference, submittedAt: new Date(), submittedBy: context.user._id, status: "submitted" });
-          await invoice.save({ session });
+          invoice.$where = { gymId: invoice.gymId };
+        await invoice.save({ session });
         });
         return successResponse({ submitted: true, message: "Payment reference submitted for Superadmin review. This does not mark the invoice paid or activate your subscription." }, 201);
       } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
         if (error instanceof EntitlementError) return entitlementErrorResponse(error);
         return errorResponse("Could not submit the payment reference.", 503);
       } finally { await session.endSession(); }
@@ -87,7 +90,10 @@ export async function POST(request) {
     });
     return successResponse({ requested: true, message: "Request sent for Superadmin review. Paid access changes only after payment reconciliation." }, 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof EntitlementError) return entitlementErrorResponse(error);
     return errorResponse(error instanceof SyntaxError ? "Enter valid request details." : "Could not request the plan change.", error instanceof SyntaxError ? 400 : 503);
   } finally { if (session) await session.endSession(); }
 }
+
+

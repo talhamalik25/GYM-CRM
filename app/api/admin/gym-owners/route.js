@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
@@ -12,7 +13,7 @@ export async function POST(request) {
   if (authResponse) return authResponse;
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await readJsonBody(request); } catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return errorResponse("Request body must be valid JSON.", 400);
   }
   const validation = validateGymOwnerAssignment(body);
@@ -40,7 +41,8 @@ export async function POST(request) {
         if (previous) {
           previous.role = "gym_owner";
           previous.status = "active";
-          await previous.save({ session });
+          previous.$where = { gymId: gym._id };
+        await previous.save({ session });
         } else {
           await GymMembership.create([{ userId: user._id, gymId: gym._id, role: "gym_owner", status: "active" }], { session });
         }
@@ -50,6 +52,7 @@ export async function POST(request) {
       return successResponse(data, duplicate ? 200 : 201);
     } finally { await session.endSession(); }
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof GymProvisioningError) return errorResponse(error.message, error.status, Object.keys(error.fields).length ? error.fields : undefined);
     if (error?.code === 11000) return errorResponse("This account already has a gym owner assignment. Refresh and check its current Gym access.", 409);
     if (error?.code === 20 || error?.codeName === "IllegalOperation" || /replica set|transaction numbers are only allowed/i.test(error?.message || "")) return errorResponse("Atomic owner assignment requires MongoDB transaction support. Configure a replica-set MongoDB deployment.", 503);

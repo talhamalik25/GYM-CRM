@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import Branch from "../../../../models/Branch.js";
 import PublicTrialClaim from "../../../../models/PublicTrialClaim.js";
 import { publicTrialSubscription } from "../../../../lib/gymOwnerRegistration.js";
@@ -41,8 +42,8 @@ export async function POST(request) {
   const authResponse = await requireSuperadminUser(request);
   if (authResponse) return authResponse;
   let body;
-  try { body = await request.json(); }
-  catch { return errorResponse("Request body must be valid JSON.", 400); }
+  try { body = await readJsonBody(request); }
+  catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return errorResponse("Request body must be valid JSON.", 400); }
   let session;
   try {
     await connectToDatabase();
@@ -93,6 +94,7 @@ export async function POST(request) {
     });
     return successResponse({ gym: createdGym, invoice: createdInvoice ? serializePlatformInvoice(createdInvoice) : null }, 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof GymProvisioningError) return errorResponse(error.message, error.status, Object.keys(error.fields).length ? error.fields : undefined);
     if (error?.code === 11000) return errorResponse(error.keyPattern?.slug ? "A Gym already uses this URL slug." : "This owner account already has a Gym assignment.", 409, error.keyPattern?.slug ? { slug: "Choose a different URL slug." } : { ownerEmail: "Refresh and check this account's current Gym assignment." });
     if (error?.code === 20 || error?.codeName === "IllegalOperation" || /replica set|transaction numbers are only allowed/i.test(error?.message || "")) {

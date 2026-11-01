@@ -1,11 +1,13 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import mongoose from "mongoose";
+import { attendanceMemberFilter } from "../../../../lib/attendanceAuthorization.js";
 import connectToDatabase from "../../../../lib/db";
 import { attendanceError, formatGymTime, handleAttendanceError, serializeAttendance } from "../../../../lib/attendanceApiHelpers";
 import { getGymDate } from "../../../../lib/gymDate";
 import { getMembershipStatus } from "../../../../lib/membersService";
 import Attendance from "../../../../models/Attendance";
 import Member from "../../../../models/Member";
-import { requireApiUser, getRequestGymId, tenantFilter, getRequestBranchId } from "../../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter, getRequestBranchId } from "../../../../lib/auth";
 
 async function populatedAttendance(request, id) {
   return Attendance.findOne(tenantFilter(request, { _id: id })).populate({ path: "memberId", match: tenantFilter(request), select: "fullName planId", populate: { path: "planId", match: tenantFilter(request), select: "name" } }).lean();
@@ -22,20 +24,20 @@ async function alreadyCheckedIn(request, memberId, date) {
 }
 
 export async function POST(request) {
-  const authResponse = await requireApiUser(request);
+  const authResponse = await requireApiUser(request, { allowedRoles: ["gym_owner", "gym_admin", "trainer"] });
   if (authResponse) return authResponse;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     if (!body || typeof body !== "object" || Array.isArray(body)) return attendanceError("Request body must be a JSON object.", 400, {});
     const fields = {};
-    if (Object.hasOwn(body, "gymId")) fields.gymId = "Tenant ownership cannot be changed.";
+    for (const key of Object.keys(body)) if (!["memberId","confirmExpired"].includes(key)) fields[key] = "This field cannot be changed.";
     if (typeof body.memberId !== "string" || !mongoose.isObjectIdOrHexString(body.memberId)) fields.memberId = "Choose a valid member.";
     if (body.confirmExpired !== undefined && typeof body.confirmExpired !== "boolean") fields.confirmExpired = "Confirmation must be true or false.";
     if (Object.keys(fields).length) return attendanceError("Please correct the highlighted fields.", 400, fields);
 
     await connectToDatabase();
     await Attendance.init();
-    const member = await Member.findOne(tenantFilter(request, { _id: body.memberId })).populate({ path: "planId", match: tenantFilter(request), select: "name" }).lean();
+    const member = await Member.findOne(await attendanceMemberFilter(request, body.memberId)).populate({ path: "planId", match: tenantFilter(request), select: "name" }).lean();
     if (!member) return attendanceError("The selected member was not found.", 404, { memberId: "Choose an existing member." });
     if (member.isActive === false) return attendanceError("This member account is inactive and cannot check in.", 409, undefined, "MEMBER_INACTIVE");
     if (member.membershipCancelled) return attendanceError("This member's subscription has been cancelled.", 409, undefined, "MEMBERSHIP_CANCELLED");
@@ -51,7 +53,7 @@ export async function POST(request) {
     }
     try {
       const created = await Attendance.create({
-        gymId: getRequestGymId(request), branchId: getRequestBranchId(request),
+        markedBy: getRequestActorId(request), gymId: getRequestGymId(request), branchId: getRequestBranchId(request),
         memberId: member._id,
         date,
         checkInAt: now,
@@ -62,10 +64,12 @@ export async function POST(request) {
         headers: { "Cache-Control": "no-store" },
       });
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       if (error?.code === 11000) return alreadyCheckedIn(request, member._id, date);
       throw error;
     }
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return attendanceError("Request body must be valid JSON.", 400);
     return handleAttendanceError(error);
   }

@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import connectToDatabase from "../../../../lib/db.js";
 import { getRequestGymId, getRequestTenantContext, requireApiUser } from "../../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../../lib/planApiResponse.js";
@@ -16,8 +17,8 @@ export async function PATCH(request) {
   const authResponse = await requireApiUser(request, { allowedRoles: ["gym_owner"] });
   if (authResponse) return authResponse;
   let body;
-  try { body = await request.json(); }
-  catch { return errorResponse("Request body must be valid JSON.", 400); }
+  try { body = await readJsonBody(request); }
+  catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return errorResponse("Request body must be valid JSON.", 400); }
   const validation = validateGymSettings(body);
   if (validation.message) return errorResponse(validation.message, 400, validation.fields);
 

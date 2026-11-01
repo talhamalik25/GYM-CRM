@@ -1,5 +1,5 @@
 import connectToDatabase from "../../../lib/db.js";
-import { getRequestTenantContext, requireApiUser, getRequestScope, } from "../../../lib/auth.js";
+import { getRequestTenantContext, requireRole, getRequestScope, } from "../../../lib/auth.js";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse.js";
 import { addDays, dateOnly } from "../../../lib/subscriptionRules.js";
 import { buildGymReportAnalytics, gymDateStartUtc, resolveGymReportRange } from "../../../lib/reportRules.js";
@@ -10,7 +10,7 @@ import Subscription from "../../../models/Subscription.js";
 import { buildSignupKpi } from "../../../lib/dashboardKpiRules.js";
 
 export async function GET(request) {
-  const authResponse = await requireApiUser(request);
+  const authResponse = await requireRole(request, "gym_owner");
   if (authResponse) return authResponse;
   const context = getRequestTenantContext(request);
   if (!context?.gymId || !context?.gym) return errorResponse("Gym workspace could not be resolved.", 403);
@@ -36,7 +36,7 @@ export async function GET(request) {
       const [members, attendanceCount, collections] = await Promise.all([
         Member.countDocuments({ ...scope, isActive: { $ne: false } }),
         Attendance.countDocuments({ ...scope, date: { $gte: period.startDate, $lte: period.endDate } }),
-        Payment.aggregate([{ $match: { ...scope, paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } }, { $group: { _id: null, amount: { $sum: "$amountPaid" } } }]),
+        Payment.aggregate([{ $match: { ...scope, voided: { $ne: true }, paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } }, { $group: { _id: null, amount: { $sum: "$amountPaid" } } }]),
       ]);
       return successResponse({ period, members, attendance: attendanceCount, collected: collections[0]?.amount || 0 });
     }
@@ -52,7 +52,7 @@ export async function GET(request) {
     const expiringThrough = dateOnly(addDays(today, 7));
     const [payments, memberAnalytics, attendance, renewals, activeSubscriptions, totalSubscriptions] = await Promise.all([
       Payment.aggregate([
-        { $match: { ...scope, paymentDate: { $gte: paymentsStart, $lt: paymentsEnd } } },
+        { $match: { ...scope, voided: { $ne: true }, paymentDate: { $gte: paymentsStart, $lt: paymentsEnd } } },
         { $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$paymentDate", timezone: period.timezone } },
           total: { $sum: "$amountPaid" },

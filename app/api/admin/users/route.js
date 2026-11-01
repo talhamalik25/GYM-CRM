@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import connectToDatabase from "../../../../lib/db";
 import { hashPassword } from "../../../../lib/passwords";
 import { serializeAdminUser, validateCreateUserBody } from "../../../../lib/adminUserRules.js";
@@ -23,8 +24,8 @@ export async function POST(request) {
   if (authResponse) return authResponse;
   let body;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return errorResponse("Request body must be valid JSON.", 400);
   }
   const validation = validateCreateUserBody(body);
@@ -42,6 +43,7 @@ export async function POST(request) {
     });
     return successResponse(serializeAdminUser(user), 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error?.code === 11000) return errorResponse("A user with this email already exists.", 409, { email: "This email is already in use." });
     console.error("Admin user creation failed.");
     return errorResponse("Could not create the user account. Please try again.", 503);

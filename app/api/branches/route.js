@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import { requireApiUser, getRequestTenantContext } from "../../../lib/auth.js";
 import Branch from "../../../models/Branch.js";
@@ -22,10 +23,11 @@ export async function POST(request) {
   if (denied) return denied;
   let session;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const context = getRequestTenantContext(request);
     if (body?.action === "select") {
       if (typeof body.branchId !== "string" || Object.keys(body).some((key) => !["action", "branchId"].includes(key))) return errorResponse("Choose a valid branch.", 400);
+      if (body.branchId !== "all" && !mongoose.isObjectIdOrHexString(body.branchId)) return errorResponse("Branch id is invalid.", 400);
       const entitlements = context.entitlements;
       if (!canSelectBranch({ role: context.role, assignedBranchId: context.membership.branchId, gymId: context.gymId, requestedBranchId: body.branchId, multiBranch: entitlements.features.multiBranch, consolidated: entitlements.features.consolidatedAnalytics, readOnly: true })) throw new EntitlementError("This branch is not authorized.", "BRANCH_FORBIDDEN");
       if (body.branchId !== "all" && !(await listGymBranches(context.gymId)).some((branch) => String(branch._id) === body.branchId && (branch.status === "active" || context.role === "gym_owner"))) throw new EntitlementError("Branch was not found.", "BRANCH_FORBIDDEN");
@@ -51,6 +53,7 @@ export async function POST(request) {
     });
     return successResponse({ branch }, body.id ? 200 : 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof EntitlementError) return entitlementErrorResponse(error);
     if (error?.code === 11000) return errorResponse("A branch already uses this name.", 409);
     return errorResponse("Could not save branch details.", error instanceof SyntaxError ? 400 : 503);

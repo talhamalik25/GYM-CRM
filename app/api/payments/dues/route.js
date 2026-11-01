@@ -13,7 +13,7 @@ export async function GET(request) {
     await connectToDatabase();
     const [legacyDues, subscriptions] = await Promise.all([
       Payment.aggregate([
-        { $match: { ...getRequestScope(request), subscriptionId: null, $expr: { $lt: ["$amountPaid", "$amountDue"] } } },
+        { $match: { ...getRequestScope(request), subscriptionId: null, voided: { $ne: true }, $expr: { $lt: ["$amountPaid", "$amountDue"] } } },
         { $lookup: { from: "members", let: { memberId: "$memberId", gymId: "$gymId" }, pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$_id", "$$memberId"] }, { $eq: ["$gymId", "$$gymId"] }] } } }], as: "member" } },
         { $unwind: { path: "$member", preserveNullAndEmptyArrays: true } },
         { $group: { _id: "$memberId", memberName: { $first: "$member.fullName" }, balance: { $sum: { $subtract: ["$amountDue", "$amountPaid"] } }, paymentCount: { $sum: 1 } } },
@@ -28,7 +28,7 @@ export async function GET(request) {
     }]));
     const subscriptionIds = subscriptions.map((item) => item._id);
     const payments = subscriptionIds.length
-      ? await Payment.find(tenantFilter(request, { subscriptionId: { $in: subscriptionIds } })).select("subscriptionId renewalKey amountPaid").lean()
+      ? await Payment.find(tenantFilter(request, { voided: { $ne: true }, subscriptionId: { $in: subscriptionIds } })).select("subscriptionId renewalKey amountPaid").lean()
       : [];
     const paidByTerm = new Map();
     for (const payment of payments) {

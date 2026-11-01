@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import { branchScope } from "../../../../lib/branchRules.js";
 import { listGymBranches } from "../../../../lib/branches.js";
 import { assertGymFeature, EntitlementError, entitlementErrorResponse } from "../../../../lib/entitlements.js";
@@ -30,7 +31,7 @@ export async function POST(request) {
   const auth = await requireApiUser(request, { allowedRoles: ["gym_owner"] });
   if (auth) return auth;
   let body;
-  try { body = await request.json(); } catch { return json({ success: false, error: { message: "Enter a valid invitation." } }, 400); }
+  try { body = await readJsonBody(request); } catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return json({ success: false, error: { message: "Enter a valid invitation." } }, 400); }
   const validation = validateStaffInvitationBody(body);
   if (validation.message) return json({ success: false, error: validation }, 400);
   try {
@@ -54,6 +55,7 @@ export async function POST(request) {
     await StaffInvitation.create({ branchId: assignedBranch, gymId: getRequestGymId(request), email: validation.email, role: validation.role, tokenHash: tokenData.tokenHash, expiresAt });
     return json({ success: true, data: { email: validation.email, role: validation.role, expiresAt, invitationUrl: `/staff/accept?token=${encodeURIComponent(tokenData.token)}` } }, 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof EntitlementError) return entitlementErrorResponse(error);
     return json({ success: false, error: { message: "The invitation could not be created." } }, 503);
   }

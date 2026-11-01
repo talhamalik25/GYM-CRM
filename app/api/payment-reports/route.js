@@ -1,10 +1,10 @@
-import { requireApiUser, getRequestScope, getRequestTenantContext } from "../../../lib/auth.js";
+import { requireRole, getRequestScope, getRequestTenantContext } from "../../../lib/auth.js";
 import { resolveGymReportRange, gymDateStartUtc } from "../../../lib/reportRules.js";
 import { addDays } from "../../../lib/subscriptionRules.js";
 import { successResponse, errorResponse } from "../../../lib/planApiResponse.js";
 import Payment from "../../../models/Payment.js";
 export async function GET(request) {
-  const denied = await requireApiUser(request);
+  const denied = await requireRole(request, "gym_owner");
   if (denied) return denied;
   try {
     const params = new URL(request.url).searchParams;
@@ -12,7 +12,7 @@ export async function GET(request) {
     if (range.error) return errorResponse(range.error, 400);
     const period = range.data;
     const methods = await Payment.aggregate([
-      { $match: { ...getRequestScope(request), paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } },
+      { $match: { ...getRequestScope(request), voided: { $ne: true }, paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } },
       { $group: { _id: "$method", collected: { $sum: "$amountPaid" }, transactions: { $sum: 1 }, averagePayment: { $avg: "$amountPaid" } } },
       { $sort: { collected: -1 } },
     ]);

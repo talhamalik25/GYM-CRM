@@ -96,20 +96,23 @@ test("login accepts the correct password, uses generic failures, and stops befor
 
 test("shared login limiter handles first-insert contention and normalizes identity without raw email storage", async (t) => {
   const seen = [];
-  let calls = 0;
+  let contended = false;
+  const counts = new Map();
   t.mock.method(AuthRateLimit, "findOneAndUpdate", (filter, update, options) => {
     seen.push({ filter, update, options });
     return { lean: async () => {
-      if (++calls === 1) throw Object.assign(new Error("duplicate"), { code: 11000 });
-      return { attempts: calls === 2 ? 20 : 21 };
+      if (!contended) { contended = true; throw Object.assign(new Error("duplicate"), { code: 11000 }); }
+      const attempts = (counts.get(filter._id) ?? 19) + 1;
+      counts.set(filter._id, attempts);
+      return { attempts };
     } };
   });
   assert.equal((await consumeLoginAttempt(" OWNER@EXAMPLE.TEST ", 1000)).allowed, true);
   assert.equal((await consumeLoginAttempt("owner@example.test", 1000)).allowed, false);
-  assert.equal(seen[0].filter._id, seen[2].filter._id);
+  assert.equal(seen[2].filter._id, seen[4].filter._id);
   assert.ok(!JSON.stringify(seen).includes("example.test"));
   await consumeLoginAttempt("owner@example.test", 900001);
-  assert.notEqual(seen[0].filter._id, seen[3].filter._id);
+  assert.notEqual(seen[0].filter._id, seen[5].filter._id);
 });
 
 test("sessions reject changed account versions, inactive users, expired and revoked tokens", async (t) => {

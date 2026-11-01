@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../lib/requestBody.js";
 import { withCapacityTransaction } from "../../../lib/entitlements.js";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
@@ -28,19 +29,21 @@ export async function GET(request) {
     const counts = trainers.length ? await Member.aggregate([{ $match: { ...getRequestScope(request), trainerId: { $in: trainers.map(item => item._id) } } }, { $group: { _id: "$trainerId", count: { $sum: 1 } } }]) : [];
     const countByTrainer = new Map(counts.map(item => [String(item._id), item.count]));
     return successResponse({ items: trainers.map(item => serializeTrainer(item, countByTrainer.get(String(item._id)) || 0)), specializations: specializations.sort((a, b) => a.localeCompare(b)), total, page, limit });
-  } catch (error) { return handleTrainerError(error); }
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return handleTrainerError(error); }
 }
 
 async function handlePOST(request) {
   const auth = await requireApiUser(request); if (auth) return auth;
   try {
-    const body = await request.json(); const validation = validateTrainerBody(body);
+    const body = await readJsonBody(request); const validation = validateTrainerBody(body);
     if (validation) return errorResponse(validation.message, 400, validation.fields);
     await connectToDatabase();
     await Trainer.init();
     const trainer = await Trainer.create({ gymId: getRequestGymId(request), branchId: getRequestBranchId(request), fullName: body.fullName.trim(), email: body.email.trim().toLowerCase(), phone: normalizePhone(body.phone), specialization: body.specialization.trim(), joiningDate: new Date(`${body.joiningDate}T00:00:00.000Z`), status: body.status || "active", profileImage: body.profileImage?.trim() || "", notes: body.notes?.trim() || "" });
     return successResponse(serializeTrainer(trainer), 201);
-  } catch (error) { if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400); return handleTrainerError(error); }
 }
 
 function normalizePhone(value) { return `${value.trim().startsWith("+") ? "+" : ""}${value.replace(/\D/g, "")}`; }

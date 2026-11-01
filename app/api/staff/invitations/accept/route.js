@@ -1,4 +1,5 @@
 import { branchScope } from "../../../../../lib/branchRules.js";
+import { consumePublicAttempt, rateLimitResponse } from "../../../../../lib/loginSecurity.js";
 import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../../lib/requestBody.js";
 import { assertGymLimit, EntitlementError, entitlementErrorResponse } from "../../../../../lib/entitlements.js";
 import Branch from "../../../../../models/Branch.js";
@@ -28,6 +29,8 @@ export async function POST(request) {
   }
   try {
     await connectToDatabase();
+    const limit = await consumePublicAttempt("invitation", body.token);
+    if (!limit.allowed) return rateLimitResponse(limit);
     const invitation = await StaffInvitation.findOne({ tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } }).select("+tokenHash").lean();
     if (!invitation || !["gym_admin", "trainer"].includes(invitation.role) || !await Gym.exists({ _id: invitation.gymId, status: "active" })) {
       return json({ success: false, error: { message: "This invitation is invalid or expired." } }, 400);
@@ -75,12 +78,12 @@ export async function POST(request) {
         if (await GymMembership.exists({ userId: memberId, gymId: invitation.gymId }).session(mongoSession)) throw new Error("MEMBERSHIP_EXISTS");
         if (invitation.role === "trainer" && !await Trainer.exists({ ...branchScope(invitation.gymId, invitation.branchId), email: invitation.email, status: "active" }).session(mongoSession)) throw new Error("TRAINER_PROFILE_MISSING");
         const claimed = await StaffInvitation.findOneAndUpdate(
-          { _id: invitation._id, tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } },
+          { _id: invitation._id, gymId: invitation.gymId, tokenHash: hashInvitationToken(body.token), status: "pending", expiresAt: { $gt: new Date() } },
           { $set: { status: "accepted" } }, { returnDocument: "after", session: mongoSession },
         );
         if (!claimed) throw new Error("INVITATION_ALREADY_USED");
         await GymMembership.create([{ userId: memberId, gymId: invitation.gymId, branchId: invitation.branchId || invitation.gymId, role: invitation.role, status: "active" }], { session: mongoSession });
-        await StaffInvitation.updateOne({ _id: invitation._id }, { $set: { acceptedBy: memberId } }, { session: mongoSession });
+        await StaffInvitation.updateOne({ _id: invitation._id, gymId: invitation.gymId }, { $set: { acceptedBy: memberId } }, { session: mongoSession });
         if (!existingUser) response = await createSession(memberId, { session: mongoSession });
       });
     } finally { await mongoSession.endSession(); }

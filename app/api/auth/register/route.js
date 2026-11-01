@@ -1,4 +1,5 @@
 import Branch from "../../../../models/Branch.js";
+import { consumePublicAttempt, rateLimitResponse } from "../../../../lib/loginSecurity.js";
 import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import { createSession, validateRequestOrigin } from "../../../../lib/auth.js";
@@ -38,6 +39,8 @@ export async function POST(request) {
   let session;
   try {
     await connectToDatabase();
+    const limit = await consumePublicAttempt("register", validation.email);
+    if (!limit.allowed) return rateLimitResponse(limit);
     // Fail closed if eligibility indexes are unavailable, including when
     // automatic index creation is disabled by the deployment.
     await Promise.all([User.init(), Gym.init(), GymMembership.init(), AuthSession.init(), PublicTrialClaim.init(), Branch.init()]);

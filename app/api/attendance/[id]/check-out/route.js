@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { canMarkAttendance } from "../../../../../lib/attendanceAuthorization.js";
 import connectToDatabase from "../../../../../lib/db";
 import { attendanceError, handleAttendanceError, serializeAttendance } from "../../../../../lib/attendanceApiHelpers";
 import { getGymDate } from "../../../../../lib/gymDate";
@@ -10,7 +11,7 @@ async function populatedAttendance(request, id) {
 }
 
 export async function POST(_request, { params }) {
-  const authResponse = await requireApiUser(_request);
+  const authResponse = await requireApiUser(_request, { allowedRoles: ["gym_owner", "gym_admin", "trainer"] });
   if (authResponse) return authResponse;
   try {
     const { id } = await params;
@@ -18,6 +19,7 @@ export async function POST(_request, { params }) {
     await connectToDatabase();
     const existing = await Attendance.findOne(tenantFilter(_request, { _id: id })).lean();
     if (!existing) return attendanceError("Attendance record was not found.", 404);
+    if (!await canMarkAttendance(_request, existing.memberId)) return attendanceError("Attendance record was not found.", 404);
     const today = getGymDate();
     // Old open records stay open; closing one on a later gym day would record a misleading duration.
     if (existing.date !== today) return attendanceError("This check-in is from an earlier gym day and cannot be checked out now.", 409, undefined, "CHECK_IN_NOT_CURRENT_DAY");

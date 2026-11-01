@@ -1,4 +1,4 @@
-import { requireApiUser, tenantFilter } from "../../../lib/auth.js";
+import { requireRole, tenantFilter } from "../../../lib/auth.js";
 import Member from "../../../models/Member.js";
 import Payment from "../../../models/Payment.js";
 import Attendance from "../../../models/Attendance.js";
@@ -6,12 +6,12 @@ import { csvRow } from "../../../lib/csv.js";
 import { errorResponse } from "../../../lib/planApiResponse.js";
 
 export async function GET(request) {
-  const denied = await requireApiUser(request);
+  const denied = await requireRole(request, "gym_owner");
   if (denied) return denied;
   const resource = new URL(request.url).searchParams.get("resource") || "members";
   const definitions = {
     members: { model: Member, fields: ["fullName", "phone", "email", "startDate", "expiryDate", "isActive"] },
-    payments: { model: Payment, fields: ["receiptNumber", "memberId", "amountDue", "amountPaid", "method", "paymentDate"] },
+    payments: { model: Payment, fields: ["receiptNumber", "memberId", "amountDue", "amountPaid", "method", "paymentDate", "voided", "voidedAt", "voidReason"] },
     attendance: { model: Attendance, fields: ["memberId", "date", "checkInAt", "checkOutAt"] },
   };
   const definition = Object.hasOwn(definitions, resource) ? definitions[resource] : null;

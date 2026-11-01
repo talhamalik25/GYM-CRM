@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import { issuePlanChangeInvoice } from "../../../../lib/saasBilling.js";
 import { lockGym, assertPlanFits, getGymUsage, EntitlementError, entitlementErrorResponse } from "../../../../lib/entitlements.js";
 import { listGymBranches } from "../../../../lib/branches.js";
@@ -60,8 +61,8 @@ export async function POST(request) {
   const authResponse = await requireSuperadminUser(request);
   if (authResponse) return authResponse;
   let body;
-  try { body = await request.json(); }
-  catch { return errorResponse("Request body must be valid JSON.", 400); }
+  try { body = await readJsonBody(request); }
+  catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return errorResponse("Request body must be valid JSON.", 400); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
   try { await connectToDatabase(); }
   catch { return errorResponse("Billing service is temporarily unavailable.", 503); }
@@ -155,6 +156,7 @@ export async function POST(request) {
         });
         return successResponse({ gym: serializeGym(updatedGym) });
       } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
         if (error instanceof EntitlementError) return entitlementErrorResponse(error);
         console.error("Could not assign a support trial.");
         return errorResponse("Could not assign the Gym trial. Please try again.", 503);
@@ -166,6 +168,7 @@ export async function POST(request) {
       const result = await issuePlanChangeInvoice(validation.gymId, validation.planId, actorId);
       return successResponse({ gym: serializeGym(result.gym), invoice: result.invoice ? serializePlatformInvoice(result.invoice) : null }, result.invoice ? 201 : 200);
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       return errorResponse("Could not issue the plan change invoice.", 503);
     }
@@ -199,6 +202,7 @@ export async function POST(request) {
       });
       return successResponse({ gym: serializeGym(updated), granted: true });
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       return errorResponse("Could not grant complimentary access.", 503);
     } finally { await session.endSession(); }
@@ -228,6 +232,7 @@ export async function POST(request) {
       } finally { await session.endSession(); }
       return successResponse({ invoice: serializePlatformInvoice(invoice) }, 201);
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       return errorResponse("Could not issue the renewal invoice. Please try again.", 503);
     }
@@ -269,7 +274,8 @@ export async function POST(request) {
         invoice.reconciledBy = actorId;
         const claim = [...invoice.paymentClaims].reverse().find((item) => item.status === "submitted");
         if (claim) { claim.status = "approved"; claim.reviewedAt = invoice.paidAt; claim.reviewedBy = actorId; }
-        await invoice.save({ session });
+        const saved = await PlatformInvoice.replaceOne({ _id: invoice._id, gymId: invoice.gymId, status: "open" }, invoice.toObject(), { session, runValidators: true });
+        if (saved.modifiedCount !== 1) throw new Error("Invoice changed while reviewing payment.");
         const subscriptionUpdate = await Gym.updateOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }, { $set: {
           "saasSubscription.planId": invoice.planId, "saasSubscription.planSnapshot": invoice.planSnapshot,
           "saasSubscription.status": "active", "saasSubscription.periodStart": accessStart,
@@ -281,6 +287,7 @@ export async function POST(request) {
         reconciled = invoice.toObject();
       });
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       await session.endSession();
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       if (error.message === "Invoice is missing or is not open.") return errorResponse(error.message, 409);
@@ -307,10 +314,12 @@ export async function POST(request) {
         const claim = invoice.paymentClaims.id(validation.claimId);
         if (!claim || claim.status !== "submitted") throw new Error("Payment claim is missing or has already been reviewed.");
         claim.status = "rejected"; claim.reviewedAt = new Date(); claim.reviewedBy = actorId; claim.rejectionReason = validation.reason;
+        invoice.$where = { gymId: invoice.gymId };
         await invoice.save({ session });
         invoiceResult = invoice.toObject();
       });
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       if (error.message === "Invoice is missing or is not open." || error.message === "Invoice is no longer pending for this Gym." || error.message === "Payment claim is missing or has already been reviewed.") return errorResponse(error.message, 409);
       return errorResponse("Could not reject the payment claim.", 503);
     } finally { await session.endSession(); }
@@ -331,6 +340,7 @@ export async function POST(request) {
         invoice.voidedAt = new Date();
         invoice.voidedBy = actorId;
         invoice.voidReason = validation.reason;
+        invoice.$where = { gymId: invoice.gymId };
         await invoice.save({ session });
         const gym = await Gym.findOne({ _id: invoice.gymId, "saasSubscription.pendingInvoiceId": invoice._id }).session(session);
         if (gym) {
@@ -341,6 +351,7 @@ export async function POST(request) {
         voided = invoice.toObject();
       });
     } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
       await session.endSession();
       if (error instanceof EntitlementError) return entitlementErrorResponse(error);
       if (error.message === "Invoice is missing or is not open.") return errorResponse(error.message, 409);

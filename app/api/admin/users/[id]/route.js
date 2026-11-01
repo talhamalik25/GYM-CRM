@@ -1,3 +1,4 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db";
 import { getAuthenticatedUserFromRequest, requireSuperadminUser } from "../../../../../lib/auth";
@@ -11,8 +12,8 @@ export async function PATCH(request, { params }) {
   const { id } = await params;
   if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("User id is invalid.", 400);
   let body;
-  try { body = await request.json(); }
-  catch { return errorResponse("Request body must be valid JSON.", 400); }
+  try { body = await readJsonBody(request); }
+  catch (error) { if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return errorResponse("Request body must be valid JSON.", 400); }
   if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => key !== "isActive")) {
     return errorResponse("Only account activation status can be changed.", 400, { isActive: "Set isActive to true or false." });
   }
@@ -29,6 +30,7 @@ export async function PATCH(request, { params }) {
     const updated = await User.findOneAndUpdate({ _id: target._id, isActive: { $ne: body.isActive } }, { $set: { isActive: body.isActive }, ...(!body.isActive ? { $inc: { authVersion: 1 } } : {}) }, { returnDocument: "after", runValidators: true }).select("fullName email role isActive createdAt").lean();
     return successResponse(serializeAdminUser(updated || { ...target, isActive: body.isActive }));
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     console.error("Admin user status update failed:");
     return errorResponse("Could not update the user account. Please try again.", 503);
   }
