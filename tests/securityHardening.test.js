@@ -121,6 +121,11 @@ test("staff and trainer role restrictions are enforced by actual handlers", asyn
   });
 });
 
+test("attendance check-in rejects a role without attendance permission", async (t) => {
+  setup(t, "staff");
+  assert.equal((await call("attendance/check-in", "POST", { memberId: resource })).status, 403);
+});
+
 test("write validation rejects ObjectIds, assignment fields, non-object JSON and oversized bodies", async (t) => {
   for (const [route, method] of [["members/[id]", "PATCH"], ["plans/[id]", "PATCH"], ["trainers/[id]", "PATCH"], ["payments/[id]", "PATCH"], ["subscriptions/[id]", "PATCH"], ["subscriptions/[id]/renew", "POST"], ["subscriptions/[id]/payments", "POST"], ["attendance/[id]/check-out", "POST"]]) await t.test(`invalid id: ${route}: Pass`, async (t) => {
     setup(t); assert.equal((await call(route, method, {}, "not-an-id")).status, 400);
