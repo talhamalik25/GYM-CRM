@@ -1,6 +1,7 @@
 import MarketingNavigation from "../../components/marketing/marketing-navigation.js";
 import MarketingFooter from "../../components/marketing/marketing-footer.js";
 import MarketingAnnouncement from "../../components/marketing/marketing-announcement.js";
+import MarketingChatbot from "../../components/marketing/marketing-chatbot.js";
 
 
 
@@ -11,5 +12,6 @@ export default function MarketingLayout({ children }) {
     <MarketingNavigation />
     <main id="main-content" tabIndex={-1}>{children}</main>
     <MarketingFooter />
+    <MarketingChatbot />
   </div>;
 }

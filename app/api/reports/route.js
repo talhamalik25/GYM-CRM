@@ -33,12 +33,18 @@ export async function GET(request) {
     const scope = getRequestScope(request);
     const period = resolvedRange.data;
     if (params.get("basic") === "1") {
-      const [members, attendanceCount, collections] = await Promise.all([
+      const [members, newMembers, attendanceCount, collections, paymentMethods] = await Promise.all([
         Member.countDocuments({ ...scope, isActive: { $ne: false } }),
+        Member.countDocuments({ ...scope, createdAt: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } }),
         Attendance.countDocuments({ ...scope, date: { $gte: period.startDate, $lte: period.endDate } }),
         Payment.aggregate([{ $match: { ...scope, voided: { $ne: true }, paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } }, { $group: { _id: null, amount: { $sum: "$amountPaid" } } }]),
+        Payment.aggregate([
+          { $match: { ...scope, voided: { $ne: true }, paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } },
+          { $group: { _id: "$method", collected: { $sum: "$amountPaid" }, transactions: { $sum: 1 }, averagePayment: { $avg: "$amountPaid" } } },
+          { $sort: { collected: -1 } },
+        ]),
       ]);
-      return successResponse({ period, members, attendance: attendanceCount, collected: collections[0]?.amount || 0 });
+      return successResponse({ period, members, newMembers, attendance: attendanceCount, collected: collections[0]?.amount || 0, paymentMethods });
     }
     const today = period.today;
     const paymentsStart = gymDateStartUtc(period.previousStartDate, period.timezone);
@@ -50,7 +56,7 @@ export async function GET(request) {
     const dateRange = { $gte: period.previousStartDate, $lte: period.endDate };
     const todayDate = dateOnly(today);
     const expiringThrough = dateOnly(addDays(today, 7));
-    const [payments, memberAnalytics, attendance, renewals, activeSubscriptions, totalSubscriptions] = await Promise.all([
+    const [payments, memberAnalytics, attendance, renewals, activeSubscriptions, totalSubscriptions, paymentMethods] = await Promise.all([
       Payment.aggregate([
         { $match: { ...scope, voided: { $ne: true }, paymentDate: { $gte: paymentsStart, $lt: paymentsEnd } } },
         { $group: {
@@ -102,6 +108,11 @@ export async function GET(request) {
       ]),
       Subscription.countDocuments({ ...scope, status: { $ne: "cancelled" }, startDate: { $lte: todayDate }, expiryDate: { $gte: todayDate } }),
       includeDashboard ? Subscription.countDocuments({ ...scope }) : Promise.resolve(null),
+      Payment.aggregate([
+        { $match: { ...scope, voided: { $ne: true }, paymentDate: { $gte: gymDateStartUtc(period.startDate, period.timezone), $lt: gymDateStartUtc(addDays(period.endDate, 1), period.timezone) } } },
+        { $group: { _id: "$method", collected: { $sum: "$amountPaid" }, transactions: { $sum: 1 }, averagePayment: { $avg: "$amountPaid" } } },
+        { $sort: { collected: -1 } },
+      ]),
     ]);
     const members = memberAnalytics[0] || { growth: [], membershipStatuses: [], total: [] };
     const report = buildGymReportAnalytics({
@@ -112,6 +123,7 @@ export async function GET(request) {
       renewals,
       totalMembers: members.total[0]?.count || 0,
       activeSubscriptions,
+      paymentMethods,
       membershipStatuses: members.membershipStatuses,
     });
     if (includeDashboard) report.dashboardKpis = { signups: buildSignupKpi(members.dashboardSignups || [], today), totalSubscriptions };

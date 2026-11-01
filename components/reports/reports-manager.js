@@ -6,6 +6,7 @@ import {
   Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import ChartCard from "../ui/chart-card";
+import Card from "../ui/card";
 import ErrorState from "../ui/error-state";
 import PageHeading from "../ui/page-heading";
 import { formatReportCurrency } from "../../lib/reportRules.js";
@@ -28,6 +29,24 @@ const STATUS_LABELS = [
 
 const number = (value) => Number(value || 0).toLocaleString("en-PK");
 const money = formatReportCurrency;
+
+export function PaymentMethodSummary({ methods = [], loading = false }) {
+  return <Card className="p-5 sm:p-6" aria-busy={loading || undefined}>
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold text-ink">Collections by payment method</h2>
+      <p className="mt-1 text-sm text-ink-muted">Recorded, non-void member payments for the selected period.</p>
+    </div>
+    {loading ? <p role="status" className="text-sm text-ink-muted">Loading payment methods…</p> : methods.length ? (
+      <ul className="grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        {methods.map((method) => <li key={method._id} className="min-w-0 rounded-xl border border-line bg-canvas p-4">
+          <p className="capitalize text-sm text-ink-muted">{String(method._id || "other").replaceAll("_", " ")}</p>
+          <p className="mt-2 break-words text-xl font-semibold tabular-nums text-ink">{money(method.collected)}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-muted">{Number(method.transactions || 0).toLocaleString("en-PK")} transactions · average {money(method.averagePayment)}</p>
+        </li>)}
+      </ul>
+    ) : <p className="text-sm text-ink-muted">No payments were recorded during this period.</p>}
+  </Card>;
+}
 
 function defaultGranularity(range) {
   if (range === "6m" || range === "12m") return "month";
@@ -382,6 +401,7 @@ export default function ReportsManager() {
       </ChartCard>
       {report ? <MembershipChart statuses={report.summary.membershipStatuses} asOf={report.period.today} total={membershipTotal} /> : <ChartCard title="Membership status" description="Current member records" loading loadingLabel="membership status" />}
     </section>}
+    {(report || loading) && <PaymentMethodSummary methods={report?.summary?.paymentMethods} loading={loading} />}
     <p className="reports-screen-reader" role="status" aria-live="polite">{loading ? "Updating report data." : report ? `Reports loaded for ${report.period.startDate} through ${report.period.endDate}.` : ""}</p>
   </div>;
 }

@@ -106,6 +106,18 @@ test("filtered analytics aggregate real daily rows into buckets and compare equa
   assert.deepEqual(report.summary.membershipStatuses, { active: 5, expiring: 2, upcoming: 0, expired: 4, cancelled: 0 });
 });
 
+test("report analytics include payment-method totals for the selected report period", () => {
+  const report = buildGymReportAnalytics({
+    period: {
+      range: "30d", startDate: "2026-10-01", endDate: "2026-10-30",
+      previousStartDate: "2026-09-01", previousEndDate: "2026-09-30",
+      days: 30, granularity: "day", timezone: "Asia/Karachi", today: "2026-10-30",
+    },
+    paymentMethods: [{ _id: "cash", collected: 3500, transactions: 3, averagePayment: 1166.67 }],
+  });
+  assert.deepEqual(report.summary.paymentMethods, [{ _id: "cash", collected: 3500, transactions: 3, averagePayment: 1166.67 }]);
+});
+
 test("weekly report buckets start on Monday and retain partial boundary weeks", () => {
   const report = buildGymReportAnalytics({
     period: {
@@ -125,9 +137,11 @@ test("reports API rejects unauthenticated access and aggregates only the trusted
   assert.equal(response.status, 401);
   const source = await readFile(fileURLToPath(new URL("../app/api/reports/route.js", import.meta.url)), "utf8");
   assert.match(source, /import \{ addDays, dateOnly \} from "\.\.\/\.\.\/\.\.\/lib\/subscriptionRules\.js"/);
-  assert.match(source, /requireApiUser\(request\)/);
+  assert.match(source, /requireRole\(request, "gym_owner"\)/);
   assert.match(source, /getRequestScope\(request\)/);
   assert.match(source, /Payment\.aggregate/);
+  assert.match(source, /paymentMethods/);
+  assert.match(source, /newMembers, attendance: attendanceCount/);
   assert.match(source, /Member\.aggregate/);
   assert.match(source, /Attendance\.aggregate/);
   assert.match(source, /Payment\.aggregate\(\[\s*\{ \$match: \{ \.\.\.scope,/);
@@ -152,6 +166,7 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   const settingsPage = await readFile(fileURLToPath(new URL("../app/(dashboard)/settings/page.js", import.meta.url)), "utf8");
   const settingsManager = await readFile(fileURLToPath(new URL("../components/settings/gym-settings.js", import.meta.url)), "utf8");
   const shell = await readFile(fileURLToPath(new URL("../components/layout/dashboard-shell.js", import.meta.url)), "utf8");
+  const reportsRouteSource = await readFile(fileURLToPath(new URL("../app/api/reports/route.js", import.meta.url)), "utf8");
   assert.match(page, /EntitledReports/);
   assert.match(manager, /\/api\/reports/);
   assert.match(manager, /loadingLabel="member payment collections"/);
@@ -168,10 +183,14 @@ test("Owner reports load real metrics, expose states, and navigation includes re
   assert.match(manager, /Last 30 Days/);
   assert.match(manager, /Last 90 Days/);
   assert.match(manager, /Last 12 Months/);
-  assert.match(styles, /\.reports-chart-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /@media \(max-width: 760px\) \{\s+\.reports-chart-grid \{ grid-template-columns: minmax\(0, 1fr\);/);
+  assert.match(styles, /\.reports-chart-grid \{\s+display: grid;\s+grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 760px\) \{\s+\.reports-chart-grid \{\s+grid-template-columns: minmax\(0, 1fr\);/);
   assert.match(manager, /schedule baseline is stored for an attendance rate/);
   assert.match(manager, /Membership status/);
+  assert.match(manager, /Collections by payment method/);
+  assert.match(manager, /paymentMethods/);
+  assert.match(manager, /selected period/);
+  assert.match(reportsRouteSource, /requireRole\(request, "gym_owner"\)/);
   assert.match(manager, /role="alert"/);
   assert.match(dashboard, /\/api\/reports/);
   assert.match(dashboard, /title="Revenue"/);
