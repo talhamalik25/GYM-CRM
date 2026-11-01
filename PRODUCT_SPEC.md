@@ -1,6 +1,6 @@
 # Fitivo: existing implementation inventory
 
-Audit date: 2026-10-31 (Asia/Karachi). Scope: the existing working tree, including pre-existing uncommitted work, against AGENTS.md, PRD.md, ARCHITECTURE.md, DESIGN_SYSTEM.md, SECURITY.md and PRODUCT_DETAIL.md. This is an implementation inventory, not a launch certification. No application code or database data was changed.
+Audit date: 2026-11-01 (Asia/Karachi). This is the refreshed A1 inventory after the security, structure/config, dashboard/shell and marketing/reports work. It compares current source to AGENTS.md, PRD.md, ARCHITECTURE.md, DESIGN_SYSTEM.md, SECURITY.md and PRODUCT_DETAIL.md. This is not a launch certification. The only application-file change in this audit is removal of the unreferenced `/dev/ui` preview route; no data was changed.
 
 ## Status and evidence conventions
 
@@ -9,27 +9,27 @@ Audit date: 2026-10-31 (Asia/Karachi). Scope: the existing working tree, includi
 - **UI only**: presentation, placeholder or local interaction without the promised persisted workflow.
 - **Not built**: no implementation found in the inspected source tree.
 
-All authenticated modules and APIs below are Partially built unless stated otherwise: source code and unit/mock checks do not prove real database behavior. See ALIGNMENT_REPORT.md for runtime results, failed checks and limitations. No production credentials, member data or secret values are reproduced.
+Authenticated modules and APIs are generally Partially built: source code and mocked checks do not prove production database behavior. A status of Working means only the listed limited behavior was exercised. Current unit run: 215 passed, 4 failed, 8 skipped. The four failures and exact limitations are recorded in ALIGNMENT_REPORT.md. No production credentials, member data or secret values are reproduced.
 
 ## Modules against product scope
 
-- Auth / gym onboarding — **Partially built**. Custom sessions, scrypt, logout revocation, gated public registration, platform gym provisioning and invitations exist. Public registration grants seven days immediately; marketing offers an approval-based fourteen-day request. No password-reset page/API (administrative reset script exists).
-- Members — **Partially built**. Add/edit/search/detail, plan dates, account activation and trainer assignment exist. No memberCode, member photo storage, emergency contact, frozen/left lifecycle or member-edit audit trail.
-- Plans — **Partially built**. Database CRUD-style create/read/update/deactivate and member counts. No delete route. Staff can change plans contrary to documented owner-only policy.
-- Membership assignment/renewal — **Partially built**. `Subscription` stores purchased terms and renewal history, idempotency and cancellation. Client agreed-price overrides conflict with current rules. This is distinct from `GymMembership`, which grants staff tenant access.
-- Member payments / receipts / partial dues — **Partially built**. Server receipts, four local methods, installment allocation, transactions and idempotency exist. Payment actor attribution, reference field, void and AuditLog are missing. Platform invoice voiding is a different ledger.
-- Attendance — **Partially built**. Search, check-in/out, date history, summary and expired-member override exist. No markedBy; trainer access is rejected by default API roles.
-- Owner daily summary — **Partially built**. Member/subscription counts, check-ins, dues, revenue charts, recent payments and seven-day expiry list exist. Not the exact requested today/month collections summary; no retention list. Basic-plan dashboard calls an advanced-report endpoint (see I02).
-- Dues and expiry lists — **Partially built**. Payment dues and dashboard/member expiry views exist; no member WhatsApp action or reminder logging.
+- Auth / gym onboarding — **Partially built**. Custom opaque database sessions, scrypt, logout revocation, registration gate, platform gym provisioning and invitations exist. Public registration grants seven days immediately; marketing offers an approval-based fourteen-day request. No password-reset page/API (administrative reset script exists).
+- Members — **Partially built**. Add/edit/search/detail, plan dates, account activation, trainer assignment, and member create/edit AuditLog writes exist. No memberCode, member photo storage, emergency contact, or explicit frozen/left lifecycle.
+- Plans — **Partially built**. Tenant-scoped list/create/update/deactivate and member counts exist. No delete route; owner-only server role checks are present. Authenticated database flow not exercised.
+- Membership assignment/renewal — **Partially built**. `Subscription` stores purchased terms and renewal history, idempotency and cancellation. Plan price is derived from the server-side database plan; a client-supplied mismatching agreedPrice is rejected. This is distinct from `GymMembership`, which grants staff tenant access.
+- Member payments / receipts / partial dues — **Partially built**. Server receipts, four local methods, installment allocation, transaction/idempotency handling, receivedBy, void metadata and AuditLog create/void entries exist. Void is owner-only and preserves the receipt. Persistence against a live database was not verified.
+- Attendance — **Partially built**. Search, check-in/out, date history, summary and expired-member override exist. Owner, staff and trainer attendance permission is implemented; full assignment-specific behavior is not demonstrated by every route test.
+- Owner daily summary — **Partially built**. The owner summary API has scoped aggregates for collections, check-ins, expiring members and dues; the UI uses those data states. The dashboard analytics component also requests `/api/reports?dashboard=1`, while the route entitlement uses `basic=1` to select basicReports and otherwise advancedAnalytics. Basic-plan chart access may therefore be denied; no Basic live session was available to verify. No retention list.
+- Dues and expiry lists — **Partially built**. Server-computed dues, void-aware totals and expiry views exist; no member WhatsApp action or reminder logging.
 - Inactivity/retention and configurable absence threshold — **Not built**. Account `isActive` is not attendance inactivity.
 - WhatsApp fee/expiry/inactivity reminders — **Not built**. No member reminder builder, `ReminderLog`, endpoint or persisted click tracking. General support contact links are not member reminders.
-- Reports — **Partially built**. Period analytics, payment-method analysis and CSV exports exist with plan entitlements. Staff report access conflicts with SECURITY.md; live totals unverified.
+- Reports — **Partially built**. Owner-only period analytics include collections by method and new members; CSV export is owner-only. Live totals unverified.
 - Roles/staff — **Partially built**. User platform role plus gym membership roles, invitations/revocation and trainer workspace exist. Role matrix differs from documents.
-- Audit log — **Not built**. No AuditLog model, API or owner audit viewer found.
+- Audit log — **Partially built**. `AuditLog` model and transactional writes exist for member create/edit and member payment create/void. No owner-facing audit viewer or API was found.
 - Marketing — **Partially built** overall. Public informational pages, navigation, pricing outlines, demo tabs and guidance exist. Prices/bank values and previews are explicitly provisional. Contact/trial prepare email drafts; no request persistence or approval queue.
 - Public subscription payment — **UI only**. `/payment` selects plan/cycle and previews a screenshot locally; actual submission is disabled. No upload backend.
 - Owner/platform SaaS billing — **Partially built**. Database catalog, invoice issuance, reference claims, manual verification, void and expiry processing exist. Screenshot storage is absent; operational price defaults differ from unconfirmed public catalog.
-- Marketing chatbot — **Not built**. No `/api/chat`, knowledge base, fallback or LLM integration found.
+- Marketing chatbot — **UI only**. Client-side public FAQ interaction exists; no `/api/chat`, server knowledge base, LLM or rate-limited endpoint exists.
 - Trainer management/workspace — **Partially built**. Profiles and assignments, assigned-member/attendance read view. Already implemented although PRD puts assignment/workspace after MVP.
 - Multi-branch — **Partially built**. Branch CRUD-style management, selection, scopes and entitlements exist despite PRD excluding multi-branch from MVP.
 - Platform administration — **Partially built**. Overview, gyms, owners, users, billing and subscriptions; not explicitly mapped in draft MVP.
@@ -43,13 +43,13 @@ Installed: Next 16.4.3, React/React DOM 19.2.8, Mongoose 9.11.2, Tailwind and it
 
 `lib/db.js` caches a connection promise and resets failed connections. `next.config.mjs` enables React Compiler, disables X-Powered-By and sets frame denial, nosniff and same-origin referrer headers. HTTPS, backups, live indexes, deployment cron and Atlas cannot be proved from those files.
 
-Application env names: MONGODB_URI, AUTH_SESSION_SECRET, GYM_TIMEZONE, PUBLIC_REGISTRATION_ENABLED, PUBLIC_TRIAL_PLAN_ID, SAAS_EXPIRY_CRON_SECRET, CRON_SECRET, NEXT_PUBLIC_SUPPORT_EMAIL, NEXT_PUBLIC_SUPPORT_WHATSAPP; NODE_ENV controls secure cookies. The last two support variables are missing from `.env.example`; GYM_TIMEZONE and PUBLIC_REGISTRATION_ENABLED have defaults there instead of names-only entries. Administrative/test names include GYM_ID, BRANCH_MIGRATION_URI, BRANCH_MIGRATION_APPROVED, BRANCH_MIGRATION_MAINTENANCE, BRANCH_MIGRATION_BACKUP_REFERENCE, MONGODB_TEST_URI and MONGODB_TEST_DISPOSABLE. `.env.local` and `.env.test.local` exist but are ignored; only `.env.example` is tracked. Secret values were not printed. Git-history and deployed-bundle secret scans were not performed.
+Application env names: MONGODB_URI, AUTH_SESSION_SECRET, GYM_TIMEZONE, PUBLIC_REGISTRATION_ENABLED, PUBLIC_TRIAL_PLAN_ID, SAAS_EXPIRY_CRON_SECRET, CRON_SECRET, NEXT_PUBLIC_SUPPORT_EMAIL, NEXT_PUBLIC_SUPPORT_WHATSAPP; NODE_ENV controls secure cookies. `.env.example` contains names with blank values; administrative/test names include GYM_ID, BRANCH_MIGRATION_URI, BRANCH_MIGRATION_APPROVED, BRANCH_MIGRATION_MAINTENANCE, BRANCH_MIGRATION_BACKUP_REFERENCE, MONGODB_TEST_URI and MONGODB_TEST_DISPOSABLE. `.env*` is ignored and `.env.example` is tracked. Secret values were not printed. Git-history and deployed-bundle secret scans were not performed.
 
-Public content/config is under `lib/marketing/{site,plans,bank,home,pages}.js` plus `lib/marketingConfig.js`, not `config/`. Public bank values are literal placeholders guarded by `configured: false`; prices are null and unconfirmed. Operational `lib/saasPlanRules.js` contains 2999/5999/9999 PKR launch defaults used to initialize the editable catalog, not to reprice existing contracts.
+Public content and commercial defaults live in `config/site.js`, `config/plans.js`, and `config/bank.js`. Bank details are disabled placeholders and public prices are null/unconfirmed. Operational SaaS catalog defaults remain PKR 2999/5999/9999 in config-backed plan rules and initialize the editable database catalog; final amounts still require owner confirmation and do not reprice existing contracts.
 
 ## All persisted models
 
-Each entry names its source in `models/`. Schemas were inspected; deployed collection contents/indexes were not.
+There are 19 persisted Mongoose models. Each entry names its source in `models/`. Schemas were inspected; deployed collection contents/indexes were not.
 
 - `Gym.js`: name, unique slug, timezone, active/suspended, embedded SaaS subscription/plan snapshot, public trial marker, capacity version and plan-change request. Tenant root, not a child requiring its own gymId.
 - `User.js`: global identity, fullName/email/phone, hidden passwordHash/authVersion, active flag and platform roles `staff|superadmin|platform_super_admin`. No gymId: tenancy is deliberately in GymMembership.
@@ -57,7 +57,7 @@ Each entry names its source in `models/`. Schemas were inspected; deployed colle
 - `Member.js`: gymId/branchId, fullName, unique gym+phone, email, gender/DOB, planId/trainerId, dates, notes, isActive/membershipCancelled. No memberCode/photo/emergency contact/frozen/left enum.
 - `Plan.js`: gymId/branchId, name, positive whole-rupee price, duration, description, isActive; case-insensitive unique gym+name.
 - `Subscription.js`: gymId/branchId/member/plan, dates, original/agreed prices, snapshots, status, creation idempotency and renewalHistory; unique gym+createKey. Implements the draft Membership concept.
-- `Payment.js`: gymId/branchId/member/plan/subscription/renewalKey, amountDue/amountPaid, method, paymentDate, unique receiptNumber, hidden idempotency/fingerprint, notes. No receivedBy/reference/void fields.
+- `Payment.js`: gymId/branchId/member/plan/subscription/renewalKey, amountDue/amountPaid, method, paymentDate, unique receiptNumber, receivedBy, voided/voidedAt/voidedBy/voidReason, hidden idempotency/fingerprint, notes. No reference field.
 - `Attendance.js`: gymId/branchId/member, date, checkInAt/checkOutAt, overrideExpired; unique gym+member+date. No markedBy.
 - `Trainer.js`: gymId/branchId, fullName/email/phone, specialization, joiningDate, status, profileImage URL, notes; unique gym+email.
 - `Branch.js`: gymId/name/address/status/isDefault; unique gym+name and partial unique default per gym.
@@ -68,24 +68,25 @@ Each entry names its source in `models/`. Schemas were inspected; deployed colle
 - `PublicTrialClaim.js`: immutable email/gymSlug/userId/gymId/claimedAt; unique email and slug, intentionally no TTL. No createdAt/updatedAt.
 - `SaaSPlan.js`: global platform catalog key/name/description/price/currency/interval/limits/features/isActive; partial unique key, timestamps.
 - `PlatformInvoice.js`: gymId/plan and price snapshot, invoice number/amount/currency/period, status, claims, verified amount/reference/actor, void actor/reason, creator/reconciler, timestamps. This supports platform subscription accountability, not member payment auditing.
+- `AuditLog.js`: immutable gymId/actorId/action/resourceId/changedFields/reason/createdAt; indexed by gym and creation time. Actions cover payment create/void and member create/edit.
 - `PlatformSetting.js`: global fixed identity `fitivo`, trial defaults and manual payment instructions, timestamps.
 - `saasSchemas.js`: shared embedded limits/features/snapshot schemas; **not a collection/model**.
 
-Missing draft models: Membership (implemented as Subscription), ReminderLog, AuditLog, TrialRequest, SubscriptionPayment (platform flow instead uses PlatformInvoice). Many legacy tenant schemas require gymId only for new documents; existing unowned records require a separately reviewed migration. Subscription/Payment/Trainer have some single-resource/date indexes rather than all recommended gym-prefixed query indexes.
+Missing draft models: Membership (implemented as Subscription), ReminderLog, TrialRequest, SubscriptionPayment (platform flow instead uses PlatformInvoice). AuditLog is implemented. Many legacy tenant schemas require gymId only for new documents; existing unowned records require a separately reviewed migration. Subscription/Payment/Trainer have some single-resource/date indexes rather than all recommended gym-prefixed query indexes.
 
 ## Components and styling approach
 
-There are 83 JavaScript component files across 18 folders: account (1), admin (5), attendance (1), auth (3), billing (3), branches (2), dashboard (5), layout (1), marketing (16), members (4), memberships (2), payments (3), plans (1), reports (2), settings (1), staff (2), trainers (4), ui (27).
+There are 82 JavaScript component files across 18 folders: account (1), admin (5), attendance (1), auth (3), billing (3), branches (2), dashboard (5), layout (1), marketing (16), members (4), memberships (2), payments (3), plans (1), reports (2), settings (1), staff (2), trainers (4), ui (27).
 
 - Shared UI includes Button, Input/Control/Field, Select, Textarea, Card/ChartCard/StatCard, Avatar, Badge/StatusBadge/StatusPill, Table/DataTable, Modal/ConfirmDialog/Drawer, Dropdown, Tabs, Toast, Skeleton, EmptyState/ErrorState, PageHeader/PageHeading and SearchBar. `lib/cn.js` exists. PageHeading delegates to PageHeader; overlapping names are not all independent duplicates. Dedicated Checkbox/Pagination component files are absent; pagination is implemented within resource managers.
 - Dashboard shell and resource managers reuse shared UI, with substantial legacy global selectors on owner dashboard, members, plans, payments, attendance, reports and admin screens. Tailwind-heavy membership record, trainers, staff, branches, billing, settings and profile components still inherit shared global styles. Auth/shell/primitives contain long `exact:` utility lists preserving older values. These categories describe source composition, not a measured CSS coverage percentage.
 - Marketing composes navigation/announcement/footer, hero/primitives, feature grids, pricing, demo tabs, placeholders, inquiry form and payment preview. The three remaining CSS modules are imported by the pages/components shown below. Home/pricing reuse the home module; most detail pages combine home and pages modules; payment uses pages and payment modules. The old `marketing.module.css` was already deleted in the incoming working tree and no surviving import was found.
-- Inter is the loaded font. Marketing CSS also uses system Georgia/Times for accent headings. Light/indigo tokens coexist with extensive arbitrary literal Tailwind values, raw CSS colors and a local PostCSS cascade plugin. Charts use dynamic inline dimensions/colors; static inline values still exist in workouts and the report chart wrapper. No styling was changed in this audit.
+- Inter is the loaded font. Marketing CSS also uses system Georgia/Times for accent headings. Light/indigo tokens coexist with extensive arbitrary literal Tailwind values, raw CSS colors and a local PostCSS cascade plugin. Charts use dynamic inline dimensions/colors; static inline values still exist in workouts and the report chart wrapper. Styling was not changed in this audit.
 - Loading/empty/error primitives and resource-level handling exist, including dashboard retries and payment/attendance states. Their presence does not prove every interactive/error condition: authenticated failures, focus management, all modal keyboard paths and AA contrast remain untested.
 
 ## Route and styling inventory
 
-The generated inventories below enumerate every `page.js` and API `route.js` in this working tree. Route groups do not appear in URLs. CSS amounts are source dependency footprint, not measured rendered/unused CSS: G = global CSS shared by every page; H/P/B = home/pages/payment modules. A shared module's lines must not be summed across routes. JavaScript utility classes and dynamic styles are not included in CSS line totals. Global CSS has 11,394 newline-separated lines (213,775 bytes), including theme/reset/keyframes and substantial legacy selectors. H: 1,388 lines; P: 1,117; B: 532. This is a maintenance footprint, not a recommendation to resume migration.
+The generated inventories below enumerate every `page.js` and API `route.js` in this working tree. Route groups do not appear in URLs. CSS amounts are source dependency footprint, not measured rendered/unused CSS: G = global CSS shared by every page; H/P/B = home/pages/payment modules. A shared module's lines must not be summed across routes. JavaScript utility classes and dynamic styles are not included in CSS line totals. Current sources: `globals.css` 9,278 lines, marketing home 1,171, marketing pages 938, marketing payment 456. These shared legacy styles are intentionally not migrated in this audit.
 
 ### Every page route (43)
 
@@ -149,31 +150,31 @@ OA = gym_owner or gym_admin; O = gym_owner; T = trainer; S = platform superadmin
 | `/api/admin/overview` | Partially built | GET | Platform counts and analytics | Yes — S |
 | `/api/admin/users` | Partially built | GET, POST | List/create global staff identities | Yes — S |
 | `/api/admin/users/[id]` | Partially built | PATCH | Activate/deactivate global identity | Yes — S |
-| `/api/attendance/check-in` | Partially built | POST | Create check-in, optional expired override | Yes — OA |
+| `/api/attendance/check-in` | Partially built | POST | Create check-in, optional expired override | Yes — O/A/T (attendance permission) |
 | `/api/attendance` | Partially built | GET | Paginated attendance history | Yes — OA |
 | `/api/attendance/summary` | Partially built | GET | Today/history check-in summary | Yes — OA |
 | `/api/attendance/[id]/check-out` | Partially built | POST | Check out attendance record | Yes — OA |
 | `/api/auth/login` | Partially built | POST | Validate credentials and issue session | No session required; origin/input checks and login rate limit |
 | `/api/auth/logout` | Partially built | POST | Revoke cookie session, clear cookies | No session required; origin check, revoke supplied cookie if present |
-| `/api/auth/register` | Partially built | POST | Create gym/owner and immediate seven-day trial | No session required; origin/input checks (registration feature gate) |
+| `/api/auth/register` | Partially built | POST | Create gym/owner and immediate seven-day trial | No session required; origin/input checks, feature gate and shared public rate limit |
 | `/api/branches` | Partially built | GET, POST | List branches; select branch or owner manage branch | Yes — O/A/T for read/select; O for manage |
 | `/api/cron/saas-expiry` | Partially built | POST, GET | Expire SaaS periods (GET public trials only; POST general) | Yes — secret bearer token; no user session |
 | `/api/dashboard/owner` | Partially built | GET | Gym counts and entitlements | Yes — OA |
-| `/api/exports` | Partially built | GET | Stream member/payment/attendance CSV | Yes — OA |
+| `/api/exports` | Partially built | GET | Stream member/payment/attendance CSV | Yes — O |
 | `/api/gym/billing` | Partially built | GET, POST | Owner invoices and instructions; submit reference claim / request plan change | Yes — O; GET also permits suspended gym/inactive subscription |
 | `/api/gym/entitlements` | Partially built | GET | Read tenant feature/capacity entitlements | Yes — O/A/T; inactive subscription permitted |
 | `/api/gym/settings` | Partially built | GET, PATCH | Read/update gym name/timezone | Yes — O |
 | `/api/members` | Partially built | GET, POST | Search/list/create members | Yes — OA |
 | `/api/members/[id]` | Partially built | GET, PATCH | Read/update member | Yes — OA |
 | `/api/members/[id]/subscriptions` | Partially built | GET | List subscriptions for member | Yes — OA |
-| `/api/payment-reports` | Partially built | GET | Period collections by method | Yes — OA |
+| `/api/payment-reports` | Partially built | GET | Period collections by method | Yes — O |
 | `/api/payments/dues` | Partially built | GET | Compute legacy and subscription balances | Yes — OA |
 | `/api/payments` | Partially built | POST, GET | Record/list member payments | Yes — OA |
 | `/api/payments/summary` | Partially built | GET | Collection and dues aggregates | Yes — OA |
-| `/api/payments/[id]` | Partially built | GET | Read receipt detail | Yes — OA |
-| `/api/plans` | Partially built | GET, POST | List/create membership plans | Yes — OA |
-| `/api/plans/[id]` | Partially built | GET, PATCH | Read/update/deactivate membership plan | Yes — OA |
-| `/api/reports` | Partially built | GET | Basic or advanced period analytics | Yes — OA |
+| `/api/payments/[id]` | Partially built | GET, PATCH | Read receipt; owner-only void with reason and audit | Yes — OA read; O void |
+| `/api/plans` | Partially built | GET, POST | List/create membership plans | Yes — O/A read; O create |
+| `/api/plans/[id]` | Partially built | GET, PATCH | Read/update/deactivate membership plan | Yes — O/A read; O update |
+| `/api/reports` | Partially built | GET | Basic or advanced period analytics | Yes — O |
 | `/api/staff/invitations/accept` | Partially built | POST | Accept bearer invitation; existing user must authenticate | Token-protected; no session for new user; matching session for existing user |
 | `/api/staff/invitations` | Partially built | GET, POST | List/create invitations | Yes — O |
 | `/api/staff/manage` | Partially built | PATCH | Revoke staff/invitations; assign branch or change role | Yes — O |
@@ -185,15 +186,8 @@ OA = gym_owner or gym_admin; O = gym_owner; T = trainer; S = platform superadmin
 | `/api/trainers` | Partially built | GET, POST | Search/list/create trainer | Yes — OA |
 | `/api/trainers/[id]` | Partially built | GET, PATCH | Read/update trainer | Yes — OA |
 
-## Audit verification results
+## Current audit verification
 
-- `npm run build`: passed after retry with network access for existing Google Inter font fetch. First sandbox attempt failed only on that fetch. No font/code changes. Build output includes Next-generated `/_not-found` in addition to 43 source page routes; favicon is a metadata asset, not a product module.
-- `npm run lint`: passed.
-- `npm run test:unit -- --test-reporter=tap`: 153 tests, 144 passed, 1 failed, 8 skipped. Failing test: “Owner reports load real metrics, expose states, and navigation includes reports and settings”, `tests/reports.test.js:171`, expects a literal `.reports-chart-grid` CSS string. This is an existing source-string assertion failure, not proof of a rendered layout failure. No tests altered. Database integration suites deliberately skipped.
-- `node scripts/browser-smoke.js`: passed landing/security headers, login render, unauthenticated redirects for dashboard/admin/members/billing, 401 checks for members/admin billing/gym billing APIs, cross-origin and oversized login rejection, sessionless logout and absence of uncaught page errors. Successful login and session revocation with a real account were not exercised.
-- Additional database-disabled browser pass: all 14 public/access pages (`/`, features, pricing, demo, guide, about, contact, free-trial, payment, login, register, privacy, terms, staff/accept) returned 200 with no horizontal overflow at 375/768/1280: 42 checks, zero uncaught page errors. Mobile menu opened and Escape closed it. Registration was deliberately disabled; staff acceptance had no token. No email was sent. Local screenshots were captured; home-mobile, payment-desktop and login-mobile were visually inspected.
-- `npm audit --json`: 16 moderate affected packages, no high/critical; minimatch advisory propagates through ESLint tooling. No packages changed. Initial restricted-network attempt failed; retry returned advisory data.
-- Narrow source secret-pattern scan: 267 JS/MJS/CJS files in app/components/lib/models/scripts; zero credential-bearing Mongo URI, private-key block, sk-style key or AWS access-key candidates. Not a comprehensive secret assurance.
-- Not verified: database-backed CRUD, two-gym isolation, role success/denial matrix against real records, concurrent payment correctness, live billing/cron/registration, upload storage (absent), authenticated layouts, all keyboard/contrast/screen-reader states, email delivery, production infrastructure or historical secrets. Existing data was not seeded/reset/migrated.
+Current test/build/lint/pre-launch results and limitations are maintained in `ALIGNMENT_REPORT.md`. Older verification figures in the original A1 report are superseded by the 2026-11-01 results there. The prior public browser screenshots do not certify authenticated screens or production behavior.
 
-Local evidence (ignored, not part of the commit): `.unit-test-results.log`, `test-results/document-audit/results.json`, screenshots in that directory and `test-results/document-audit-dependencies.json`. These local paths are supplementary; this document retains the result summary for other checkouts.
+`/dev/ui` was deleted after a repo-wide reference scan found no code references. No other debug API route was identified. Seed scripts and fixture tooling were preserved because they are scripts, not routes, and were not shown to be dead code.
