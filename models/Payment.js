@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 
 const paymentSchema = new mongoose.Schema({
+  receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  voided: { type: Boolean, default: false },
+  voidedAt: { type: Date, default: null },
+  voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  voidReason: { type: String, default: "", maxlength: 1000 },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: "Branch", default: null, index: true },
   gymId: { type: mongoose.Schema.Types.ObjectId, ref: "Gym", required() { return this.isNew; } },
   memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true, index: true },

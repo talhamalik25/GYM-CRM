@@ -1,8 +1,11 @@
+import { MAX_MONEY_RUPEES } from "../../../../../config/security.js";
+import { writeAuditLog } from "../../../../../lib/auditLog.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../../lib/db";
 import { errorResponse, successResponse } from "../../../../../lib/planApiResponse";
 import { addDays, dateOnly, deriveSubscriptionStatus, gymToday, isDateOnly } from "../../../../../lib/subscriptionRules";
-import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../../../lib/auth";
 import Subscription from "../../../../../models/Subscription";
 import Member from "../../../../../models/Member";
 import Plan from "../../../../../models/Plan";
@@ -21,7 +24,7 @@ export async function POST(request, { params }) {
   let requestFingerprint;
   let requestKey;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400);
     const key = request.headers.get("Idempotency-Key");
     requestKey = key;
@@ -30,7 +33,7 @@ export async function POST(request, { params }) {
     if (!isValidIdempotencyKey(key)) fields.idempotencyKey = "A valid request key is required.";
     if (body.planId != null && (typeof body.planId !== "string" || !mongoose.isObjectIdOrHexString(body.planId))) fields.planId = "Choose a valid plan.";
     if (body.agreedPrice != null && (!Number.isSafeInteger(body.agreedPrice) || body.agreedPrice < 1)) fields.agreedPrice = "Price must be positive whole rupees.";
-    if (body.amountPaid != null && (!Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0)) fields.amountPaid = "Payment must be a whole number of rupees.";
+    if (body.amountPaid != null && (!Number.isSafeInteger(body.amountPaid) || body.amountPaid < 0 || body.amountPaid > MAX_MONEY_RUPEES)) fields.amountPaid = "Payment must be a whole number of rupees.";
     if (body.method != null && !methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (body.startDate != null && !isDateOnly(body.startDate)) fields.startDate = "Enter a valid date.";
     if (body.paymentDate != null && (!isDateOnly(body.paymentDate) || body.paymentDate > gymToday())) fields.paymentDate = "Choose a valid payment date no later than today.";
@@ -62,7 +65,8 @@ export async function POST(request, { params }) {
       if (currentStatus !== "active" && startDate < today) throw Object.assign(new Error("An expired subscription cannot be renewed from a past date."), { status: 400, fields: { startDate: "Choose today or a future date." } });
       const plan = await Plan.findOne({ _id: body.planId || subscription.planId, ...scope }).session(session);
       if (!plan || !plan.isActive) throw Object.assign(new Error("Choose an available active plan."), { status: 400, fields: { planId: "Choose an active plan." } });
-      const agreedPrice = body.agreedPrice ?? plan.price;
+      const agreedPrice = plan.price;
+      if (body.agreedPrice != null && body.agreedPrice !== agreedPrice) throw Object.assign(new Error("Plan price changed or does not match. Refresh and retry."), { status: 400, fields: { agreedPrice: "Price must match the server plan price." } });
       const amountPaid = body.amountPaid ?? 0;
       if (!Number.isSafeInteger(agreedPrice) || agreedPrice < 1 || amountPaid > agreedPrice) throw Object.assign(new Error("Enter a valid agreed price and payment amount."), { status: 400, fields: { agreedPrice: "Price must be positive whole rupees.", amountPaid: "Payment cannot exceed price." } });
       if (amountPaid > 0 && !body.method) throw Object.assign(new Error("Choose a payment method."), { status: 400, fields: { method: "A payment method is required with a payment." } });
@@ -74,6 +78,7 @@ export async function POST(request, { params }) {
       let paymentId = null;
       if (amountPaid > 0) {
         const payment = (await Payment.create([{
+          receivedBy: getRequestActorId(request),
           gymId, branchId: getRequestBranchId(request),
           memberId: subscription.memberId, planId: plan._id, subscriptionId: subscription._id,
           renewalKey: key, amountDue: agreedPrice, amountPaid, method: body.method,
@@ -81,6 +86,7 @@ export async function POST(request, { params }) {
           idempotencyKey: key,
           requestFingerprint: JSON.stringify({ subscriptionId: id, renewalKey: key, amountPaid, method: body.method, paymentDate: body.paymentDate || today }),
         }], { session }))[0];
+        await writeAuditLog({ gymId, actorId: getRequestActorId(request), action: "payment.created", resourceId: payment._id }, session);
         paymentId = payment._id;
       }
       const term = { renewalKey: key, requestFingerprint, planId: plan._id, planSnapshot, startDate: start, expiryDate: expiry, paymentId };
@@ -93,12 +99,13 @@ export async function POST(request, { params }) {
       if (!updated) throw Object.assign(new Error("Subscription changed while renewing. Retry with the same request key."), { status: 409 });
       await syncMemberSubscriptionFields(member, session, gymId, {
         planId: plan._id, startDate: start, expiryDate: expiry, membershipCancelled: false,
-      });
+      }, { actorId: getRequestActorId(request) });
       return { subscription: updated, duplicate: false };
     });
     if (result.missing) return errorResponse("Subscription was not found.", 404);
     return successResponse(result.subscription.toObject(), result.duplicate ? 200 : 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     if (error?.status) return errorResponse(error.message, error.status, error.fields);
     const ledgerResponse = paymentLedgerErrorResponse(error, errorResponse);

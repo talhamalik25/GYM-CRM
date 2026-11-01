@@ -12,8 +12,8 @@ import Modal from "../ui/modal";
 import PageHeader from "../ui/page-header";
 import Select from "../ui/select";
 import Skeleton from "../ui/skeleton";
+import Textarea from "../ui/textarea";
 import { listPlans, createPlan, updatePlan, setPlanActive } from "../../lib/plansService";
-import Control from "../ui/control.js";
 
 const blankValues = { name: "", price: "", duration: "1", unit: "months", description: "" };
 
@@ -142,7 +142,7 @@ export default function PlansManager() {
   }
 
   return (
-    <div className="plans-page">
+    <div className="space-y-5 md:space-y-6">
       <PageHeader
         title="Plans"
         description="Create and manage the membership plans available at your gym."
@@ -152,16 +152,16 @@ export default function PlansManager() {
       {actionError && <Card className="p-4 text-sm text-error" role="alert">{actionError}</Card>}
 
       {loading ? (
-        <div className="plans-grid" role="status" aria-label="Loading plans">
-          {Array.from({ length: 3 }, (_, index) => <Card className="plan-card-skeleton" key={index}>
-            <Skeleton className="plan-skeleton-title" /><Skeleton className="plan-skeleton-price" />
-            <Skeleton className="plan-skeleton-copy" /><Skeleton className="plan-skeleton-members" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading plans">
+          {Array.from({ length: 3 }, (_, index) => <Card className="space-y-4 p-5" key={index}>
+            <Skeleton className="h-6 max-w-48" /><Skeleton className="h-9 max-w-36" />
+            <Skeleton className="h-4" /><Skeleton className="h-4 max-w-28" />
           </Card>)}
         </div>
       ) : loadError ? (
-        <Card className="plans-state-card"><ErrorState title="Could not load plans" description={loadError} onRetry={loadPlans} loading={loading} /></Card>
+        <Card className="p-4 md:p-5"><ErrorState title="Could not load plans" description={loadError} onRetry={loadPlans} loading={loading} /></Card>
       ) : plans.length === 0 ? (
-        <Card className="plans-state-card">
+        <Card className="p-4 md:p-5">
           <EmptyState
             icon={<UsersRound size={25} strokeWidth={1.7} />}
             title="No plans yet"
@@ -170,23 +170,23 @@ export default function PlansManager() {
           />
         </Card>
       ) : (
-        <div className="plans-grid">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {plans.map((plan) => (
-            <Card key={plan.id} className="plan-card-surface">
-              <div className="plan-card-heading">
-                <h2>{plan.name}</h2>
+            <Card key={plan.id} className="flex min-w-0 flex-col gap-4 p-5 md:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="break-words text-lg font-semibold text-ink">{plan.name}</h2>
                 <Badge tone={plan.status === "Active" ? "success" : "neutral"}>{plan.status}</Badge>
               </div>
-              <div className="plan-price-block">
-                <p>{formatCurrency(plan.price)}</p>
-                <span>per {durationLabel(plan.durationDays)}</span>
+              <div>
+                <p className="text-2xl font-bold tracking-tight text-ink">{formatCurrency(plan.price)}</p>
+                <span className="mt-1 block text-sm text-ink-muted">per {durationLabel(plan.durationDays)}</span>
               </div>
-              {plan.description && <p className="plan-description">{plan.description}</p>}
-              <div className="plan-member-count">
+              {plan.description && <p className="text-sm leading-6 text-ink-muted">{plan.description}</p>}
+              <div className="mt-auto flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-muted">
                 <UsersRound size={17} strokeWidth={1.75} aria-hidden="true" />
                 <span><strong>{(plan.memberCount ?? 0).toLocaleString("en-PK")}</strong> {(plan.memberCount ?? 0) === 1 ? "member" : "members"}</span>
               </div>
-              <div className="plan-card-actions">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" onClick={() => openEditPlan(plan)}>Edit</Button>
                 <Button variant="secondary" size="sm" onClick={() => handleToggle(plan)}>{plan.status === "Active" ? "Deactivate" : "Activate"}</Button>
               </div>
@@ -211,10 +211,7 @@ export default function PlansManager() {
               <option value="months">Months</option>
             </Select>
           </div>
-          <label className={"ui-field exact:grid exact:[min-width:0] exact:[gap:var(--space-1-5)]"}>
-            <span className={"ui-label exact:[color:var(--ink)] exact:[font-size:13px] exact:[font-weight:600]"}>Description (optional)</span>
-            <Control as="textarea" id="plan-description" className={"min-h-24 py-2"} rows={3} value={values.description} onChange={(event) => updateValue("description", event.target.value)} />
-          </label>
+          <Textarea id="plan-description" label="Description (optional)" rows={3} value={values.description} onChange={(event) => updateValue("description", event.target.value)} />
           <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
             {actionError && <p className="text-sm text-error" role="alert">{actionError}</p>}

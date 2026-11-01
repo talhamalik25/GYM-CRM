@@ -1,8 +1,9 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../lib/requestBody.js";
 import connectToDatabase from "../../../lib/db";
 import Plan from "../../../models/Plan";
 import Member from "../../../models/Member";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../lib/planApiResponse";
-import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
+import { requireApiUser, requireRole, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 
 export async function GET(request) {
   const authResponse = await requireApiUser(request);
@@ -22,15 +23,16 @@ export async function GET(request) {
     }
     return successResponse(plans);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return handlePlanError(error);
   }
 }
 
 export async function POST(request) {
-  const authResponse = await requireApiUser(request);
+  const authResponse = await requireRole(request, "gym_owner");
   if (authResponse) return authResponse;
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const validation = validatePlanBody(body);
     if (validation) return errorResponse(validation.message, 400, validation.fields);
 
@@ -45,6 +47,7 @@ export async function POST(request) {
     });
     return successResponse(plan.toObject(), 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     return handlePlanError(error);
   }

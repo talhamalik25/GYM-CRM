@@ -1,8 +1,9 @@
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../../lib/db";
 import Plan from "../../../../models/Plan";
 import { errorResponse, handlePlanError, successResponse, validatePlanBody } from "../../../../lib/planApiResponse";
-import { requireApiUser, tenantFilter } from "../../../../lib/auth";
+import { requireApiUser, requireRole, tenantFilter } from "../../../../lib/auth";
 
 async function readId(context) {
   const { id } = await context.params;
@@ -20,17 +21,18 @@ export async function GET(_request, context) {
     if (!plan) return errorResponse("Plan was not found.", 404);
     return successResponse(plan);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     return handlePlanError(error);
   }
 }
 
 export async function PATCH(request, context) {
-  const authResponse = await requireApiUser(request);
+  const authResponse = await requireRole(request, "gym_owner");
   if (authResponse) return authResponse;
   try {
     const id = await readId(context);
     if (!mongoose.isObjectIdOrHexString(id)) return errorResponse("Plan id is invalid.", 400);
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const validation = validatePlanBody(body, { partial: true });
     if (validation) return errorResponse(validation.message, 400, validation.fields);
 
@@ -44,6 +46,7 @@ export async function PATCH(request, context) {
     if (!plan) return errorResponse("Plan was not found.", 404);
     return successResponse(plan);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     return handlePlanError(error);
   }

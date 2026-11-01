@@ -41,13 +41,31 @@ test("plan edit and active status remain tenant-scoped and subscription flows re
   const route = await readFile(fileURLToPath(new URL("../app/api/plans/[id]/route.js", import.meta.url)), "utf8");
   const createSubscription = await readFile(fileURLToPath(new URL("../app/api/subscriptions/route.js", import.meta.url)), "utf8");
   const renewSubscription = await readFile(fileURLToPath(new URL("../app/api/subscriptions/[id]/renew/route.js", import.meta.url)), "utf8");
-  assert.match(route, /requireApiUser\(request\)/);
+  assert.match(route, /requireApiUser\(_request\)/);
+  assert.match(route, /requireRole\(request, "gym_owner"\)/);
   assert.match(route, /findOneAndUpdate\(tenantFilter\(request, \{ _id: id \}\)/);
   assert.match(route, /validatePlanBody\(body, \{ partial: true \}\)/);
   assert.match(createSubscription, /Plan\.findOne\(\{ _id: body\.planId, \.\.\.scope \}\)/);
   assert.match(createSubscription, /!plan\.isActive/);
   assert.match(renewSubscription, /Plan\.findOne\(\{ _id: body\.planId \|\| subscription\.planId, \.\.\.scope \}\)/);
   assert.match(renewSubscription, /!plan\.isActive/);
+});
+
+test("plans and memberships use responsive Tailwind layouts and shared form/table primitives", async () => {
+  const plans = await readFile(fileURLToPath(new URL("../components/plans/plans-manager.js", import.meta.url)), "utf8");
+  const memberships = await readFile(fileURLToPath(new URL("../components/memberships/membership-manager.js", import.meta.url)), "utf8");
+  const record = await readFile(fileURLToPath(new URL("../components/memberships/membership-record.js", import.meta.url)), "utf8");
+  assert.match(plans, /grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3/);
+  assert.match(plans, /<Textarea /);
+  assert.doesNotMatch(plans, /plans-(?:page|grid|card-surface|state-card)/);
+  assert.match(memberships, /<DataTable /);
+  assert.match(memberships, /md:hidden/);
+  assert.match(memberships, /<Modal /);
+  assert.match(memberships, /agreedPrice: selectedPlan\.price/);
+  assert.match(memberships, /agreedPrice: renewalPlan\.price/);
+  assert.match(record, /<PageHeader/);
+  assert.match(record, /<Card/);
+  assert.doesNotMatch(memberships + record, /membership-(?:tabs|table|dialog|manager)/);
 });
 
 test("legacy plan URLs route to the API-backed plan manager instead of the local demo editor", async () => {

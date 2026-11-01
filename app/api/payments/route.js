@@ -1,10 +1,12 @@
+import { MAX_MONEY_RUPEES } from "../../../config/security.js";
+import { readJsonBody, RequestBodyError, requestBodyErrorResponse } from "../../../lib/requestBody.js";
 import mongoose from "mongoose";
 import connectToDatabase from "../../../lib/db";
 import { errorResponse, successResponse } from "../../../lib/planApiResponse";
 import { handlePaymentError, isDateOnly, paymentStatusMatch, serializePayment } from "../../../lib/paymentApiHelpers";
 import Member from "../../../models/Member";
 import Payment from "../../../models/Payment";
-import { requireApiUser, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
+import { requireApiUser, getRequestActorId, getRequestGymId, tenantFilter, getRequestScope, getRequestBranchId } from "../../../lib/auth";
 import { isValidIdempotencyKey, makePaymentFingerprint, paymentMonthRange } from "../../../lib/paymentRules";
 import { gymToday } from "../../../lib/subscriptionRules.js";
 import { paymentLedgerErrorResponse, recordMemberPayment, runLedgerTransaction } from "../../../lib/paymentLedger";
@@ -22,12 +24,12 @@ export async function POST(request) {
     if (!isValidIdempotencyKey(idempotencyKey)) {
       return errorResponse("A valid idempotency key is required.", 400, { idempotencyKey: "Retry using the same request key." });
     }
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const fields = {};
     if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse("Request body must be a JSON object.", 400, {});
-    if (Object.hasOwn(body, "gymId")) fields.gymId = "Tenant ownership cannot be changed.";
+    for (const key of Object.keys(body)) if (!["memberId","amountPaid","method","paymentDate","date","notes","subscriptionId","renewalKey"].includes(key)) fields[key] = "This field cannot be changed.";
     if (typeof body.memberId !== "string" || !mongoose.isObjectIdOrHexString(body.memberId)) fields.memberId = "Choose a valid member.";
-    if (typeof body.amountPaid !== "number" || !Number.isSafeInteger(body.amountPaid) || body.amountPaid <= 0) fields.amountPaid = "Amount paid must be a positive whole number of rupees.";
+    if (typeof body.amountPaid !== "number" || !Number.isSafeInteger(body.amountPaid) || body.amountPaid <= 0 || body.amountPaid > MAX_MONEY_RUPEES) fields.amountPaid = "Amount paid must be a positive whole number of rupees.";
     if (!methods.includes(body.method)) fields.method = "Choose a valid payment method.";
     if (!isDateOnly(body.paymentDate ?? body.date)) fields.paymentDate = "Choose a valid payment date.";
     else if ((body.paymentDate ?? body.date) > gymToday()) fields.paymentDate = "Payment date cannot be in the future.";
@@ -44,7 +46,7 @@ export async function POST(request) {
     await connectToDatabase();
     await Payment.init();
     const result = await runLedgerTransaction((session) => recordMemberPayment(session, {
-      gymId: getRequestGymId(request), branchId: getRequestBranchId(request), scope: getRequestScope(request),
+      actorId: getRequestActorId(request), gymId: getRequestGymId(request), branchId: getRequestBranchId(request), scope: getRequestScope(request),
       memberId: body.memberId, subscriptionId: body.subscriptionId || "", renewalKey: body.renewalKey || "",
       amountPaid: body.amountPaid, method: body.method, paymentDate: paymentDateAt,
       paymentDateLabel: paymentDate, idempotencyKey, notes,
@@ -53,11 +55,12 @@ export async function POST(request) {
     await payment.populate([{ path: "memberId", match: { ...getRequestScope(request) }, select: "fullName" }, { path: "planId", match: { ...getRequestScope(request) }, select: "name" }]);
     return successResponse(serializePayment(payment), result.duplicate ? 200 : 201);
   } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error);
     if (error instanceof SyntaxError) return errorResponse("Request body must be valid JSON.", 400);
     if (error?.code === 11000 && (error?.keyPattern?.idempotencyKey || error?.keyValue?.idempotencyKey)) {
       try {
         const existing = await Payment.findOne(tenantFilter(request, { idempotencyKey })).select("+requestFingerprint");
-        if (existing && existing.requestFingerprint === fingerprint) {
+        if (existing && !existing.voided && existing.requestFingerprint === fingerprint) {
           await existing.populate([{ path: "memberId", match: { ...getRequestScope(request) }, select: "fullName" }, { path: "planId", match: { ...getRequestScope(request) }, select: "name" }]);
           return successResponse(serializePayment(existing), 200);
         }
@@ -84,12 +87,12 @@ export async function GET(request) {
     const requestedLimit = Number(params.get("limit") || 10);
     if (!Number.isInteger(page) || page < 1) return errorResponse("Page must be a positive whole number.", 400, { page: "Enter a valid page number." });
     if (!Number.isInteger(requestedLimit) || requestedLimit < 1) return errorResponse("Limit must be a positive whole number.", 400, { limit: "Enter a valid page size." });
-    if (!["all", "paid", "partial", "pending"].includes(status)) return errorResponse("Choose a valid payment status.", 400, { status: "Choose a valid payment status." });
+    if (!["all", "paid", "partial", "pending", "voided"].includes(status)) return errorResponse("Choose a valid payment status.", 400, { status: "Choose a valid payment status." });
     if (method && !methods.includes(method)) return errorResponse("Choose a valid payment method.", 400, { method: "Choose a valid payment method." });
     if (month && !paymentMonthRange(month)) return errorResponse("Month must use YYYY-MM format.", 400, { month: "Enter a valid month." });
     if (memberId && !mongoose.isObjectIdOrHexString(memberId)) return errorResponse("Member id is invalid.", 400, { memberId: "Choose a valid member." });
     await connectToDatabase();
-    const filter = { ...paymentStatusMatch(status) };
+    const filter = { ...paymentStatusMatch(status), ...(status === "voided" ? { voided: true } : status !== "all" ? { voided: { $ne: true } } : {}) };
     if (memberId) filter.memberId = memberId;
     if (method) filter.method = method;
     if (month) {
@@ -105,5 +108,6 @@ export async function GET(request) {
       Payment.countDocuments(tenantFilter(request, filter)),
     ]);
     return successResponse({ items: records.map(serializePayment), total, page, limit });
-  } catch (error) { return handlePaymentError(error); }
+  } catch (error) {
+    if (error instanceof RequestBodyError) return requestBodyErrorResponse(error); return handlePaymentError(error); }
 }
