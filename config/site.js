@@ -68,10 +68,10 @@ export const FEATURES = [
 ];
 
 export const PRODUCT_VIEWS = [
-  { id: "administration", label: "Gym administration", title: "Your gym, in view.", description: "Member records, membership status and your team’s daily operations.", areas: ["Member records", "Memberships", "Staff access"], screenshot: "/dashboard.png" },
-  { id: "fees", label: "Fees & billing", title: "Keep the records together.", description: "Member fees, recorded payments, outstanding dues and receipts.", areas: ["Member ledgers", "Payment records", "Receipts"] },
-  { id: "attendance", label: "Attendance & check-ins", title: "A clear record of every visit.", description: "Check-in and check-out records, with recent attendance in one place.", areas: ["Check-ins", "Check-outs", "Visit history"] },
-  { id: "reports", label: "Reports & insights", title: "See what your records tell you.", description: "Attendance and collection summaries, subject to your plan and permissions.", areas: ["Attendance", "Collections", "Memberships"] },
+  { id: "administration", label: "Gym administration", title: "Your gym, in view.", description: "Member records, membership status and your team’s daily operations.", areas: ["Member records", "Memberships", "Staff access"], screenshot: { src: "/dashboard.png", width: 1904, height: 1065 } },
+  { id: "fees", label: "Fees & billing", title: "Keep the records together.", description: "Member fees, recorded payments, outstanding dues and receipts.", areas: ["Member ledgers", "Payment records", "Receipts"], screenshot: { src: "/fees.png", width: 1912, height: 1063 } },
+  { id: "attendance", label: "Attendance & check-ins", title: "A clear record of every visit.", description: "Check-in and check-out records, with recent attendance in one place.", areas: ["Check-ins", "Check-outs", "Visit history"], screenshot: { src: "/attendence.png", width: 1907, height: 1059 } },
+  { id: "reports", label: "Reports & insights", title: "See what your records tell you.", description: "Attendance and collection summaries, subject to your plan and permissions.", areas: ["Attendance", "Collections", "Memberships"], screenshot: { src: "/report.png", width: 1904, height: 1057 } },
 ];
 
 export const ROLES = [
