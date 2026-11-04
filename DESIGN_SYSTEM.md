@@ -82,10 +82,10 @@ Each component must have: hover, focus-visible, active, disabled, loading and er
 
 Public marketing only; authenticated UI and existing hero styling remain unchanged.
 
-- Navbar: solid white, sticky, 72px, slate border. Desktop from 1024px; mobile disclosure with 44px trigger, Escape/focus return and scrollable links. No default announcement strip.
+- Marketing header: a 36px navy utility bar scrolls away above a sticky white navbar (72px mobile / 76px desktop). Desktop navigation begins at 1280px to avoid tablet collisions. Product uses a six-link disclosure; mobile uses an accordion in a scrollable panel. Escape closes disclosures and returns focus; outside click, focus exit and route selection dismiss them. Existing Fitivo wordmark is shown at 156px.
 - MarketingContainer: established 1184px content maximum, 20px mobile gutters, 32px from 640px. Reuse for future sections.
 - Palette: slate-900 primary text, slate-500 secondary, white/slate-50 surfaces, slate-200 borders, indigo-600 accent, indigo-700 hover, indigo-50 tint. Tailwind only; no global token changes.
-- MarketingShellAction: primary, secondary, tertiary links; 44px minimum height, 8px radius, visible focus, reduced-motion support. Shared hero/auth buttons unchanged.
+- MarketingShellAction: primary, secondary, tertiary links; 46px minimum height, 10px radius, visible focus, reduced-motion support. Primary CTA uses a restrained shadow and reduced-motion-aware arrow shift. Shared hero/auth buttons unchanged.
 - Future typography: existing sans-serif; hero 36–40px mobile / 56–64px desktop, headings 28–32px / 36–44px, body 16–18px with 1.5–1.7 leading. No recurring decorative serif.
 - Future spacing: 8/12/16/24/32/48px; section spacing 48–64px mobile / 80–96px desktop.
 - Future cards: white, quiet border, 12px radius, minimal shadow. Product imagery: real UI with approved synthetic data, reserved dimensions, optional captions, 16px frame and restrained shadow. Product-frame component deferred.
