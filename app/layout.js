@@ -1,13 +1,5 @@
 import "./globals.css";
-import { Inter } from "next/font/google";
 import { SITE } from "../config/site.js";
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 export const metadata = {
   metadataBase: new URL(SITE.url),
@@ -19,7 +11,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} scroll-smooth motion-reduce:scroll-auto`} suppressHydrationWarning>
+    <html lang="en" className="scroll-smooth motion-reduce:scroll-auto" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
