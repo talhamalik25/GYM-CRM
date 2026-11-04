@@ -76,3 +76,16 @@ Each component must have: hover, focus-visible, active, disabled, loading and er
 - Natural, concise, professional English. No exaggerated or AI-sounding marketing copy.
 - Never invent testimonials, user counts, revenue numbers or case studies.
 - Empty states should say what to do next.
+
+
+## 12. Marketing foundation — Phase 1
+
+Public marketing only; authenticated UI and existing hero styling remain unchanged.
+
+- Navbar: solid white, sticky, 72px, slate border. Desktop from 1024px; mobile disclosure with 44px trigger, Escape/focus return and scrollable links. No default announcement strip.
+- MarketingContainer: established 1184px content maximum, 20px mobile gutters, 32px from 640px. Reuse for future sections.
+- Palette: slate-900 primary text, slate-500 secondary, white/slate-50 surfaces, slate-200 borders, indigo-600 accent, indigo-700 hover, indigo-50 tint. Tailwind only; no global token changes.
+- MarketingShellAction: primary, secondary, tertiary links; 44px minimum height, 8px radius, visible focus, reduced-motion support. Shared hero/auth buttons unchanged.
+- Future typography: existing sans-serif; hero 36–40px mobile / 56–64px desktop, headings 28–32px / 36–44px, body 16–18px with 1.5–1.7 leading. No recurring decorative serif.
+- Future spacing: 8/12/16/24/32/48px; section spacing 48–64px mobile / 80–96px desktop.
+- Future cards: white, quiet border, 12px radius, minimal shadow. Product imagery: real UI with approved synthetic data, reserved dimensions, optional captions, 16px frame and restrained shadow. Product-frame component deferred.
