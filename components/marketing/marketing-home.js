@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, ClipboardList, Dumbbell, FileText, MessageCircle, Plus, Users } from "lucide-react";
 import { SITE, FAQS, GUIDANCE, ONBOARDING, ROLES } from "../../config/site.js";
 import { MarketingButton, MarketingSection } from "./marketing-primitives.js";
-import MarketingProductShowcase from "./marketing-product-showcase.js";
+import MarketingHero from "./marketing-hero.js";
 import MarketingCapabilityPanel from "./marketing-capability-panel.js";
 import MarketingFeatureGrid from "./marketing-feature-grid.js";
 import MarketingPricing from "./marketing-pricing.js";
@@ -14,18 +14,7 @@ function Heading({ eyebrow, children, description, centered = false }) {
 
 export default function MarketingHome() {
   return <div className={styles.home}>
-    <section className={styles.hero} aria-labelledby="hero-title">
-      <div className={styles.container}>
-        <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}><span className={styles.dot} /> Built around your gym day</p>
-          <h1 id="hero-title">Your whole gym.<br /><em>Working as one.</em></h1>
-          <p className={styles.heroDescription}>From the first check-in to the next renewal, keep your members, team and daily operations connected with Fitivo.</p>
-          <div className={styles.actions}><MarketingButton href="/free-trial">Start Free Trial <ArrowRight size={16} aria-hidden="true" /></MarketingButton><MarketingButton href="#features" variant="outline">Explore the Platform <ArrowUpRight size={16} aria-hidden="true" /></MarketingButton></div>
-          <p className={styles.microcopy}><Check size={14} aria-hidden="true" />{SITE.trial.microcopy}</p>
-        </div>
-        <div id="product" className={styles.heroProduct} tabIndex={-1}><MarketingProductShowcase /></div>
-      </div>
-    </section>
+    <MarketingHero />
 
     <div className={styles.roleStrip}><div className={styles.container}><p>Built around the people<br />who make your gym work.</p><ul>{ROLES.map(role => <li key={role.title}>{role.title}</li>)}</ul></div></div>
 

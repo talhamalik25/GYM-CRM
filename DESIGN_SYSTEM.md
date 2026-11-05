@@ -89,3 +89,9 @@ Public marketing only; authenticated UI and existing hero styling remain unchang
 - Future typography: existing sans-serif; hero 36–40px mobile / 56–64px desktop, headings 28–32px / 36–44px, body 16–18px with 1.5–1.7 leading. No recurring decorative serif.
 - Future spacing: 8/12/16/24/32/48px; section spacing 48–64px mobile / 80–96px desktop.
 - Future cards: white, quiet border, 12px radius, minimal shadow. Product imagery: real UI with approved synthetic data, reserved dimensions, optional captions, 16px frame and restrained shadow. Product-frame component deferred.
+
+## 13. Homepage hero
+
+The homepage hero now uses `marketing-hero.js`, with the shared MarketingContainer and MarketingShellAction. Navbar and all later homepage sections retain their existing styling. The centered sans-serif headline uses 42px mobile, 56px tablet and 72px desktop, with solid indigo emphasis. Trial and product-tour links point to `/register` and `/demo`.
+
+The product frame uses `public/hero-attendance.webp`, a literal crop of `attendence.png` (left 290, top 75, width 1565, height 740). Account details, old branding and capture overlays are excluded from the delivered asset. It is explicitly an empty-state preview, pending a clean approved screenshot with synthetic data. Mobile shows a readable left-hand crop; larger screens show the full crop. Next/Image reserves dimensions and prioritizes this single hero image. Hover motion respects reduced-motion preferences; all new styling uses Tailwind.
