@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, CalendarCheck, CreditCard, FileChartColumn, Receipt, Users, WalletCards } from "lucide-react";
+import { ArrowRight, CalendarCheck, CreditCard, FileChartColumn, Receipt, Users, WalletCards } from "lucide-react";
 import MarketingContainer from "./marketing-container.js";
 import { ProductCrop, StoryHeading, StoryLink, StorySection } from "./marketing-story.js";
 

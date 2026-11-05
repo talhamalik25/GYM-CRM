@@ -1,5 +1,5 @@
 import MarketingHero from "./marketing-hero.js";
-import { AttendanceStory, CapabilityStrip, ConnectedWorkflow, MembershipPayments, OwnerVisibility } from "./marketing-home-sections.js";
+import { AttendanceStory, CapabilityStrip, ConnectedWorkflow, MemberStory, MembershipPayments, OwnerVisibility } from "./marketing-home-sections.js";
 import { GettingStarted, HomepageClosing, HomepageFaq, PricingPreview, TeamAndLocations } from "./marketing-home-conversion.js";
 import styles from "./marketing-home.module.css";
 
@@ -8,6 +8,7 @@ export default function MarketingHome() {
     <MarketingHero />
     <CapabilityStrip />
     <ConnectedWorkflow />
+    <MemberStory />
     <MembershipPayments />
     <AttendanceStory />
     <OwnerVisibility />
