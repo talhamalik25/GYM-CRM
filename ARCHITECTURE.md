@@ -93,3 +93,11 @@ The current `.env.example` contains empty assignments for implemented runtime, o
 
 ## 10. Rules for changing architecture
 Any new library, new database, auth change or model rename needs Talha's approval first.
+## Marketing chatbot
+
+The marketing layout keeps its existing chatbot entry point, which delegates to `components/marketing/chatbot/`. That folder separates the UI, Tailwind class constants, public knowledge, deterministic English/Roman Urdu matching and guarded session storage. No AI service is used. Only the last 30 exchanges are stored in sessionStorage; the lead form is excluded. Conversation reset clears that history.
+
+`POST /api/marketing/leads` accepts an optional contact enquiry and stores a `MarketingLead` using the existing MongoDB connection. These are platform enquiries, not tenant/member records. There is no public read route or new dashboard. Contact consent is required. No email or WhatsApp notification is sent automatically.
+
+Known product discrepancy: current registration starts a seven-day trial, while older marketing/PRD copy describes fourteen days. The chatbot reflects registration. Public plan prices and bank details remain unconfirmed; the public payment screenshot is a local preview, not a submitted payment claim.
+

@@ -1,0 +1,4 @@
+export const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+export const iconButton = `grid size-11 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 motion-reduce:transition-none ${focus}`;
+export const chip = `min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 motion-reduce:transition-none ${focus}`;
+export const action = `inline-flex min-h-11 items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700! transition-colors hover:bg-indigo-100 motion-reduce:transition-none ${focus}`;

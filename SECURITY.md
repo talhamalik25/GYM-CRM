@@ -80,3 +80,9 @@ Status: DRAFT v1. Fitivo stores personal data (names, phone numbers) and money r
 - [ ] Upload restrictions tested
 - [ ] Error responses leak nothing
 - [ ] Backup plan for the database confirmed
+## Public chatbot enquiries
+
+The chatbot renders trusted knowledge as React text, never model-generated HTML. Restored session history is validated and capped at 30 exchanges. Users are asked not to enter secrets or payment details. Optional lead form fields are not persisted to browser storage.
+
+The public lead POST route validates the request origin, limits the JSON body to 4 KiB, validates name/gym name/phone/topic/contact consent, and constructs an allowlisted record. It accepts no gym identity, role or price. Phone is normalized before applying database-backed global and per-phone rate limits. `MarketingLead` holds pre-signup platform enquiries and has no public retrieval endpoint. Consent timestamps come from the server; database failures return generic errors without exposing personal data or credentials. A retention/deletion policy and staff lead-management UI are not introduced by this change.
+
