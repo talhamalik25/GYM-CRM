@@ -1,6 +1,6 @@
 # MongoDB integration tests
 
-Eight integration suites use MongoDB when `MONGODB_URI_TEST` is explicitly
+Nine integration suites use MongoDB when `MONGODB_URI_TEST` is explicitly
 configured:
 
 - `adminGymDetails.integration.test.js`
@@ -10,6 +10,7 @@ configured:
 - `saasEntitlements.integration.test.js`
 - `staffInvitations.integration.test.js`
 - `tenantIsolation.integration.test.js`
+- `tenantBranchIsolation.integration.test.js`
 - `userProfile.integration.test.js`
 
 Use only a dedicated disposable MongoDB instance with a separate host/port and
