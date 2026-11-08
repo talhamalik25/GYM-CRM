@@ -137,10 +137,6 @@ export default function MarketingNavigation() {
         className="absolute inset-x-0 top-full max-h-[calc(100dvh-120px)] overflow-y-auto border-b border-slate-200 bg-white shadow-lg shadow-slate-900/5 xl:hidden"
       >
         <MarketingContainer className="py-5">
-          <div className="mb-4 pb-4 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">{t("chooseLanguage")}</span>
-            <LanguageSwitcher />
-          </div>
           <div className="flex flex-col gap-1">
             {navigationLinks.map(([label, href]) => (
               <Link

@@ -6,6 +6,7 @@ import Card from "../ui/card";
 import Input from "../ui/input";
 import PageHeading from "../ui/page-heading";
 import Select from "../ui/select.js";
+import UserLanguagePreference from "./user-language-preference.js";
 import { AVAILABLE_LOCALES, COUNTRIES, getCountry, getLocale } from "../../config/locales.js";
 
 function countryDefaultLabel(countryCode) {
@@ -121,6 +122,7 @@ export default function GymSettings() {
             <option value="">{countryDefaultLabel(values.countryCode)}</option>
             {AVAILABLE_LOCALES.map((locale) => <option key={locale.locale} value={locale.locale}>{locale.nativeName}</option>)}
           </Select>
+          <UserLanguagePreference />
           <Input id="gym-timezone" label="Timezone" required maxLength={100} value={values.timezone} onChange={(event) => setValues((current) => ({ ...current, timezone: event.target.value }))} error={errors.timezone} hint="Use an IANA timezone, such as Asia/Karachi or Europe/London." />
           <div><span className="text-xs font-medium uppercase text-ink-subtle">Gym URL slug</span><p className="mt-2 text-sm text-ink">{settings.slug || "Not available"}</p><p className="mt-1 text-xs text-ink-muted">The Gym slug is fixed and cannot be changed here.</p></div>
           <div className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" variant="secondary" disabled={saving} onClick={reset}>Reset</Button><Button type="submit" disabled={saving} aria-busy={saving}>{saving ? "Saving…" : "Save settings"}</Button></div>

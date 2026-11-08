@@ -5,10 +5,12 @@ import {
   COUNTRIES,
   DEFAULT_LOCALE,
   getCountry,
+  getCountryDefaultLocale,
   getLocaleDirection,
   isAvailableLocale,
   resolveEffectiveLocale,
   resolveLocale,
+  searchCountries,
 } from "../config/locales.js";
 import { formatCurrency, formatDate, formatNumber } from "../lib/localeFormatting.js";
 
@@ -38,6 +40,7 @@ test("country configuration includes requested defaults and explicit supported l
     assert.ok(country.supportedLocales.includes(defaultLocale));
   }
   assert.ok(COUNTRIES.length >= Object.keys(expected).length);
+  assert.equal(new Set(COUNTRIES.map(({ code }) => code)).size, COUNTRIES.length);
 });
 
 test("only completed resources are exposed and missing locales fall back safely", () => {
@@ -58,16 +61,30 @@ test("only completed resources are exposed and missing locales fall back safely"
   assert.equal(resolveLocale("zh-CN"), DEFAULT_LOCALE);
   assert.equal(resolveLocale("unsupported"), DEFAULT_LOCALE);
 
-  // Default Language Policy: explicit choice takes precedence; otherwise defaults to en-US
-  assert.equal(resolveEffectiveLocale({ userLocale: "en-GB", gymLocale: "en-US", countryCode: "PK" }), "en-GB");
-  assert.equal(resolveEffectiveLocale({ userLocale: "ur-PK", gymLocale: "en-US", countryCode: "PK" }), "ur-PK");
-  assert.equal(resolveEffectiveLocale({ gymLocale: "en-GB", countryCode: "PK" }), "en-GB");
-  assert.equal(resolveEffectiveLocale({ userLocale: "zh-CN", gymLocale: "ja-JP", countryCode: "PK" }), DEFAULT_LOCALE);
+  // Explicit choices and gym defaults take precedence over a selected country's default.
+  assert.equal(resolveEffectiveLocale({ explicitLocale: "en-GB", countryLocale: "ur-PK" }), "en-GB");
+  assert.equal(resolveEffectiveLocale({ userLocale: "ur-PK", gymLocale: "en-US", countryLocale: "ar-SA" }), "ur-PK");
+  assert.equal(resolveEffectiveLocale({ gymLocale: "en-GB", countryLocale: "ur-PK" }), "en-GB");
+  assert.equal(resolveEffectiveLocale({ countryLocale: "ar-SA" }), "ar-SA");
+  assert.equal(resolveEffectiveLocale({ countryLocale: "zh-CN" }), DEFAULT_LOCALE);
+  assert.equal(getCountryDefaultLocale("CN"), DEFAULT_LOCALE);
 
   // RTL direction check
   assert.equal(getLocaleDirection("ar-SA"), "rtl");
   assert.equal(getLocaleDirection("ur-PK"), "rtl");
   assert.equal(getLocaleDirection("en-US"), "ltr");
+});
+
+test("country selector search matches names, aliases, codes, locales, and languages once per country", () => {
+  assert.deepEqual(searchCountries("Pakistan").map(({ code }) => code), ["PK"]);
+  assert.deepEqual(searchCountries("Urdu").map(({ code }) => code), ["PK"]);
+  assert.deepEqual(searchCountries("Turkey").map(({ code }) => code), ["TR"]);
+  assert.deepEqual(searchCountries("tr-TR").map(({ code }) => code), ["TR"]);
+  assert.deepEqual(searchCountries("Arabic").map(({ code }) => code), ["SA", "AE", "QA"]);
+  const englishCountries = searchCountries("English");
+  assert.ok(englishCountries.some(({ code }) => code === "US"));
+  assert.ok(englishCountries.some(({ code }) => code === "GB"));
+  assert.equal(new Set(englishCountries.map(({ code }) => code)).size, englishCountries.length);
 });
 
 test("locale formatting changes presentation without changing the amount", () => {

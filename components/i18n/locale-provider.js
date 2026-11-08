@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import {
   DEFAULT_LOCALE,
+  getCountry,
   getLocaleDirection,
   isAvailableLocale,
   isSupportedCountry,
@@ -65,13 +66,15 @@ export function useLocalePreferences() {
   return context;
 }
 
-export default function LocaleProvider({ locale: initialLocale, messages: initialMessages, timeZone, children }) {
+export default function LocaleProvider({ locale: initialLocale, messages: initialMessages, timeZone, initialCountryCode = "PK", children }) {
   const router = useRouter();
 
   const [prevInitialLocale, setPrevInitialLocale] = useState(initialLocale);
   const [currentLocale, setCurrentLocale] = useState(initialLocale || DEFAULT_LOCALE);
   const [prevInitialMessages, setPrevInitialMessages] = useState(initialMessages);
   const [currentMessages, setCurrentMessages] = useState(initialMessages || {});
+  const [prevInitialCountryCode, setPrevInitialCountryCode] = useState(initialCountryCode);
+  const [currentCountryCode, setCurrentCountryCode] = useState(getCountry(initialCountryCode)?.code || "PK");
 
   // Adjust state during render when server props change (React-recommended pattern)
   if (initialLocale !== prevInitialLocale) {
@@ -82,6 +85,11 @@ export default function LocaleProvider({ locale: initialLocale, messages: initia
   if (initialMessages !== prevInitialMessages) {
     setPrevInitialMessages(initialMessages);
     setCurrentMessages(initialMessages || {});
+  }
+
+  if (initialCountryCode !== prevInitialCountryCode) {
+    setPrevInitialCountryCode(initialCountryCode);
+    setCurrentCountryCode(getCountry(initialCountryCode)?.code || "PK");
   }
 
   // Synchronize document lang and dir attributes when currentLocale changes
@@ -114,13 +122,16 @@ export default function LocaleProvider({ locale: initialLocale, messages: initia
 
       // 3. Persist to account if authenticated
       try {
-        await fetch("/api/account/locale", {
+        const response = await fetch("/api/account/locale", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ locale: nextLocale }),
         });
+        if (!response.ok && response.status !== 401) {
+          throw new Error("Could not save your language preference.");
+        }
       } catch {
-        // Offline or unauthenticated visitors rely on cookie
+        throw new Error("Could not save your language preference.");
       }
 
       // 4. Trigger router refresh for server-side consistency
@@ -144,33 +155,37 @@ export default function LocaleProvider({ locale: initialLocale, messages: initia
     }
 
     try {
-      await fetch("/api/account/locale", {
+      const response = await fetch("/api/account/locale", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locale: null }),
       });
+      if (!response.ok && response.status !== 401) {
+        throw new Error("Could not reset your language preference.");
+      }
     } catch {
-      // Safe fallback
+      throw new Error("Could not reset your language preference.");
     }
     router.refresh();
   }, [router]);
 
   const setCountry = useCallback(
     (countryCode) => {
-      if (!isSupportedCountry(countryCode)) throw new Error("Select a supported country.");
+      const country = getCountry(countryCode);
+      if (!country || !isSupportedCountry(countryCode)) throw new Error("Select a supported country.");
       const storedCountry = document.cookie
         .split("; ")
         .find((cookie) => cookie.startsWith("fitivo-country="))
         ?.slice("fitivo-country=".length);
-      if (storedCountry && decodeURIComponent(storedCountry).toUpperCase() === countryCode.toUpperCase()) return;
-      setCookie("fitivo-country", countryCode, 60 * 60 * 24 * 365);
-      // NOTE: Changing country does NOT change language (Default Language Policy).
+      if (storedCountry && decodeURIComponent(storedCountry).toUpperCase() === country.code) return;
+      setCookie("fitivo-country", country.code, 60 * 60 * 24 * 365);
+      setCurrentCountryCode(country.code);
       router.refresh();
     },
     [router]
   );
 
-  const value = { locale: currentLocale, changeLocale, resetLocale, setCountry };
+  const value = { locale: currentLocale, countryCode: currentCountryCode, changeLocale, resetLocale, setCountry };
 
   return (
     <LocalePreferenceContext.Provider value={value}>

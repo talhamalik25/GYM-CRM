@@ -200,7 +200,7 @@ function SidebarContent({
       </nav>
 
       {/* Account / Profile Footer */}
-      <div className="mt-auto shrink-0 border-t border-line p-3.5">
+      <div className="mt-auto shrink-0 border-t border-line p-3.5 bg-surface relative z-10">
         <div className="rounded-xl border border-line bg-surface p-2.5 shadow-xs transition-colors hover:border-line-strong">
           <Link
             href={profileHref}
@@ -365,16 +365,25 @@ export default function DashboardShell({
             </button>
 
             {/* Breadcrumb Hierarchy & Title */}
-            <div className="min-w-0">
-              <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-ink-subtle">
-                <span className="truncate">{roleName}</span>
-                <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-ink-subtle/60 rtl:rotate-180" aria-hidden="true" />
-                <span className="truncate font-medium text-ink">{pageTitle}</span>
-              </nav>
-              <h1 className="truncate text-base font-bold tracking-tight text-ink sm:text-lg">
-                {pageTitle}
-              </h1>
-            </div>
+            {pathname === '/dashboard' ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-surface-raised px-2.5 py-1 text-xs font-medium text-ink-muted border border-line/60">
+                  <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                  {roleName} Workspace
+                </span>
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-ink-subtle">
+                  <span className="truncate">{roleName}</span>
+                  <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-ink-subtle/60 rtl:rotate-180" aria-hidden="true" />
+                  <span className="truncate font-medium text-ink">{pageTitle}</span>
+                </nav>
+                <p className="truncate text-base font-bold tracking-tight text-ink sm:text-lg">
+                  {pageTitle}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Topbar Actions */}

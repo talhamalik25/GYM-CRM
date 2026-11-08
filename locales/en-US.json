@@ -7,6 +7,8 @@
     "chooseCountry": "Choose your country",
     "countrySearch": "Search country or code",
     "noCountriesFound": "No matching countries found.",
+    "countrySelectorDescription": "Language follows your country unless you set an override.",
+    "searchCountryOrLanguage": "Search country or language",
     "searchCountryOrLanguage": "Search country or language…",
     "suggestedLanguages": "Suggested languages",
     "allLanguages": "All languages",

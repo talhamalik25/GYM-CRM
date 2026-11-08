@@ -37,7 +37,7 @@ export const COUNTRIES = [
   { code: "ES", countryName: "Spain", defaultLocale: "es-ES", supportedLocales: ["es-ES", "en-US"], currency: "EUR", formatLocale: "en-ES" },
   { code: "CN", countryName: "China", defaultLocale: "zh-CN", supportedLocales: ["zh-CN", "en-US"], currency: "CNY", formatLocale: "en-CN" },
   { code: "JP", countryName: "Japan", defaultLocale: "ja-JP", supportedLocales: ["ja-JP", "en-US"], currency: "JPY", formatLocale: "en-JP" },
-  { code: "TR", countryName: "Turkey", defaultLocale: "tr-TR", supportedLocales: ["tr-TR", "en-US"], currency: "TRY", formatLocale: "en-TR" },
+  { code: "TR", countryName: "Türkiye", aliases: ["Turkey"], defaultLocale: "tr-TR", supportedLocales: ["tr-TR", "en-US"], currency: "TRY", formatLocale: "en-TR" },
   { code: "BR", countryName: "Brazil", defaultLocale: "pt-BR", supportedLocales: ["pt-BR", "en-US"], currency: "BRL", formatLocale: "en-BR" },
   { code: "IN", countryName: "India", defaultLocale: "hi-IN", supportedLocales: ["hi-IN", "en-US"], currency: "INR", formatLocale: "en-IN" },
   { code: "BD", countryName: "Bangladesh", defaultLocale: "bn-BD", supportedLocales: ["bn-BD", "en-US"], currency: "BDT", formatLocale: "en-BD" },
@@ -65,15 +65,16 @@ export function resolveLocale(locale) {
   return DEFAULT_LOCALE;
 }
 
-export function resolveEffectiveLocale({ userLocale, gymLocale, explicitLocale } = {}) {
+export function resolveEffectiveLocale({ userLocale, gymLocale, explicitLocale, countryLocale } = {}) {
   // Precedence per Default Language Policy:
   // 1. Explicit user-selected language (session or cookie)
   if (isAvailableLocale(explicitLocale)) return explicitLocale;
   if (isAvailableLocale(userLocale)) return userLocale;
   // 2. Gym default language (if active and available)
   if (isAvailableLocale(gymLocale)) return gymLocale;
-  // 3. System default: English (en-US)
-  // Selecting a country does NOT automatically change the interface language.
+  // 3. Country default, if available.
+  if (isAvailableLocale(countryLocale)) return countryLocale;
+  // 4. System default: English (en-US)
   return DEFAULT_LOCALE;
 }
 
@@ -82,9 +83,34 @@ export function getLocaleDirection(locale) {
 }
 
 export function getCountryDefaultLocale(countryCode) {
-  return getCountry(countryCode)?.defaultLocale || DEFAULT_LOCALE;
+  const country = getCountry(countryCode);
+  if (!country) return DEFAULT_LOCALE;
+  if (isAvailableLocale(country.defaultLocale)) return country.defaultLocale;
+  return country.supportedLocales.find(isAvailableLocale) || DEFAULT_LOCALE;
 }
 
 export function isSupportedCountry(countryCode) {
   return Boolean(getCountry(countryCode));
+}
+
+function normalizeSearchText(value) {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase();
+}
+
+export function searchCountries(query) {
+  const normalizedQuery = typeof query === "string" ? normalizeSearchText(query.trim()) : "";
+  if (!normalizedQuery) return COUNTRIES;
+
+  return COUNTRIES.filter((country) => {
+    const localeDetails = country.supportedLocales.map(getLocale).filter(Boolean);
+    const searchValues = [
+      country.countryName,
+      country.code,
+      country.currency,
+      ...(country.aliases || []),
+      country.defaultLocale,
+      ...localeDetails.flatMap(({ locale, languageName, nativeName }) => [locale, languageName, nativeName]),
+    ];
+    return searchValues.some((value) => normalizeSearchText(value).includes(normalizedQuery));
+  });
 }

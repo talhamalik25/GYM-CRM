@@ -3,6 +3,7 @@ import { getRequestConfig } from "next-intl/server";
 import {
   DEFAULT_LOCALE,
   DEFAULT_TIME_ZONE,
+  getCountryDefaultLocale,
   isAvailableLocale,
   resolveEffectiveLocale,
 } from "../config/locales.js";
@@ -28,6 +29,7 @@ export default getRequestConfig(async () => {
   const cookieStore = await cookies();
   const user = await getCurrentUser();
   const cookieLocale = cookieStore.get("fitivo-locale")?.value || "";
+  const countryCode = cookieStore.get("fitivo-country")?.value || "";
   let userLocale = "";
   let gymLocale = "";
   let timeZone = DEFAULT_TIME_ZONE;
@@ -60,11 +62,12 @@ export default getRequestConfig(async () => {
   // Precedence per Default Language Policy:
   // 1. Explicit user preference (account or cookie)
   // 2. Gym default (if active)
-  // 3. ALWAYS English (en-US). Country selection does NOT auto-switch language.
+  // 3. Country default, if available; unsupported translations fall back to English.
   const locale = resolveEffectiveLocale({
     userLocale,
     explicitLocale: cookieLocale,
     gymLocale,
+    countryLocale: getCountryDefaultLocale(countryCode),
   });
 
   // Always load en-US baseline messages for complete fallback safety

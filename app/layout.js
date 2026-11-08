@@ -1,6 +1,7 @@
 import "./globals.css";
 import { SITE } from "../config/site.js";
 import { getLocale, getMessages, getTimeZone } from "next-intl/server";
+import { cookies } from "next/headers.js";
 import LocaleProvider from "../components/i18n/locale-provider.js";
 import { getLocaleDirection } from "../config/locales.js";
 
@@ -16,9 +17,11 @@ export default async function RootLayout({ children }) {
   const locale = await getLocale();
   const messages = await getMessages();
   const timeZone = await getTimeZone();
+  const cookieStore = await cookies();
+  const countryCode = cookieStore.get("fitivo-country")?.value || "PK";
   return (
     <html lang={locale} dir={getLocaleDirection(locale)} className="scroll-smooth motion-reduce:scroll-auto">
-      <body><LocaleProvider locale={locale} messages={messages} timeZone={timeZone}>{children}</LocaleProvider></body>
+      <body><LocaleProvider locale={locale} messages={messages} timeZone={timeZone} initialCountryCode={countryCode}>{children}</LocaleProvider></body>
     </html>
   );
 }
