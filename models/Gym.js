@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { snapshotSchema } from "./saasSchemas.js";
+import { COUNTRIES } from "../config/locales.js";
 
 const gymSchema = new mongoose.Schema({
   capacityVersion: { type: Number, default: 0 },
@@ -15,6 +16,8 @@ const gymSchema = new mongoose.Schema({
     match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
   },
   status: { type: String, enum: ["active", "suspended"], default: "active", required: true, index: true },
+  countryCode: { type: String, enum: COUNTRIES.map(({ code }) => code), default: "PK", required: true },
+  defaultLocale: { type: String, default: null, trim: true, maxlength: 35 },
   // Newly provisioned workspaces can explicitly require a SaaS term while
   // legacy gyms without this flag retain their established access behavior.
   saasAccessRequired: { type: Boolean, default: false, required: true },

@@ -101,3 +101,8 @@ The marketing layout keeps its existing chatbot entry point, which delegates to 
 
 Known product discrepancy: current registration starts a seven-day trial, while older marketing/PRD copy describes fourteen days. The chatbot reflects registration. Public plan prices and bank details remain unconfirmed; the public payment screenshot is a local preview, not a submitted payment claim.
 
+## Internationalization foundation
+
+The approved global-localization brief supersedes the older Pakistan-only market assumption for this implementation. `config/locales.js` is the canonical ISO country, BCP 47 locale, direction, currency and translation-readiness registry. Next.js App Router requests use `next-intl` through `i18n/request.js`; completed English resources are under `locales/`. Country selection and language preference are separate: gym country/default language live on `Gym`, while an authenticated user's explicit language override lives on `User.preferredLocale`. Changing a country never converts stored financial amounts.
+
+Coverage is intentionally incomplete at this stage. English resources are the only production-ready translations; Urdu, Arabic, French, German, Spanish, Simplified Chinese, Japanese, Turkish, Portuguese, Hindi and Bengali are marked in progress and resolve to English rather than being presented as complete. Some shared navigation and gym settings use the new foundation, but most application modules have not yet been translated. RTL metadata is configured, but a full dashboard RTL refinement and translation coverage audit remain outstanding.

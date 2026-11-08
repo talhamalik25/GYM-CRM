@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+import createNextIntlPlugin from "next-intl/plugin";
+
 const nextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
@@ -11,4 +13,5 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin("./i18n/request.js");
+export default withNextIntl(nextConfig);

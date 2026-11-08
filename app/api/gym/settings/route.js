@@ -26,9 +26,14 @@ export async function PATCH(request) {
     await connectToDatabase();
     const gym = await Gym.findOneAndUpdate(
       { _id: getRequestGymId(request), status: "active" },
-      { $set: { name: validation.name, timezone: validation.timezone } },
+      { $set: {
+        name: validation.name,
+        timezone: validation.timezone,
+        ...(validation.countryCode !== undefined ? { countryCode: validation.countryCode } : {}),
+        ...(validation.defaultLocale !== undefined ? { defaultLocale: validation.defaultLocale } : {}),
+      } },
       { returnDocument: "after", runValidators: true },
-    ).select("name slug timezone status").lean();
+    ).select("name slug timezone countryCode defaultLocale status").lean();
     if (!gym) return errorResponse("Gym workspace was not found or is unavailable.", 404);
     return successResponse(serializeGymSettings(gym));
   } catch {

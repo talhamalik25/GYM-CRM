@@ -1,5 +1,8 @@
 import "./globals.css";
 import { SITE } from "../config/site.js";
+import { getLocale, getMessages, getTimeZone } from "next-intl/server";
+import LocaleProvider from "../components/i18n/locale-provider.js";
+import { getLocaleDirection } from "../config/locales.js";
 
 export const metadata = {
   metadataBase: new URL(SITE.url),
@@ -9,10 +12,13 @@ export const metadata = {
   twitter: { card: "summary_large_image", title: "Fitivo | Gym Management", description: "Fitivo — manage members, plans, payments and attendance in one place.", images: ["/logo.png"] },
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const timeZone = await getTimeZone();
   return (
-    <html lang="en" className="scroll-smooth motion-reduce:scroll-auto" suppressHydrationWarning>
-      <body>{children}</body>
+    <html lang={locale} dir={getLocaleDirection(locale)} className="scroll-smooth motion-reduce:scroll-auto">
+      <body><LocaleProvider locale={locale} messages={messages} timeZone={timeZone}>{children}</LocaleProvider></body>
     </html>
   );
 }

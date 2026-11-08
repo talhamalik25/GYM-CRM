@@ -1,0 +1,32 @@
+{
+  "common": {
+    "country": "Country",
+    "language": "Language",
+    "englishFallback": "English (available)",
+    "translationInProgress": "translation in progress",
+    "chooseCountry": "Choose your country",
+    "countrySearch": "Search country or code",
+    "noCountriesFound": "No matching countries found."
+  },
+  "marketing": {
+    "navigation": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "productTour": "Product Tour",
+      "guide": "Guide",
+      "about": "About",
+      "contact": "Contact",
+      "mainNavigation": "Main navigation",
+      "fitivoHome": "Fitivo home",
+      "chooseCountry": "Choose country: {country}",
+      "chooseCountryTitle": "Choose your country",
+      "regionDescription": "Select your country for local currency and number formatting.",
+      "logIn": "Log in",
+      "startTrial": "Start 7-Day Trial",
+      "openNavigation": "Open navigation menu",
+      "closeNavigation": "Close navigation menu",
+      "mobileNavigation": "Mobile navigation",
+      "englishFallback": "English interface; {language} translation is in progress"
+    }
+  }
+}

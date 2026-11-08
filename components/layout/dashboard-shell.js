@@ -11,6 +11,7 @@ import Button from '../ui/button';
 import Drawer from '../ui/drawer';
 import AccountMenu from './account-menu.js';
 import FitivoLogo from '../brand/fitivo-logo.js';
+import LanguageSwitcher from '../i18n/language-switcher.js';
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity, group: 'Overview' },
@@ -133,6 +134,7 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
         </div>
         <div className="topbar-actions flex shrink-0 items-center gap-2 sm:gap-3">
           {!isSuperadmin && <BranchSwitcher />}
+          <LanguageSwitcher />
           <AccountMenu name={accountName} email={accountEmail} role={roleName} links={accountLinks} onLogout={handleLogout} loggingOut={loggingOut} />
         </div>
       </header>
