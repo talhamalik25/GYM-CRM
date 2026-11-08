@@ -32,7 +32,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
   }
 
   function handleKeyDown(event) {
-    const items = [...menu.current.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+    const items = [...(menu.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') || [])];
     const current = items.indexOf(document.activeElement);
     let next;
     if (event.key === "Escape") {
@@ -50,62 +50,100 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
     items[next]?.focus();
   }
 
-  return <div ref={root} className="relative shrink-0">
-    <button
-      ref={trigger}
-      type="button"
-      aria-label={open ? "Close account menu" : "Open account menu"}
-      aria-haspopup="menu"
-      aria-expanded={open}
-      aria-controls={open ? id : undefined}
-      onClick={() => setOpen((value) => !value)}
-      onKeyDown={(event) => {
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-          event.preventDefault();
-          setOpen(true);
-        }
-      }}
-      className="group relative flex size-11 items-center justify-center gap-1 rounded-full border border-line bg-surface p-0.5 text-ink-muted transition-colors hover:border-line-strong hover:bg-surface-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none"
-    >
-      <Avatar name={name || email} size="sm" className="border border-line" />
-      <ChevronDown size={13} strokeWidth={1.8} aria-hidden="true" className="absolute right-0 bottom-0 rounded-full bg-surface text-ink-subtle" />
-    </button>
-    {open && <div
-      id={id}
-      ref={menu}
-      role="menu"
-      aria-label="Account"
-      onKeyDown={handleKeyDown}
-      className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(70vh,30rem)] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-surface p-1.5 text-ink shadow-lg shadow-slate-900/10"
-    >
-      <div role="group" aria-label="Signed-in account" className="border-b border-line px-3 py-3">
-        <p className="truncate text-sm font-semibold text-ink">{name || "Your account"}</p>
-        <p className="mt-0.5 truncate text-xs text-ink-muted">{email}</p>
-        <span className="mt-2 inline-flex max-w-full items-center rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-medium text-brand-soft-text">{role}</span>
-      </div>
-      {links.length > 0 && <div className="py-1" role="group" aria-label="Account links">
-        {links.map(({ href, label }) => <Link
-          key={href}
-          href={href}
-          role="menuitem"
-          tabIndex={-1}
-          onClick={() => close(false)}
-          className="flex min-h-11 items-center rounded-lg px-3 text-sm text-ink-muted outline-none transition-colors hover:bg-surface-raised hover:text-ink focus-visible:bg-surface-raised focus-visible:text-ink motion-reduce:transition-none"
-        >{label}</Link>)}
-      </div>}
-      <div role="group" aria-label="Session actions" className="border-t border-line pt-1">
-        <button
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          disabled={loggingOut}
-          onClick={() => { close(false); onLogout(); }}
-          className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-danger outline-none transition-colors hover:bg-danger-soft focus-visible:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+  return (
+    <div ref={root} className="relative shrink-0">
+      <button
+        ref={trigger}
+        type="button"
+        aria-label={open ? "Close account menu" : "Open account menu"}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="group relative flex size-11 items-center justify-center rounded-xl border border-line bg-surface p-0.5 text-ink-muted shadow-xs transition-colors hover:border-line-strong hover:bg-surface-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none"
+      >
+        <Avatar name={name || email} size="sm" className="ring-1 ring-line" />
+        <span className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full border border-line bg-surface text-ink-subtle">
+          <ChevronDown
+            size={10}
+            strokeWidth={2.5}
+            aria-hidden="true"
+            className={`transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+          />
+        </span>
+      </button>
+
+      {open && (
+        <div
+          id={id}
+          ref={menu}
+          role="menu"
+          aria-label="Account"
+          onKeyDown={handleKeyDown}
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(70vh,30rem)] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-2 text-ink shadow-xl shadow-slate-900/10"
         >
-          {loggingOut ? <LoaderCircle size={16} aria-hidden="true" className="animate-spin motion-reduce:animate-none" /> : <LogOut size={16} aria-hidden="true" />}
-          {loggingOut ? "Signing out…" : "Log out"}
-        </button>
-      </div>
-    </div>}
-  </div>;
+          {/* User info banner */}
+          <div role="group" aria-label="Signed-in account" className="rounded-xl bg-surface-raised/60 p-3">
+            <div className="flex items-center gap-3">
+              <Avatar name={name || email} size="sm" className="ring-1 ring-line shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-ink leading-tight">{name || "Your account"}</p>
+                <p className="truncate text-xs text-ink-muted mt-0.5" title={email}>{email}</p>
+              </div>
+            </div>
+            {role && (
+              <div className="mt-2.5">
+                <span className="inline-flex items-center rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand-soft-text">
+                  {role}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Account links */}
+          {links.length > 0 && (
+            <div className="py-1.5 space-y-0.5" role="group" aria-label="Account links">
+              {links.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  role="menuitem"
+                  tabIndex={-1}
+                  onClick={() => close(false)}
+                  className="flex min-h-10 items-center rounded-xl px-3 text-sm font-medium text-ink-muted outline-none transition-colors hover:bg-surface-raised hover:text-ink focus-visible:bg-surface-raised focus-visible:text-ink motion-reduce:transition-none"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Sign out item */}
+          <div role="group" aria-label="Session actions" className="border-t border-line/60 pt-1.5">
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              disabled={loggingOut}
+              onClick={() => { close(false); onLogout(); }}
+              className="flex min-h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-danger outline-none transition-colors hover:bg-danger-soft focus-visible:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+            >
+              {loggingOut ? (
+                <LoaderCircle size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+              ) : (
+                <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
+              )}
+              <span>{loggingOut ? "Signing out…" : "Log out"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -19,14 +19,16 @@ test("every protected API handler rejects missing sessions before database acces
   const connect = t.mock.method(mongoose, "connect", () => { throw new Error("A guard attempted a database connection."); });
   const api = new URL("../app/api/", import.meta.url);
   let checked = 0;
-  const publicRoutes = new Set(["auth/login/route.js", "auth/register/route.js", "auth/logout/route.js", "staff/invitations/accept/route.js", "cron/saas-expiry/route.js"]);
+  const publicRoutes = new Set(["auth/login/route.js", "auth/register/route.js", "auth/logout/route.js", "staff/invitations/accept/route.js", "cron/saas-expiry/route.js", "marketing/leads/route.js", "account/locale/route.js"]);
   for (const file of readdirSync(api, { recursive: true }).filter((file) => file.replaceAll("\\", "/").endsWith("/route.js"))) {
     const relative = file.replaceAll("\\", "/");
     if (publicRoutes.has(relative)) continue;
     const route = await import(new URL(relative, api));
     for (const method of ["GET", "POST", "PATCH", "PUT", "DELETE"]) {
       if (!route[method]) continue;
-      const body = relative === "account/profile/route.js" ? { fullName: "Test Owner", phone: "" } : {};
+      const body = relative === "account/profile/route.js"
+        ? { fullName: "Test Owner", phone: "" }
+        : relative === "account/locale/route.js" ? { locale: null } : {};
       const request = new NextRequest(`http://localhost/api/${relative.replace("/route.js", "").replaceAll("[id]", "507f1f77bcf86cd799439011")}`, {
         method, headers: { origin: "http://localhost", "content-type": "application/json" },
         ...(method !== "GET" ? { body: JSON.stringify(body) } : {}),

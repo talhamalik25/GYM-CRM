@@ -68,8 +68,8 @@ test.describe("Login page", () => {
     await page.fill("#login-password", "password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
-    // Verify loading state appears
-    await expect(page.getByText(/signing in/i)).toBeVisible();
+    // Verify loading button appears
+    await expect(page.getByRole("button", { name: /signing in/i })).toBeVisible();
   });
 
   test("displays form error from failed API response", async ({ page }) => {
@@ -85,7 +85,7 @@ test.describe("Login page", () => {
     await page.fill("#login-password", "password123");
     await page.getByRole("button", { name: /sign in/i }).click();
 
-    await expect(page.locator("[role='alert']")).toContainText("Invalid email or password");
+    await expect(page.locator("form p[role='alert']")).toContainText("Invalid email or password");
   });
 
   test("has no horizontal overflow at 375px mobile", async ({ page }) => {

@@ -16,9 +16,12 @@ function CountryFlag({ countryCode, className = "", size = 18, fallback = "🌐"
   const normalizedCode = typeof countryCode === "string" ? countryCode.trim().toUpperCase() : "";
   const localFlagCodes = new Set(["PK", "US", "AE", "SA", "GB", "DE", "FR", "IN", "BD", "MY", "AU", "CA"]);
   const isValid = /^[A-Z]{2}$/.test(normalizedCode) && localFlagCodes.has(normalizedCode);
+  const flagEmoji = /^[A-Z]{2}$/.test(normalizedCode)
+    ? String.fromCodePoint(...[...normalizedCode].map((letter) => letter.charCodeAt(0) + 127397))
+    : fallback;
   return isValid ? (
-    <Image src={`/flags/${normalizedCode.toLowerCase()}.svg`} alt={`${normalizedCode} flag`} width={size + 6} height={size} className={`shrink-0 rounded-sm object-contain ${className}`} unoptimized />
-  ) : <span role="img" aria-label={`${normalizedCode} flag`} className={className}>{fallback}</span>;
+    <Image src={`/flags/${normalizedCode.toLowerCase()}.svg`} alt={`${normalizedCode} flag`} width={size + 6} height={size} style={{ width: size + 6, height: size }} className={`shrink-0 rounded-sm object-contain ${className}`} unoptimized />
+  ) : <span role="img" aria-label={`${normalizedCode} flag`} className={className}>{flagEmoji}</span>;
 }
 
 const regionOptions = COUNTRIES.map((country) => ({

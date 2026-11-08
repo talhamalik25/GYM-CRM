@@ -21,6 +21,8 @@
       "chooseCountry": "Choose country: {country}",
       "chooseCountryTitle": "Choose your country",
       "regionDescription": "Select your country for local currency and number formatting.",
+      "countrySearch": "Search country or code",
+      "noCountriesFound": "No matching countries found.",
       "logIn": "Log in",
       "startTrial": "Start 7-Day Trial",
       "openNavigation": "Open navigation menu",

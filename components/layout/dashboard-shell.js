@@ -3,7 +3,19 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Activity, CalendarCheck2, ChartNoAxesColumn, CreditCard, Dumbbell, LogOut, Menu, Settings, Users, UserRound } from 'lucide-react';
+import {
+  Activity,
+  CalendarCheck2,
+  ChartNoAxesColumn,
+  ChevronRight,
+  CreditCard,
+  Dumbbell,
+  LogOut,
+  Menu,
+  Settings,
+  UserRound,
+  Users,
+} from 'lucide-react';
 
 import BranchSwitcher from '../branches/branch-switcher';
 import Avatar from '../ui/avatar';
@@ -13,7 +25,7 @@ import AccountMenu from './account-menu.js';
 import FitivoLogo from '../brand/fitivo-logo.js';
 import LanguageSwitcher from '../i18n/language-switcher.js';
 
-const nav = [
+export const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity, group: 'Overview' },
   { label: 'Members', href: '/members', Icon: Users, group: 'Management' },
   { label: 'Membership plans', href: '/memberships', Icon: Dumbbell, group: 'Management' },
@@ -25,63 +37,192 @@ const nav = [
   { label: 'Fitivo plan', href: '/billing', Icon: CreditCard, group: 'Finance', ownerOnly: true },
   { label: 'Settings', href: '/settings', Icon: Settings, group: 'Workspace', ownerOnly: true },
 ];
-const adminNav = [
+
+export const adminNav = [
   { label: 'Platform overview', href: '/admin', Icon: Activity, group: 'Overview' },
   { label: 'Gym accounts', href: '/admin/gyms', Icon: Dumbbell, group: 'Management' },
   { label: 'User accounts', href: '/admin/users', Icon: Users, group: 'Management' },
   { label: 'Plans & billing', href: '/admin/billing', Icon: CreditCard, group: 'Finance' },
 ];
-const trainerNav = [{ label: 'Trainer workspace', href: '/trainer', Icon: UserRound, group: 'Overview' }];
 
-function isActive(pathname, href) {
+export const trainerNav = [{ label: 'Trainer workspace', href: '/trainer', Icon: UserRound, group: 'Overview' }];
+
+export function isActive(pathname, href) {
   return pathname === href || (href !== '/admin' && pathname.startsWith(`${href}/`));
 }
 
-function getPageTitle(pathname) {
+export function getPageTitle(pathname) {
   if (pathname === '/profile') return 'Owner profile';
   if (pathname === '/workouts') return 'Workouts';
+  if (pathname === '/branches' || pathname.startsWith('/branches/')) return 'Branches';
   return [...nav, ...adminNav, ...trainerNav].find(({ href }) => isActive(pathname, href))?.label || 'Dashboard';
 }
 
-function SidebarContent({ pathname, links, homeHref, roleName, accountName, accountEmail, profileHref, onNavigate, onLogout, loggingOut, logoutError }) {
-  const groups = [...new Set(links.map(({ group }) => group))];
-  return <>
-    <Link href={homeHref} className={"brand exact:flex exact:items-center exact:[gap:10px] exact:[flex-shrink:0] exact:[min-height:44px] exact:[border-radius:var(--radius-input)]"} onClick={onNavigate} aria-label="Fitivo home">
-      <FitivoLogo width={120} height={40} />
-      <span className={"workspace-caption exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:[line-height:1.4]"}>{roleName} workspace</span>
-    </Link>
-    <nav aria-label="Main navigation" className={"side-nav exact:grid exact:[gap:24px] exact:[margin-top:28px]"}>
-      {groups.map((group) => <div className="nav-group" key={group}>
-        <p className={"nav-label exact:[margin:0_12px_8px] exact:[color:var(--ink-subtle)] exact:[font-size:11px] exact:[font-weight:600] exact:[letter-spacing:.08em] exact:[text-transform:uppercase]"}>{group}</p>
-        <ul className={"nav-items exact:grid exact:[gap:4px] exact:[list-style:none] exact:[padding:0] exact:[margin:0]"}>
-          {links.filter((link) => link.group === group).map(({ label, href, Icon }) => {
-            const active = isActive(pathname, href);
-            return <li key={href}><Link href={href} onClick={onNavigate} className={`nav-link exact:flex exact:items-center exact:[gap:10px] exact:[min-height:42px] exact:[padding:10px_12px] exact:[border-radius:var(--radius-input)] exact:[color:var(--grey-700)] exact:[font-size:14px] exact:[font-weight:500] exact:[transition:background_var(--motion-fast),_color_var(--motion-fast)] exact:[&:hover]:[background:var(--surface-raised)] exact:[&.active]:[background:var(--brand-soft)] exact:[&.active]:[color:var(--brand-soft-text)] exact:[&.active]:[font-weight:600] ${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
-              <Icon className={"nav-icon exact:[flex-shrink:0]"} size={18} strokeWidth={1.75} aria-hidden="true" /><span>{label}</span>
-            </Link></li>;
-          })}
-        </ul>
-      </div>)}
-    </nav>
-    <div className={"sidebar-bottom exact:[margin-top:auto] exact:[padding-top:24px]"}>
-      <div className={"shell-account-card exact:[padding:10px] exact:[border:1px_solid_var(--line)] exact:[border-radius:12px]"}>
-        <Link className={"profile-button exact:flex exact:items-center exact:[gap:10px] exact:[padding:4px] exact:[border-radius:var(--radius-input)] exact:[&:hover]:[background:var(--surface-raised)]"} href={profileHref} onClick={onNavigate}>
-          <Avatar name={accountName || accountEmail} size="sm" />
-          <span className={"profile-copy exact:[min-width:0] exact:[&_strong]:block exact:[&_strong]:[font-size:13px] exact:[&_strong]:[font-weight:600] exact:[&_small]:block exact:[&_small]:overflow-hidden exact:[&_small]:[text-overflow:ellipsis] exact:[&_small]:[white-space:nowrap] exact:[&_small]:[color:var(--ink-subtle)] exact:[&_small]:[font-size:12px] exact:[&_small]:[margin-top:2px]"}><strong>{roleName}</strong><small title={accountEmail || undefined}>{accountEmail || 'Signed in'}</small></span>
-        </Link>
-        <Button type="button" variant="ghost" className={"shell-signout exact:[width:100%] exact:[justify-content:flex-start] exact:[margin-top:8px]"} onClick={onLogout} loading={loggingOut} loadingLabel="Signing out…"><LogOut size={16} strokeWidth={1.75} aria-hidden="true" />Sign out</Button>
-        {logoutError && <p className={"shell-account-error exact:[color:var(--danger)] exact:[font-size:13px] exact:[overflow-wrap:anywhere] exact:[margin:8px_4px_0]"} role="alert">{logoutError}</p>}
-      </div>
-    </div>
-  </>;
+export function getRoleName({ isSuperadmin = false, isTrainer = false, canManageStaff = false, isGymAdmin = false } = {}) {
+  return isSuperadmin ? 'Super Admin' : isTrainer ? 'Trainer' : canManageStaff ? 'Gym Owner' : isGymAdmin ? 'Gym Admin' : 'Staff';
 }
 
-export default function DashboardShell({ children, isSuperadmin = false, canManageStaff = false, isTrainer = false, isGymAdmin = false, accountName = '', accountEmail = '' }) {
+export function getHomeHref({ isSuperadmin = false, isTrainer = false } = {}) {
+  return isSuperadmin ? '/admin' : isTrainer ? '/trainer' : '/dashboard';
+}
+
+export function getProfileHref({ isSuperadmin = false, isTrainer = false, canManageStaff = false } = {}) {
+  return isSuperadmin ? '/admin/users' : isTrainer ? '/trainer' : canManageStaff ? '/profile' : '/dashboard';
+}
+
+export function getNavLinks({ isSuperadmin = false, isTrainer = false, canManageStaff = false } = {}) {
+  return isSuperadmin ? adminNav : isTrainer ? trainerNav : nav.filter(({ ownerOnly }) => !ownerOnly || canManageStaff);
+}
+
+export function getAccountLinks({ canManageStaff = false, isSuperadmin = false } = {}) {
+  return canManageStaff
+    ? [
+        { href: '/profile', label: 'My Profile' },
+        { href: '/settings', label: 'Account Settings' },
+      ]
+    : isSuperadmin
+      ? adminNav.map(({ href, label }) => ({ href, label }))
+      : [];
+}
+
+function SidebarContent({
+  pathname,
+  links,
+  homeHref,
+  roleName,
+  accountName,
+  accountEmail,
+  profileHref,
+  onNavigate,
+  onLogout,
+  loggingOut,
+  logoutError,
+}) {
+  const groups = [...new Set(links.map(({ group }) => group))];
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Brand & Workspace Header */}
+      <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-line px-5">
+        <Link
+          href={homeHref}
+          className="flex items-center gap-2.5 rounded-lg py-1 outline-none transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          onClick={onNavigate}
+          aria-label="Fitivo home"
+        >
+          <FitivoLogo width={112} height={36} priority />
+        </Link>
+        <span className="inline-flex items-center rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-semibold text-brand-soft-text">
+          {roleName}
+        </span>
+      </div>
+
+      {/* Navigation Groups */}
+      <nav aria-label="Main navigation" className="flex-1 space-y-6 overflow-y-auto px-3.5 py-5 overscroll-contain">
+        {groups.map((group) => (
+          <div key={group} className="space-y-1">
+            <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
+              {group}
+            </p>
+            <ul className="space-y-1">
+              {links
+                .filter((link) => link.group === group)
+                .map(({ label, href, Icon }) => {
+                  const active = isActive(pathname, href);
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        onClick={onNavigate}
+                        aria-current={active ? 'page' : undefined}
+                        className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+                          active
+                            ? 'bg-brand-soft text-brand font-semibold shadow-xs'
+                            : 'text-ink-muted hover:bg-surface-raised hover:text-ink'
+                        }`}
+                      >
+                        {active && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-brand"
+                          />
+                        )}
+                        <Icon
+                          size={18}
+                          strokeWidth={active ? 2.2 : 1.75}
+                          className={`shrink-0 transition-colors ${
+                            active ? 'text-brand' : 'text-ink-subtle group-hover:text-ink'
+                          }`}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+
+      {/* Account / Profile Footer */}
+      <div className="mt-auto shrink-0 border-t border-line p-3.5">
+        <div className="rounded-xl border border-line bg-surface p-2.5 shadow-xs transition-colors hover:border-line-strong">
+          <Link
+            href={profileHref}
+            onClick={onNavigate}
+            className="flex items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            <Avatar name={accountName || accountEmail} size="sm" className="ring-1 ring-line shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold leading-tight text-ink">
+                {accountName || roleName}
+              </p>
+              <p className="truncate text-[11px] text-ink-subtle" title={accountEmail || undefined}>
+                {accountEmail || 'Signed in'}
+              </p>
+            </div>
+          </Link>
+          <div className="mt-2 border-t border-line/60 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-xs font-medium text-ink-muted hover:bg-danger-soft/60 hover:text-danger"
+              onClick={onLogout}
+              loading={loggingOut}
+              loadingLabel="Signing out…"
+            >
+              <LogOut size={15} strokeWidth={1.75} aria-hidden="true" className="mr-1.5" />
+              Sign out
+            </Button>
+          </div>
+          {logoutError && (
+            <p className="mt-2 px-1 text-xs text-danger break-words" role="alert">
+              {logoutError}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardShell({
+  children,
+  isSuperadmin = false,
+  canManageStaff = false,
+  isTrainer = false,
+  isGymAdmin = false,
+  accountName = '',
+  accountEmail = '',
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
+
   const roleName = isSuperadmin ? 'Super Admin' : isTrainer ? 'Trainer' : canManageStaff ? 'Gym Owner' : isGymAdmin ? 'Gym Admin' : 'Staff';
   const homeHref = isSuperadmin ? '/admin' : isTrainer ? '/trainer' : '/dashboard';
   const profileHref = isSuperadmin ? '/admin/users' : isTrainer ? '/trainer' : canManageStaff ? '/profile' : '/dashboard';
@@ -90,7 +231,9 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
   useEffect(() => {
     if (!menuOpen) return;
     const desktop = window.matchMedia('(min-width: 1024px)');
-    const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMenuOpen(false);
+    };
     desktop.addEventListener('change', closeOnDesktop);
     return () => desktop.removeEventListener('change', closeOnDesktop);
   }, [menuOpen]);
@@ -110,39 +253,132 @@ export default function DashboardShell({ children, isSuperadmin = false, canMana
     }
   }
 
-  const sidebarProps = { pathname, links, homeHref, roleName, accountName, accountEmail, profileHref, onLogout: handleLogout, loggingOut };
+  const sidebarProps = {
+    pathname,
+    links,
+    homeHref,
+    roleName,
+    accountName,
+    accountEmail,
+    profileHref,
+    onLogout: handleLogout,
+    loggingOut,
+  };
+
   const accountLinks = canManageStaff
-    ? [{ href: '/profile', label: 'My Profile' }, { href: '/settings', label: 'Account Settings' }]
+    ? [
+        { href: '/profile', label: 'My Profile' },
+        { href: '/settings', label: 'Account Settings' },
+      ]
     : isSuperadmin
       ? adminNav.map(({ href, label }) => ({ href, label }))
       : [];
 
-  return <div className={"app-shell exact:[min-height:100vh]"}>
-    <a href="#main-content" className={"shell-skip-link exact:fixed exact:[top:12px] exact:[left:12px] exact:[z-index:100] exact:[transform:translateY(-200%)] exact:[padding:12px_16px] exact:[border-radius:var(--radius-input)] exact:[background:var(--surface)] exact:[color:var(--ink)] exact:[box-shadow:var(--shadow-md)] exact:[&:focus]:[transform:translateY(0)]"}>Skip to content</a>
-    <aside className={"sidebar exact:fixed exact:[inset:0_auto_0_0] exact:[z-index:30] exact:flex exact:flex-col exact:[width:var(--sidebar-width)] exact:[padding:20px_16px] exact:[overflow-y:auto] exact:[overscroll-behavior:contain] exact:[background:var(--surface)] exact:[color:var(--ink)] exact:[border-right:1px_solid_var(--line)] desktop-sidebar exact:at-most-1023:hidden"} aria-label={`${roleName} workspace`}><SidebarContent {...sidebarProps} /></aside>
-    <Drawer open={menuOpen} side="left" onClose={() => setMenuOpen(false)} title="Navigation" className={"shell-navigation-drawer exact:[&_.ui-modal-header]:[padding:12px_16px] exact:[&_.ui-modal-header]:items-center exact:[&_.ui-modal-header_h2]:[font-size:14px] exact:[&_.ui-icon-button]:[width:44px] exact:[&_.ui-icon-button]:[height:44px] exact:[&_.ui-modal-content]:flex exact:[&_.ui-modal-content]:[padding:20px_16px_max(20px,_env(safe-area-inset-bottom))]"}>
-      <div className={"shell-drawer-content exact:flex exact:flex-col exact:[width:100%] exact:[min-width:0] exact:[flex-shrink:0]"}><SidebarContent {...sidebarProps} logoutError={logoutError} onNavigate={() => setMenuOpen(false)} /></div>
-    </Drawer>
-    <div className={"main-column exact:flex exact:flex-col exact:[min-width:0] exact:[min-height:100vh] exact:[margin-left:var(--sidebar-width)] exact:at-most-1023:[margin-left:0]"}>
-      <header className="topbar sticky top-0 z-[15] flex min-h-[var(--topbar-height)] items-center justify-between gap-4 border-b border-line bg-surface px-6 py-2.5 max-[1023px]:px-5 max-[600px]:gap-2 max-[600px]:px-3">
-        <div className="topbar-left flex min-w-0 flex-1 items-center gap-3 max-[600px]:gap-2">
-          <button type="button" className="menu-toggle hidden size-11 shrink-0 place-items-center rounded-lg border border-line bg-surface text-ink transition-colors hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-[1023px]:grid max-[359px]:size-10 motion-reduce:transition-none" aria-label="Open navigation menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={19} strokeWidth={1.8} aria-hidden="true" /></button>
-          <div className="min-w-0">
-            <h1 className="topbar-title truncate text-base font-semibold tracking-tight text-ink sm:text-lg">{getPageTitle(pathname)}</h1>
-            <p className="topbar-context mt-0.5 truncate text-xs text-ink-subtle max-[359px]:hidden">{roleName} workspace</p>
+  const pageTitle = getPageTitle(pathname);
+
+  return (
+    <div className="relative min-h-screen bg-canvas font-sans text-ink">
+      {/* Accessible skip link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-xl focus:bg-surface focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-lg focus:outline-2 focus:outline-brand"
+      >
+        Skip to content
+      </a>
+
+      {/* Desktop Fixed Sidebar */}
+      <aside
+        className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface lg:flex"
+        aria-label={`${roleName} workspace`}
+      >
+        <SidebarContent {...sidebarProps} />
+      </aside>
+
+      {/* Mobile Navigation Drawer */}
+      <Drawer
+        open={menuOpen}
+        side="left"
+        onClose={() => setMenuOpen(false)}
+        title="Navigation"
+        className="[&_.ui-modal-header]:items-center [&_.ui-modal-header]:p-4 [&_.ui-modal-content]:flex [&_.ui-modal-content]:p-0"
+      >
+        <div className="h-full w-full min-w-0 flex-1">
+          <SidebarContent
+            {...sidebarProps}
+            logoutError={logoutError}
+            onNavigate={() => setMenuOpen(false)}
+          />
+        </div>
+      </Drawer>
+
+      {/* Main Content Area (Offset by sidebar on desktop) */}
+      <div className="flex min-h-screen flex-col lg:pl-64">
+        {/* Sticky Topbar */}
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+            {/* Mobile menu toggle */}
+            <button
+              type="button"
+              className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface text-ink transition-colors hover:bg-surface-raised hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:hidden motion-reduce:transition-none"
+              aria-label="Open navigation menu"
+              aria-haspopup="dialog"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <Menu size={20} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+
+            {/* Breadcrumb Hierarchy & Title */}
+            <div className="min-w-0">
+              <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-ink-subtle">
+                <span className="truncate">{roleName}</span>
+                <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-ink-subtle/60" aria-hidden="true" />
+                <span className="truncate font-medium text-ink">{pageTitle}</span>
+              </nav>
+              <h1 className="truncate text-base font-bold tracking-tight text-ink sm:text-lg">
+                {pageTitle}
+              </h1>
+            </div>
           </div>
-        </div>
-        <div className="topbar-actions flex shrink-0 items-center gap-2 sm:gap-3">
-          {!isSuperadmin && <BranchSwitcher />}
-          <LanguageSwitcher />
-          <AccountMenu name={accountName} email={accountEmail} role={roleName} links={accountLinks} onLogout={handleLogout} loggingOut={loggingOut} />
-        </div>
-      </header>
-      <main id="main-content" tabIndex={-1} className={"main-content exact:[flex:1] exact:[width:100%] exact:[min-width:0] exact:[max-width:1600px] exact:[padding:var(--page-padding-y)_var(--page-padding-x)] exact:[margin:0_auto] exact:at-most-1023:[padding:24px] exact:at-most-600:[padding:24px_16px]"}>
-        {logoutError && <p className={"shell-logout-error exact:[color:var(--danger)] exact:[font-size:13px] exact:[overflow-wrap:anywhere] exact:[padding:12px_16px] exact:[margin:0_0_24px] exact:[border-radius:var(--radius-input)] exact:[background:var(--danger-soft)]"} role="alert">{logoutError}</p>}
-        {children}
-      </main>
-      <footer className={"app-footer exact:flex exact:[justify-content:space-between] exact:[gap:16px] exact:[padding:12px_var(--page-padding-x)_20px] exact:[color:var(--ink-subtle)] exact:[font-size:12px] exact:at-most-1023:[padding-inline:24px] exact:at-most-600:[padding-inline:16px]"}><FitivoLogo width={72} height={24} /><span>Your gym, in sync.</span></footer>
+
+          {/* Topbar Actions */}
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {!isSuperadmin && <BranchSwitcher />}
+            <LanguageSwitcher />
+            <AccountMenu
+              name={accountName}
+              email={accountEmail}
+              role={roleName}
+              links={accountLinks}
+              onLogout={handleLogout}
+              loggingOut={loggingOut}
+            />
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 p-4 sm:p-6 lg:p-8 outline-none"
+        >
+          {logoutError && (
+            <p
+              className="mb-6 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger break-words"
+              role="alert"
+            >
+              {logoutError}
+            </p>
+          )}
+          {children}
+        </main>
+
+        {/* Minimal Footer */}
+        <footer className="flex items-center justify-between border-t border-line/60 bg-surface px-4 py-3 text-xs text-ink-subtle sm:px-6 lg:px-8">
+          <FitivoLogo width={68} height={22} />
+          <span>Your gym, in sync.</span>
+        </footer>
+      </div>
     </div>
-  </div>;
+  );
 }
