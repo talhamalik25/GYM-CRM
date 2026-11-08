@@ -15,7 +15,7 @@ import FitivoLogo from '../brand/fitivo-logo.js';
 const nav = [
   { label: 'Dashboard', href: '/dashboard', Icon: Activity, group: 'Overview' },
   { label: 'Members', href: '/members', Icon: Users, group: 'Management' },
-  { label: 'Plans', href: '/memberships', Icon: Dumbbell, group: 'Management' },
+  { label: 'Membership plans', href: '/memberships', Icon: Dumbbell, group: 'Management' },
   { label: 'Attendance', href: '/attendance', Icon: CalendarCheck2, group: 'Management' },
   { label: 'Trainers', href: '/trainers', Icon: UserRound, group: 'Management' },
   { label: 'Staff', href: '/staff', Icon: Users, group: 'Management', ownerOnly: true },

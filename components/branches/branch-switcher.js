@@ -135,7 +135,7 @@ export default function BranchSwitcher() {
       onKeyDown={handleKeyDown}
       className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(70vh,24rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-surface p-1.5 text-ink shadow-lg shadow-slate-900/10"
     >
-      <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">Switch branch</p>
+      <p role="presentation" className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">Switch branch</p>
       {options.map(({ id, label }) => {
         const selected = id === data.selectedBranchId;
         return <button
@@ -152,7 +152,7 @@ export default function BranchSwitcher() {
           {selected && <Check size={16} aria-hidden="true" className="shrink-0" />}
         </button>;
       })}
-      {data.role === "gym_owner" && <div className="mt-1 border-t border-line pt-1">
+      {data.role === "gym_owner" && <div role="group" aria-label="Branch management" className="mt-1 border-t border-line pt-1">
         <Link
           href="/branches"
           role="menuitem"

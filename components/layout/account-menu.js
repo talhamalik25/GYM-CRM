@@ -54,7 +54,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
     <button
       ref={trigger}
       type="button"
-      aria-label="Open account menu"
+      aria-label={open ? "Close account menu" : "Open account menu"}
       aria-haspopup="menu"
       aria-expanded={open}
       aria-controls={open ? id : undefined}
@@ -78,7 +78,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
       onKeyDown={handleKeyDown}
       className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(70vh,30rem)] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-surface p-1.5 text-ink shadow-lg shadow-slate-900/10"
     >
-      <div className="border-b border-line px-3 py-3">
+      <div role="group" aria-label="Signed-in account" className="border-b border-line px-3 py-3">
         <p className="truncate text-sm font-semibold text-ink">{name || "Your account"}</p>
         <p className="mt-0.5 truncate text-xs text-ink-muted">{email}</p>
         <span className="mt-2 inline-flex max-w-full items-center rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-medium text-brand-soft-text">{role}</span>
@@ -93,7 +93,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
           className="flex min-h-11 items-center rounded-lg px-3 text-sm text-ink-muted outline-none transition-colors hover:bg-surface-raised hover:text-ink focus-visible:bg-surface-raised focus-visible:text-ink motion-reduce:transition-none"
         >{label}</Link>)}
       </div>}
-      <div className="border-t border-line pt-1">
+      <div role="group" aria-label="Session actions" className="border-t border-line pt-1">
         <button
           type="button"
           role="menuitem"
