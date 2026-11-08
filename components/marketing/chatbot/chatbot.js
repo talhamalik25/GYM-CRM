@@ -68,8 +68,26 @@ export default function MarketingChatbot() {
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
   useEffect(() => {
+    if (!open || window.matchMedia("(min-width: 768px)").matches) return undefined;
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    return () => { document.documentElement.style.overflow = previousOverflow; };
+  }, [open]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      openRef.current = false;
+      launcherRef.current?.focus();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+  useEffect(() => {
     if (!open) return;
-    if (window.matchMedia("(min-width: 640px)").matches) inputRef.current?.focus();
+    if (window.matchMedia("(min-width: 768px)").matches) inputRef.current?.focus();
     else panelRef.current?.querySelector("#fitivo-chat-title")?.focus();
   }, [open]);
   useEffect(() => {
@@ -133,11 +151,12 @@ export default function MarketingChatbot() {
   function keyboard(event) {
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       close();
       return;
     }
     if (event.key !== "Tab" || !panelRef.current) return;
-    const elements = [...panelRef.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled)')].filter((item) => item.getClientRects().length);
+    const elements = [...panelRef.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), [tabindex="-1"]')].filter((item) => item.getClientRects().length);
     const first = elements[0]; const last = elements.at(-1);
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
