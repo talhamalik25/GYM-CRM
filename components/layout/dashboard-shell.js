@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Activity,
   CalendarCheck2,
@@ -85,6 +86,34 @@ export function getAccountLinks({ canManageStaff = false, isSuperadmin = false }
       : [];
 }
 
+const navKeyMap = {
+  'Dashboard': 'dashboard',
+  'Members': 'members',
+  'Membership plans': 'memberships',
+  'Attendance': 'attendance',
+  'Trainers': 'trainers',
+  'Staff': 'staff',
+  'Payments': 'payments',
+  'Reports': 'reports',
+  'Fitivo plan': 'billing',
+  'Settings': 'settings',
+  'Platform overview': 'platformOverview',
+  'Gym accounts': 'gymAccounts',
+  'User accounts': 'userAccounts',
+  'Plans & billing': 'plansBilling',
+  'Trainer workspace': 'trainerWorkspace',
+  'Owner profile': 'profile',
+  'Workouts': 'workouts',
+  'Branches': 'branches',
+};
+
+const groupKeyMap = {
+  'Overview': 'overview',
+  'Management': 'management',
+  'Finance': 'finance',
+  'Workspace': 'workspace',
+};
+
 function SidebarContent({
   pathname,
   links,
@@ -98,6 +127,7 @@ function SidebarContent({
   loggingOut,
   logoutError,
 }) {
+  const tNav = useTranslations('navigation');
   const groups = [...new Set(links.map(({ group }) => group))];
 
   return (
@@ -118,51 +148,55 @@ function SidebarContent({
       </div>
 
       {/* Navigation Groups */}
-      <nav aria-label="Main navigation" className="flex-1 space-y-6 overflow-y-auto px-3.5 py-5 overscroll-contain">
-        {groups.map((group) => (
-          <div key={group} className="space-y-1">
-            <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-              {group}
-            </p>
-            <ul className="space-y-1">
-              {links
-                .filter((link) => link.group === group)
-                .map(({ label, href, Icon }) => {
-                  const active = isActive(pathname, href);
-                  return (
-                    <li key={href}>
-                      <Link
-                        href={href}
-                        onClick={onNavigate}
-                        aria-current={active ? 'page' : undefined}
-                        className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-                          active
-                            ? 'bg-brand-soft text-brand font-semibold shadow-xs'
-                            : 'text-ink-muted hover:bg-surface-raised hover:text-ink'
-                        }`}
-                      >
-                        {active && (
-                          <span
-                            aria-hidden="true"
-                            className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-brand"
-                          />
-                        )}
-                        <Icon
-                          size={18}
-                          strokeWidth={active ? 2.2 : 1.75}
-                          className={`shrink-0 transition-colors ${
-                            active ? 'text-brand' : 'text-ink-subtle group-hover:text-ink'
+      <nav aria-label="Main navigation" className="sidebar-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-3.5 py-5 overscroll-contain">
+        {groups.map((group) => {
+          const groupLabel = groupKeyMap[group] ? tNav(groupKeyMap[group], { default: group }) : group;
+          return (
+            <div key={group} className="space-y-1">
+              <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
+                {groupLabel}
+              </p>
+              <ul className="space-y-1">
+                {links
+                  .filter((link) => link.group === group)
+                  .map(({ label, href, Icon }) => {
+                    const active = isActive(pathname, href);
+                    const itemLabel = navKeyMap[label] ? tNav(navKeyMap[label], { default: label }) : label;
+                    return (
+                      <li key={href}>
+                        <Link
+                          href={href}
+                          onClick={onNavigate}
+                          aria-current={active ? 'page' : undefined}
+                          className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+                            active
+                              ? 'bg-brand-soft text-brand font-semibold shadow-xs'
+                              : 'text-ink-muted hover:bg-surface-raised hover:text-ink'
                           }`}
-                          aria-hidden="true"
-                        />
-                        <span className="truncate">{label}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-            </ul>
-          </div>
-        ))}
+                        >
+                          {active && (
+                            <span
+                              aria-hidden="true"
+                              className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-brand rtl:left-auto rtl:right-0 rtl:rounded-r-none rtl:rounded-l-full"
+                            />
+                          )}
+                          <Icon
+                            size={18}
+                            strokeWidth={active ? 2.2 : 1.75}
+                            className={`shrink-0 transition-colors ${
+                              active ? 'text-brand' : 'text-ink-subtle group-hover:text-ink'
+                            }`}
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{itemLabel}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
       {/* Account / Profile Footer */}
@@ -191,10 +225,10 @@ function SidebarContent({
               className="w-full justify-start text-xs font-medium text-ink-muted hover:bg-danger-soft/60 hover:text-danger"
               onClick={onLogout}
               loading={loggingOut}
-              loadingLabel="Signing out…"
+              loadingLabel={tNav('signingOut', { default: 'Signing out…' })}
             >
-              <LogOut size={15} strokeWidth={1.75} aria-hidden="true" className="mr-1.5" />
-              Sign out
+              <LogOut size={15} strokeWidth={1.75} aria-hidden="true" className="mr-1.5 rtl:mr-0 rtl:ml-1.5" />
+              {tNav('signOut', { default: 'Sign out' })}
             </Button>
           </div>
           {logoutError && (
@@ -219,6 +253,7 @@ export default function DashboardShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const tNav = useTranslations('navigation');
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -274,7 +309,8 @@ export default function DashboardShell({
       ? adminNav.map(({ href, label }) => ({ href, label }))
       : [];
 
-  const pageTitle = getPageTitle(pathname);
+  const rawTitle = getPageTitle(pathname);
+  const pageTitle = navKeyMap[rawTitle] ? tNav(navKeyMap[rawTitle], { default: rawTitle }) : rawTitle;
 
   return (
     <div className="relative min-h-screen bg-canvas font-sans text-ink">
@@ -288,7 +324,7 @@ export default function DashboardShell({
 
       {/* Desktop Fixed Sidebar */}
       <aside
-        className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface lg:flex"
+        className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface lg:flex rtl:left-auto rtl:right-0 rtl:border-r-0 rtl:border-l"
         aria-label={`${roleName} workspace`}
       >
         <SidebarContent {...sidebarProps} />
@@ -312,7 +348,7 @@ export default function DashboardShell({
       </Drawer>
 
       {/* Main Content Area (Offset by sidebar on desktop) */}
-      <div className="flex min-h-screen flex-col lg:pl-64">
+      <div className="flex min-h-screen flex-col lg:pl-64 rtl:lg:pl-0 rtl:lg:pr-64">
         {/* Sticky Topbar */}
         <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-line bg-surface/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
@@ -332,7 +368,7 @@ export default function DashboardShell({
             <div className="min-w-0">
               <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-ink-subtle">
                 <span className="truncate">{roleName}</span>
-                <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-ink-subtle/60" aria-hidden="true" />
+                <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-ink-subtle/60 rtl:rotate-180" aria-hidden="true" />
                 <span className="truncate font-medium text-ink">{pageTitle}</span>
               </nav>
               <h1 className="truncate text-base font-bold tracking-tight text-ink sm:text-lg">

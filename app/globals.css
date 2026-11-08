@@ -1,4 +1,14 @@
 @import "tailwindcss";
+
+.sidebar-scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
 @custom-variant at-least-1500 { @media (min-width:1500px) { @slot; } }
 @custom-variant at-most-1100 { @media (max-width:1100px) { @slot; } }
 @custom-variant at-most-1099 { @media (max-width:1099px) { @slot; } }

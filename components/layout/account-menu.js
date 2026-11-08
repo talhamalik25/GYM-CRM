@@ -69,7 +69,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
         className="group relative flex size-11 items-center justify-center rounded-xl border border-line bg-surface p-0.5 text-ink-muted shadow-xs transition-colors hover:border-line-strong hover:bg-surface-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none"
       >
         <Avatar name={name || email} size="sm" className="ring-1 ring-line" />
-        <span className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full border border-line bg-surface text-ink-subtle">
+        <span className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full border border-line bg-surface text-ink-subtle rtl:-right-auto rtl:-left-0.5">
           <ChevronDown
             size={10}
             strokeWidth={2.5}
@@ -86,7 +86,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
           role="menu"
           aria-label="Account"
           onKeyDown={handleKeyDown}
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(70vh,30rem)] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-2 text-ink shadow-xl shadow-slate-900/10"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(70vh,30rem)] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-line bg-surface p-2 text-ink shadow-xl shadow-slate-900/10 rtl:right-auto rtl:left-0"
         >
           {/* User info banner */}
           <div role="group" aria-label="Signed-in account" className="rounded-xl bg-surface-raised/60 p-3">
@@ -116,7 +116,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
                   role="menuitem"
                   tabIndex={-1}
                   onClick={() => close(false)}
-                  className="flex min-h-10 items-center rounded-xl px-3 text-sm font-medium text-ink-muted outline-none transition-colors hover:bg-surface-raised hover:text-ink focus-visible:bg-surface-raised focus-visible:text-ink motion-reduce:transition-none"
+                  className="flex min-h-10 items-center rounded-xl px-3 text-sm font-medium text-ink-muted outline-none transition-colors hover:bg-surface-raised hover:text-ink focus-visible:bg-surface-raised focus-visible:text-ink motion-reduce:transition-none rtl:text-right"
                 >
                   {label}
                 </Link>
@@ -132,7 +132,7 @@ export default function AccountMenu({ name = "", email = "", role, links = [], o
               tabIndex={-1}
               disabled={loggingOut}
               onClick={() => { close(false); onLogout(); }}
-              className="flex min-h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-danger outline-none transition-colors hover:bg-danger-soft focus-visible:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+              className="flex min-h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-danger outline-none transition-colors hover:bg-danger-soft focus-visible:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none rtl:text-right"
             >
               {loggingOut ? (
                 <LoaderCircle size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />

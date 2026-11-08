@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Dumbbell, LockKeyhole } from "lucide-react";
 import FitivoLogo from "../brand/fitivo-logo.js";
+import LanguageSwitcher from "../i18n/language-switcher.js";
 
 export const authFormClasses = "mt-8 grid gap-5 [&_.ui-input]:min-h-12 [&_.ui-input]:rounded-xl [&_.ui-input]:text-base [&_.ui-input]:px-4 [&_.ui-label]:text-sm [&_.ui-field-hint]:text-xs motion-reduce:[&_*]:transition-none motion-reduce:[&_*]:animate-none";
 export const authActionClasses = "w-full min-h-12! rounded-xl! text-sm! motion-safe:transition-transform motion-safe:active:scale-[0.99]";
@@ -44,7 +45,10 @@ export default function AuthLayout({ children, title, description, eyebrow, titl
     <section className="flex min-w-0 flex-col px-6 py-6 sm:px-10 sm:py-8 lg:px-12 xl:px-20" aria-labelledby={titleId}>
       <header className="flex items-center justify-between gap-4">
         <Link href="/" aria-label="Fitivo home" className="rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand lg:invisible lg:pointer-events-none lg:hidden"><FitivoLogo width={112} height={38} priority /></Link>
-        <Link href="/" className="ml-auto inline-flex min-h-11 items-center gap-2 rounded text-sm text-ink-muted hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"><ArrowLeft size={15} aria-hidden="true" />Back to home</Link>
+        <div className="ml-auto flex items-center gap-3">
+          <LanguageSwitcher />
+          <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded text-sm text-ink-muted hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"><ArrowLeft size={15} aria-hidden="true" />Back to home</Link>
+        </div>
       </header>
       <div className={`mx-auto my-auto w-full max-w-[420px] ${compact ? "py-8 sm:py-10" : "py-12 sm:py-16"}`}>
         <p className="mb-4 text-xs font-semibold uppercase tracking-[0.14em] text-brand">{eyebrow}</p>

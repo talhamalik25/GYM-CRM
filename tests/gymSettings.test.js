@@ -12,7 +12,7 @@ test("Gym settings accept only a normalized name and real IANA timezone", () => 
     { name: "Fitivo North", timezone: "Asia/Karachi", countryCode: "PK", defaultLocale: "en-US" },
   );
   assert.equal(validateGymSettings({ name: "Fitivo", timezone: "UTC", countryCode: "XX" }).fields.countryCode, "Choose one of the 18 supported countries.");
-  assert.equal(validateGymSettings({ name: "Fitivo", timezone: "UTC", defaultLocale: "ar-SA" }).fields.defaultLocale, "This language is not available yet.");
+  assert.equal(validateGymSettings({ name: "Fitivo", timezone: "UTC", defaultLocale: "zh-CN" }).fields.defaultLocale, "This language is not available yet.");
   assert.equal(validateGymSettings({ name: "A", timezone: "Asia/Karachi" }).fields.name, "Gym name must be between 2 and 120 characters.");
   assert.equal(validateGymSettings({ name: "Fitivo", timezone: "Not/A_Zone" }).fields.timezone, "Enter a valid IANA timezone.");
   assert.equal(validateGymSettings({ name: "Fitivo", timezone: "UTC", slug: "forged" }).fields.slug, "This field cannot be changed.");

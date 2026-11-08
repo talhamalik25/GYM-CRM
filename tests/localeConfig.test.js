@@ -7,6 +7,7 @@ import {
   getCountry,
   getLocaleDirection,
   isAvailableLocale,
+  resolveEffectiveLocale,
   resolveLocale,
 } from "../config/locales.js";
 import { formatCurrency, formatDate, formatNumber } from "../lib/localeFormatting.js";
@@ -39,15 +40,34 @@ test("country configuration includes requested defaults and explicit supported l
   assert.ok(COUNTRIES.length >= Object.keys(expected).length);
 });
 
-test("only completed English resources are exposed and missing locales fall back safely", () => {
+test("only completed resources are exposed and missing locales fall back safely", () => {
   assert.ok(AVAILABLE_LOCALES.length > 0);
   assert.ok(AVAILABLE_LOCALES.every(({ translationStatus }) => translationStatus === "complete"));
-  assert.equal(isAvailableLocale("ur-PK"), false);
-  assert.equal(resolveLocale("ur-PK", "PK"), DEFAULT_LOCALE);
-  assert.equal(resolveLocale("ar-SA", "SA"), DEFAULT_LOCALE);
-  assert.equal(resolveLocale("en-GB", "PK"), "en-GB");
-  assert.equal(resolveLocale("unsupported", "unknown"), DEFAULT_LOCALE);
+
+  // Completed languages are available
+  assert.equal(isAvailableLocale("ur-PK"), true);
+  assert.equal(isAvailableLocale("ar-SA"), true);
+  assert.equal(isAvailableLocale("fr-FR"), true);
+  assert.equal(resolveLocale("ur-PK"), "ur-PK");
+  assert.equal(resolveLocale("ar-SA"), "ar-SA");
+  assert.equal(resolveLocale("en-GB"), "en-GB");
+
+  // In-progress / unsupported languages fall back to default English
+  assert.equal(isAvailableLocale("zh-CN"), false);
+  assert.equal(isAvailableLocale("ja-JP"), false);
+  assert.equal(resolveLocale("zh-CN"), DEFAULT_LOCALE);
+  assert.equal(resolveLocale("unsupported"), DEFAULT_LOCALE);
+
+  // Default Language Policy: explicit choice takes precedence; otherwise defaults to en-US
+  assert.equal(resolveEffectiveLocale({ userLocale: "en-GB", gymLocale: "en-US", countryCode: "PK" }), "en-GB");
+  assert.equal(resolveEffectiveLocale({ userLocale: "ur-PK", gymLocale: "en-US", countryCode: "PK" }), "ur-PK");
+  assert.equal(resolveEffectiveLocale({ gymLocale: "en-GB", countryCode: "PK" }), "en-GB");
+  assert.equal(resolveEffectiveLocale({ userLocale: "zh-CN", gymLocale: "ja-JP", countryCode: "PK" }), DEFAULT_LOCALE);
+
+  // RTL direction check
   assert.equal(getLocaleDirection("ar-SA"), "rtl");
+  assert.equal(getLocaleDirection("ur-PK"), "rtl");
+  assert.equal(getLocaleDirection("en-US"), "ltr");
 });
 
 test("locale formatting changes presentation without changing the amount", () => {

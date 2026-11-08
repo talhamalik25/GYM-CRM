@@ -1,15 +1,62 @@
 "use client";
 
-import { createContext, useCallback, useContext } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
-import { DEFAULT_LOCALE, isAvailableLocale, isSupportedCountry } from "../../config/locales.js";
+import {
+  DEFAULT_LOCALE,
+  getLocaleDirection,
+  isAvailableLocale,
+  isSupportedCountry,
+} from "../../config/locales.js";
 
 const LocalePreferenceContext = createContext(null);
 
 function setCookie(name, value, maxAge) {
+  if (typeof document === "undefined") return;
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+}
+
+function deleteCookie(name) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
+function mergeMessages(fallback, current) {
+  if (!current || typeof current !== "object") return fallback;
+  const result = { ...fallback };
+  for (const [key, val] of Object.entries(current)) {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      result[key] = mergeMessages(fallback[key] || {}, val);
+    } else {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
+const loaders = {
+  "en-US": () => import("../../locales/en-US.json"),
+  "ur-PK": () => import("../../locales/ur-PK.json"),
+  "ar-SA": () => import("../../locales/ar-SA.json"),
+  "fr-FR": () => import("../../locales/fr-FR.json"),
+  "es-ES": () => import("../../locales/es-ES.json"),
+  "de-DE": () => import("../../locales/de-DE.json"),
+  "pt-BR": () => import("../../locales/pt-BR.json"),
+  "tr-TR": () => import("../../locales/tr-TR.json"),
+  "hi-IN": () => import("../../locales/hi-IN.json"),
+};
+
+async function loadClientMessages(targetLocale) {
+  const enMod = await loaders["en-US"]();
+  const enMessages = enMod.default || enMod;
+  if (!targetLocale || targetLocale === "en-US") return enMessages;
+  const loader = loaders[targetLocale];
+  if (!loader) return enMessages;
+  const targetMod = await loader();
+  const targetMessages = targetMod.default || targetMod;
+  return mergeMessages(enMessages, targetMessages);
 }
 
 export function useLocalePreferences() {
@@ -18,44 +65,118 @@ export function useLocalePreferences() {
   return context;
 }
 
-export default function LocaleProvider({ locale, messages, timeZone, children }) {
+export default function LocaleProvider({ locale: initialLocale, messages: initialMessages, timeZone, children }) {
   const router = useRouter();
 
-  const changeLocale = useCallback(async (nextLocale) => {
-    if (!isAvailableLocale(nextLocale)) throw new Error("This language is not available yet.");
-    const response = await fetch("/api/account/locale", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locale: nextLocale }),
-    });
-    const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error?.message || "Could not save your language preference.");
-    router.refresh();
-  }, [router]);
+  const [prevInitialLocale, setPrevInitialLocale] = useState(initialLocale);
+  const [currentLocale, setCurrentLocale] = useState(initialLocale || DEFAULT_LOCALE);
+  const [prevInitialMessages, setPrevInitialMessages] = useState(initialMessages);
+  const [currentMessages, setCurrentMessages] = useState(initialMessages || {});
+
+  // Adjust state during render when server props change (React-recommended pattern)
+  if (initialLocale !== prevInitialLocale) {
+    setPrevInitialLocale(initialLocale);
+    setCurrentLocale(initialLocale || DEFAULT_LOCALE);
+  }
+
+  if (initialMessages !== prevInitialMessages) {
+    setPrevInitialMessages(initialMessages);
+    setCurrentMessages(initialMessages || {});
+  }
+
+  // Synchronize document lang and dir attributes when currentLocale changes
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = currentLocale;
+      document.documentElement.dir = getLocaleDirection(currentLocale);
+    }
+  }, [currentLocale]);
+
+  const changeLocale = useCallback(
+    async (nextLocale) => {
+      if (!isAvailableLocale(nextLocale)) throw new Error("This language is not available yet.");
+
+      // 1. Set cookie immediately (works for both visitors and logged-in users)
+      setCookie("fitivo-locale", nextLocale, 60 * 60 * 24 * 365);
+
+      // 2. Load client messages and apply immediately without requiring page reload
+      try {
+        const loadedMessages = await loadClientMessages(nextLocale);
+        setCurrentMessages(loadedMessages);
+        setCurrentLocale(nextLocale);
+        if (typeof document !== "undefined") {
+          document.documentElement.lang = nextLocale;
+          document.documentElement.dir = getLocaleDirection(nextLocale);
+        }
+      } catch (err) {
+        console.error("Failed to load client messages:", err);
+      }
+
+      // 3. Persist to account if authenticated
+      try {
+        await fetch("/api/account/locale", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locale: nextLocale }),
+        });
+      } catch {
+        // Offline or unauthenticated visitors rely on cookie
+      }
+
+      // 4. Trigger router refresh for server-side consistency
+      router.refresh();
+    },
+    [router]
+  );
 
   const resetLocale = useCallback(async () => {
-    const response = await fetch("/api/account/locale", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locale: null }),
-    });
-    const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error?.message || "Could not reset your language preference.");
+    deleteCookie("fitivo-locale");
+    try {
+      const enMessages = await loadClientMessages(DEFAULT_LOCALE);
+      setCurrentMessages(enMessages);
+      setCurrentLocale(DEFAULT_LOCALE);
+      if (typeof document !== "undefined") {
+        document.documentElement.lang = DEFAULT_LOCALE;
+        document.documentElement.dir = getLocaleDirection(DEFAULT_LOCALE);
+      }
+    } catch (err) {
+      console.error("Failed to reset messages:", err);
+    }
+
+    try {
+      await fetch("/api/account/locale", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: null }),
+      });
+    } catch {
+      // Safe fallback
+    }
     router.refresh();
   }, [router]);
 
-  const setCountry = useCallback((countryCode) => {
-    if (!isSupportedCountry(countryCode)) throw new Error("Select a supported country.");
-    const storedCountry = document.cookie.split("; ").find((cookie) => cookie.startsWith("fitivo-country="))?.slice("fitivo-country=".length);
-    if (storedCountry && decodeURIComponent(storedCountry).toUpperCase() === countryCode.toUpperCase()) return;
-    setCookie("fitivo-country", countryCode, 60 * 60 * 24 * 365);
-    router.refresh();
-  }, [router]);
+  const setCountry = useCallback(
+    (countryCode) => {
+      if (!isSupportedCountry(countryCode)) throw new Error("Select a supported country.");
+      const storedCountry = document.cookie
+        .split("; ")
+        .find((cookie) => cookie.startsWith("fitivo-country="))
+        ?.slice("fitivo-country=".length);
+      if (storedCountry && decodeURIComponent(storedCountry).toUpperCase() === countryCode.toUpperCase()) return;
+      setCookie("fitivo-country", countryCode, 60 * 60 * 24 * 365);
+      // NOTE: Changing country does NOT change language (Default Language Policy).
+      router.refresh();
+    },
+    [router]
+  );
 
-  const value = { locale: locale || DEFAULT_LOCALE, changeLocale, resetLocale, setCountry };
-  return <LocalePreferenceContext.Provider value={value}>
-    <NextIntlClientProvider locale={value.locale} messages={messages} timeZone={timeZone}>
-      {children}
-    </NextIntlClientProvider>
-  </LocalePreferenceContext.Provider>;
+  const value = { locale: currentLocale, changeLocale, resetLocale, setCountry };
+
+  return (
+    <LocalePreferenceContext.Provider value={value}>
+      <NextIntlClientProvider locale={currentLocale} messages={currentMessages} timeZone={timeZone}>
+        {children}
+      </NextIntlClientProvider>
+    </LocalePreferenceContext.Provider>
+  );
 }

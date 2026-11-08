@@ -7,18 +7,18 @@ export const LOCALES = [
   { locale: "en-MY", languageName: "English", nativeName: "English", direction: "ltr", translationStatus: "complete" },
   { locale: "en-AU", languageName: "English", nativeName: "English", direction: "ltr", translationStatus: "complete" },
   { locale: "en-CA", languageName: "English", nativeName: "English", direction: "ltr", translationStatus: "complete" },
-  { locale: "ur-PK", languageName: "Urdu", nativeName: "اردو", direction: "rtl", translationStatus: "in-progress" },
-  { locale: "ar-SA", languageName: "Arabic", nativeName: "العربية", direction: "rtl", translationStatus: "in-progress" },
-  { locale: "ar-AE", languageName: "Arabic", nativeName: "العربية", direction: "rtl", translationStatus: "in-progress" },
-  { locale: "ar-QA", languageName: "Arabic", nativeName: "العربية", direction: "rtl", translationStatus: "in-progress" },
-  { locale: "fr-FR", languageName: "French", nativeName: "français", direction: "ltr", translationStatus: "in-progress" },
-  { locale: "de-DE", languageName: "German", nativeName: "Deutsch", direction: "ltr", translationStatus: "in-progress" },
-  { locale: "es-ES", languageName: "Spanish", nativeName: "español", direction: "ltr", translationStatus: "in-progress" },
+  { locale: "ur-PK", languageName: "Urdu", nativeName: "اردو", direction: "rtl", translationStatus: "complete" },
+  { locale: "ar-SA", languageName: "Arabic", nativeName: "العربية", direction: "rtl", translationStatus: "complete" },
+  { locale: "ar-AE", languageName: "Arabic", nativeName: "العربية", direction: "rtl", translationStatus: "complete" },
+  { locale: "ar-QA", languageName: "Arabic", nativeName: "العربية", direction: "rtl", translationStatus: "complete" },
+  { locale: "fr-FR", languageName: "French", nativeName: "français", direction: "ltr", translationStatus: "complete" },
+  { locale: "de-DE", languageName: "German", nativeName: "Deutsch", direction: "ltr", translationStatus: "complete" },
+  { locale: "es-ES", languageName: "Spanish", nativeName: "español", direction: "ltr", translationStatus: "complete" },
   { locale: "zh-CN", languageName: "Simplified Chinese", nativeName: "简体中文", direction: "ltr", translationStatus: "in-progress" },
   { locale: "ja-JP", languageName: "Japanese", nativeName: "日本語", direction: "ltr", translationStatus: "in-progress" },
-  { locale: "tr-TR", languageName: "Turkish", nativeName: "Türkçe", direction: "ltr", translationStatus: "in-progress" },
-  { locale: "pt-BR", languageName: "Portuguese", nativeName: "português", direction: "ltr", translationStatus: "in-progress" },
-  { locale: "hi-IN", languageName: "Hindi", nativeName: "हिन्दी", direction: "ltr", translationStatus: "in-progress" },
+  { locale: "tr-TR", languageName: "Turkish", nativeName: "Türkçe", direction: "ltr", translationStatus: "complete" },
+  { locale: "pt-BR", languageName: "Portuguese", nativeName: "português", direction: "ltr", translationStatus: "complete" },
+  { locale: "hi-IN", languageName: "Hindi", nativeName: "हिन्दी", direction: "ltr", translationStatus: "complete" },
   { locale: "bn-BD", languageName: "Bengali", nativeName: "বাংলা", direction: "ltr", translationStatus: "in-progress" },
 ];
 
@@ -60,10 +60,20 @@ export function isAvailableLocale(locale) {
   return typeof locale === "string" && availableLocaleIds.has(locale);
 }
 
-export function resolveLocale(locale, countryCode) {
+export function resolveLocale(locale) {
   if (isAvailableLocale(locale)) return locale;
-  const country = getCountry(countryCode);
-  if (country && isAvailableLocale(country.defaultLocale)) return country.defaultLocale;
+  return DEFAULT_LOCALE;
+}
+
+export function resolveEffectiveLocale({ userLocale, gymLocale, explicitLocale } = {}) {
+  // Precedence per Default Language Policy:
+  // 1. Explicit user-selected language (session or cookie)
+  if (isAvailableLocale(explicitLocale)) return explicitLocale;
+  if (isAvailableLocale(userLocale)) return userLocale;
+  // 2. Gym default language (if active and available)
+  if (isAvailableLocale(gymLocale)) return gymLocale;
+  // 3. System default: English (en-US)
+  // Selecting a country does NOT automatically change the interface language.
   return DEFAULT_LOCALE;
 }
 
