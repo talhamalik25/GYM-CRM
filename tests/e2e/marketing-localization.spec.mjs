@@ -121,4 +121,57 @@ test.describe("Marketing Localization & Language Switching", () => {
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
     await page.screenshot({ path: "tests/e2e/screenshots/marketing-arabic-1280.png", fullPage: false });
   });
+
+  test("country and language selector opens and searches correctly", async ({ page }) => {
+    await page.goto("/");
+    const switcher = page.getByRole("button", { name: /Language:/i }).first();
+    await switcher.click();
+
+    // Verify search input works
+    const searchInput = page.locator('#fitivo-country-selector input[type="search"]');
+    await expect(searchInput).toBeVisible();
+
+    // Search for "Turkey"
+    await searchInput.fill("Turkey");
+    await expect(page.locator('#fitivo-country-selector button:has-text("Türkiye")')).toBeVisible();
+    await expect(page.locator('#fitivo-country-selector button:has-text("Pakistan")')).not.toBeVisible();
+
+    // Clear search and search for "Urdu"
+    await searchInput.fill("Urdu");
+    await expect(page.locator('#fitivo-country-selector button:has-text("Pakistan")')).toBeVisible();
+
+    // Select Turkey and verify language switches to Turkish
+    await searchInput.fill("Türkiye");
+    await page.locator('#fitivo-country-selector button:has-text("Türkiye")').first().click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "tr-TR");
+  });
+
+  for (const viewport of [
+    { width: 320, height: 568, name: "320px" },
+    { width: 375, height: 667, name: "375px" },
+    { width: 390, height: 844, name: "390px" },
+    { width: 768, height: 1024, name: "768px" },
+    { width: 1440, height: 900, name: "1440px" },
+  ]) {
+    test(`selector operates without horizontal overflow at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto("/");
+      const switcher = page.getByRole("button", { name: /Language:/i }).first();
+      await switcher.click();
+
+      // Check dialog visibility
+      const dialog = page.locator("#fitivo-country-selector");
+      await expect(dialog).toBeVisible();
+
+      // Check no horizontal overflow
+      const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+
+      // Verify touch target height on options
+      const firstOption = dialog.locator("button[data-country-option]").first();
+      const box = await firstOption.boundingBox();
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    });
+  }
 });
