@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Menu, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Menu, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MarketingContainer from "./marketing-container.js";
 import FitivoLogo from "../brand/fitivo-logo.js";
@@ -19,10 +19,11 @@ const navigationLinks = [
   ["contact", "/contact"],
 ];
 
-const focus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600";
-const navLink =
-  "inline-flex min-h-11 items-center whitespace-nowrap text-[13px] font-medium text-slate-600! transition-colors hover:text-slate-950! aria-[current=page]:text-indigo-700 motion-reduce:transition-none " +
-  focus;
+const focusRing =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600";
+const navLinkClass =
+  "inline-flex h-9 items-center rounded-md px-3 text-[13px] font-medium text-slate-600 transition-[color,background-color] hover:bg-slate-100/70 hover:text-slate-900 aria-[current=page]:bg-slate-100/90 aria-[current=page]:text-indigo-600 motion-reduce:transition-none " +
+  focusRing;
 
 export default function MarketingNavigation() {
   const pathname = usePathname();
@@ -30,6 +31,16 @@ export default function MarketingNavigation() {
   const headerRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    function handleScroll() {
+      setScrolled(window.scrollY > 12);
+    }
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -60,30 +71,38 @@ export default function MarketingNavigation() {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-[70] border-b border-slate-100 bg-white font-sans text-slate-900"
+      className={`sticky top-0 z-[70] transition-[background-color,border-color,box-shadow] duration-200 ${
+        scrolled
+          ? "border-b border-slate-200/80 bg-white/90 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.06)] backdrop-blur-md"
+          : "border-b border-slate-100 bg-white"
+      } font-sans text-slate-900`}
     >
-      <MarketingContainer className="flex h-[75px] max-w-[1280px] items-center justify-between gap-3 xl:gap-0">
+      <MarketingContainer className="flex h-[72px] max-w-[1280px] items-center justify-between gap-3">
+        {/* Brand logo */}
         <Link
           href="/"
-          aria-label="Fitivo home"
+          aria-label={t("fitivoHome") || "Fitivo home"}
           onClick={closeMenus}
-          className={"inline-flex min-h-11 w-40 shrink-0 items-center overflow-hidden " + focus}
+          className={"group inline-flex min-h-11 w-36 shrink-0 items-center overflow-hidden " + focusRing}
         >
           <FitivoLogo
-            width={200}
-            height={66}
-            className="-ml-5 rtl:-mr-5 rtl:ml-0 [&_img]:max-w-none"
+            width={180}
+            height={56}
+            priority
+            className="-ml-4 rtl:-mr-4 rtl:ml-0 transition-opacity group-hover:opacity-90 [&_img]:max-w-none"
           />
         </Link>
+
+        {/* Desktop Navigation */}
         <nav
-          aria-label="Main navigation"
-          className="ml-auto mr-12 rtl:mr-auto rtl:ml-12 hidden items-center gap-6 xl:flex"
+          aria-label={t("mainNavigation") || "Main navigation"}
+          className="ml-auto mr-8 hidden items-center gap-1 xl:flex rtl:ml-8 rtl:mr-auto"
         >
           {navigationLinks.map(([label, href]) => (
             <Link
               key={href}
               href={href}
-              className={navLink}
+              className={navLinkClass}
               aria-current={pathname === href ? "page" : undefined}
               onClick={closeMenus}
             >
@@ -91,50 +110,55 @@ export default function MarketingNavigation() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto rtl:mr-auto rtl:ml-0 flex items-center justify-end gap-3 xl:gap-4 xl:ml-0 xl:rtl:mr-0">
+
+        {/* Right side actions: Language, Login, Primary CTA */}
+        <div className="flex items-center justify-end gap-2.5 sm:gap-3">
           <LanguageSwitcher />
 
           <Link
             href="/login"
             className={
-              "hidden min-h-11 w-16 items-center whitespace-nowrap text-[13px] font-medium text-slate-600! transition-colors hover:text-slate-950! motion-reduce:transition-none xl:inline-flex " +
-              focus
+              "hidden h-9 items-center whitespace-nowrap rounded-md px-3 text-[13px] font-medium text-slate-600 transition-[color,background-color] hover:bg-slate-100/70 hover:text-slate-950 motion-reduce:transition-none sm:inline-flex " +
+              focusRing
             }
           >
             {t("logIn")}
           </Link>
-          <div className="hidden xl:block">
+
+          <div className="hidden sm:block">
             <MarketingShellAction
               href="/register"
-              className="h-12 w-[157px] rounded-[8px]! bg-primary! px-4! text-[13px]! shadow-sm hover:bg-primary-hover!"
+              className="h-10 rounded-lg bg-indigo-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-indigo-600/25 transition-all hover:bg-indigo-700 hover:shadow-indigo-600/35 active:scale-[0.99] motion-reduce:transition-none"
             >
-              {t("startTrial")}
-              <ArrowRight size={16} aria-hidden="true" className="rtl:rotate-180" />
+              <span>{t("startTrial")}</span>
+              <ArrowRight size={14} aria-hidden="true" className="rtl:rotate-180" />
             </MarketingShellAction>
           </div>
-        </div>
 
-        <button
-          ref={mobileMenuRef}
-          type="button"
-          className={
-            "grid size-11 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 hover:text-indigo-700 xl:hidden " +
-            focus
-          }
-          aria-label={mobileOpen ? t("closeNavigation") : t("openNavigation")}
-          aria-expanded={mobileOpen}
-          aria-controls="fitivo-mobile-navigation"
-          onClick={() => setMobileOpen((current) => !current)}
-        >
-          {mobileOpen ? <X size={21} aria-hidden="true" /> : <Menu size={21} aria-hidden="true" />}
-        </button>
+          {/* Mobile hamburger toggle */}
+          <button
+            ref={mobileMenuRef}
+            type="button"
+            className={
+              "grid size-10 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 hover:text-indigo-600 xl:hidden " +
+              focusRing
+            }
+            aria-label={mobileOpen ? t("closeNavigation") : t("openNavigation")}
+            aria-expanded={mobileOpen}
+            aria-controls="fitivo-mobile-navigation"
+            onClick={() => setMobileOpen((current) => !current)}
+          >
+            {mobileOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+          </button>
+        </div>
       </MarketingContainer>
 
+      {/* Mobile drawer */}
       <nav
         id="fitivo-mobile-navigation"
         hidden={!mobileOpen}
         aria-label={t("mobileNavigation")}
-        className="absolute inset-x-0 top-full max-h-[calc(100dvh-120px)] overflow-y-auto border-b border-slate-200 bg-white shadow-lg shadow-slate-900/5 xl:hidden"
+        className="absolute inset-x-0 top-full max-h-[calc(100dvh-120px)] overflow-y-auto border-b border-slate-200 bg-white shadow-xl shadow-slate-900/10 xl:hidden"
       >
         <MarketingContainer className="py-5">
           <div className="flex flex-col gap-1">
@@ -142,7 +166,7 @@ export default function MarketingNavigation() {
               <Link
                 key={href}
                 href={href}
-                className={navLink}
+                className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-indigo-600 aria-[current=page]:bg-indigo-50/70 aria-[current=page]:font-semibold aria-[current=page]:text-indigo-600"
                 aria-current={pathname === href ? "page" : undefined}
                 onClick={closeMenus}
               >
@@ -150,13 +174,22 @@ export default function MarketingNavigation() {
               </Link>
             ))}
           </div>
-          <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4">
-            <Link href="/login" className={navLink} onClick={closeMenus}>
+
+          <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4">
+            <Link
+              href="/login"
+              className="flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              onClick={closeMenus}
+            >
               {t("logIn")}
             </Link>
-            <MarketingShellAction href="/register" onClick={closeMenus}>
-              {t("startTrial")}
-              <ArrowRight size={16} aria-hidden="true" className="rtl:rotate-180" />
+            <MarketingShellAction
+              href="/register"
+              className="flex min-h-11 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+              onClick={closeMenus}
+            >
+              <span>{t("startTrial")}</span>
+              <ArrowRight size={15} aria-hidden="true" className="rtl:rotate-180" />
             </MarketingShellAction>
           </div>
         </MarketingContainer>

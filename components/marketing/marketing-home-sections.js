@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, CreditCard, FileChartColumn, Receipt, Users, WalletCards } from "lucide-react";
+import { ArrowRight, CalendarCheck, CheckCircle2, CreditCard, FileChartColumn, Receipt, Users, WalletCards } from "lucide-react";
 import { useTranslations } from "next-intl";
 import MarketingContainer from "./marketing-container.js";
 import { ProductCrop, StoryHeading, StoryLink, StorySection } from "./marketing-story.js";
@@ -17,16 +17,18 @@ export function CapabilityStrip() {
   ];
 
   return (
-    <div id="features" className="scroll-mt-28 border-y border-slate-200 bg-white py-7">
-      <MarketingContainer className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-center text-sm font-medium leading-6 text-slate-900 lg:text-left rtl:lg:text-right">
+    <div id="features" className="scroll-mt-24 border-b border-slate-200/80 bg-white py-6">
+      <MarketingContainer className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500 lg:text-left rtl:lg:text-right">
           {t("eyebrow")}
         </p>
-        <ul aria-label="Fitivo capabilities" className="flex flex-wrap items-center justify-center gap-x-7 gap-y-4 lg:gap-9">
+        <ul aria-label="Fitivo capabilities" className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 lg:gap-10">
           {capabilities.map(([Icon, label]) => (
-            <li key={label} className="flex items-center gap-2 text-xs font-medium text-slate-600 sm:text-sm">
-              <Icon size={18} strokeWidth={1.5} aria-hidden="true" className="text-slate-400" />
-              {label}
+            <li key={label} className="flex items-center gap-2 text-xs font-semibold text-slate-700 sm:text-sm">
+              <span className="flex size-7 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+                <Icon size={16} strokeWidth={2} aria-hidden="true" />
+              </span>
+              <span>{label}</span>
             </li>
           ))}
         </ul>
@@ -46,54 +48,56 @@ export function ConnectedWorkflow() {
   ];
 
   return (
-    <StorySection id="connected-day">
-      <div className="grid gap-7 lg:grid-cols-[1.3fr_0.8fr] lg:items-end lg:gap-20">
-        <StoryHeading
-          eyebrow={t("eyebrow")}
-          title={
-            <>
-              {t("title")}
-            </>
-          }
-        />
-        <p className="text-base leading-8 text-slate-500 sm:text-[17px]">
+    <StorySection id="connected-day" className="bg-white">
+      <div className="grid gap-7 lg:grid-cols-[1.3fr_0.8fr] lg:items-end lg:gap-16">
+        <StoryHeading eyebrow={t("eyebrow")} title={t("title")} />
+        <p className="text-base leading-relaxed text-slate-600 sm:text-lg">
           {t("description")}
         </p>
       </div>
-      <div className="mt-12 grid overflow-hidden rounded-2xl border border-slate-200 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="bg-slate-50 p-6 sm:p-10">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+
+      <div className="mt-12 grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5 lg:grid-cols-[0.8fr_1.2fr]">
+        {/* The Disconnected Day */}
+        <div className="border-b border-slate-200 bg-slate-50/70 p-6 sm:p-10 lg:border-b-0 lg:border-r rtl:lg:border-r-0 rtl:lg:border-l">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">
             {t("disconnectedTitle")}
           </p>
-          <ul className="mt-7 space-y-5">
+          <ul className="mt-6 space-y-4">
             {[t("disconnectedItem1"), t("disconnectedItem2"), t("disconnectedItem3")].map((text) => (
-              <li key={text} className="flex items-center gap-3 text-sm leading-6 text-slate-600">
-                <span className="size-1 shrink-0 rounded-full bg-slate-400" aria-hidden="true" />
-                {text}
+              <li key={text} className="flex items-start gap-3 text-sm leading-6 text-slate-600">
+                <span className="mt-1.5 size-2 shrink-0 rounded-full bg-rose-400" aria-hidden="true" />
+                <span>{text}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-8 border-t border-slate-200 pt-5 text-xs text-slate-500">
+          <p className="mt-8 border-t border-slate-200 pt-5 text-xs font-medium text-slate-500">
             {t("disconnectedFootnote")}
           </p>
         </div>
-        <div className="bg-white p-6 sm:p-10">
-          <p className="text-xl font-semibold tracking-tight text-slate-900">
+
+        {/* The Connected Day */}
+        <div className="p-6 sm:p-10">
+          <p className="text-xl font-bold tracking-tight text-slate-900">
             {t("connectedTitle")}
           </p>
-          <ol className="mt-7 grid gap-3 sm:grid-cols-4 sm:gap-4">
+          <ol className="mt-6 grid gap-4 sm:grid-cols-4">
             {workflow.map(([title, text], index) => (
-              <li key={title}>
+              <li
+                key={title}
+                className="relative rounded-xl border border-slate-100 bg-slate-50/60 p-4 transition-all hover:border-indigo-200 hover:bg-indigo-50/30"
+              >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-indigo-600">0{index + 1}</span>
-                  {index < 3 && <ArrowRight size={14} aria-hidden="true" className="hidden text-slate-300 sm:block rtl:rotate-180" />}
+                  <span className="text-xs font-bold text-indigo-600">0{index + 1}</span>
+                  {index < 3 && (
+                    <ArrowRight size={13} aria-hidden="true" className="hidden text-slate-300 sm:block rtl:rotate-180" />
+                  )}
                 </div>
-                <h3 className="mt-2 text-sm font-semibold text-slate-900">{title}</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
+                <h3 className="mt-3 text-sm font-bold text-slate-900">{title}</h3>
+                <p className="mt-1.5 text-xs leading-5 text-slate-500">{text}</p>
               </li>
             ))}
           </ol>
-          <div className="mt-7">
+          <div className="mt-8">
             <StoryLink href="/features">{t("learnMore")}</StoryLink>
           </div>
         </div>
@@ -106,39 +110,46 @@ export function MemberStory() {
   const t = useTranslations("marketing.memberStory");
 
   return (
-    <StorySection id="member-workflow" className="bg-slate-50">
+    <StorySection id="member-workflow" className="border-t border-slate-200/80 bg-slate-50/50">
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
         <StoryHeading eyebrow={t("eyebrow")} title={t("title")} />
         <StoryLink href="/features#member-management">{t("exploreLink")}</StoryLink>
       </div>
-      <div className="mt-14 grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
-        <article className="border-t border-slate-300 pt-7">
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <Users size={18} aria-hidden="true" /> {t("managementBadge")}
+
+      <div className="mt-12 grid gap-8 lg:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200/90 bg-white p-7 shadow-sm transition-all hover:shadow-md sm:p-9">
+          <div className="inline-flex items-center gap-2 rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+            <Users size={15} aria-hidden="true" />
+            <span>{t("managementBadge")}</span>
           </div>
-          <h3 className="mt-6 text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
+          <h3 className="mt-5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             {t("managementTitle")}
           </h3>
-          <p className="mt-5 max-w-lg text-base leading-8 text-slate-500">
+          <p className="mt-4 text-base leading-relaxed text-slate-600">
             {t("managementDesc")}
           </p>
-          <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-3 border-t border-slate-200 pt-5 text-xs text-slate-600">
+          <ul className="mt-6 flex flex-wrap gap-2 border-t border-slate-100 pt-5 text-xs font-medium text-slate-700">
             {[t("tagDetails"), t("tagHistory"), t("tagPayments"), t("tagVisits")].map((text) => (
-              <li key={text}>{text}</li>
+              <li key={text} className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1">
+                <CheckCircle2 size={13} className="text-indigo-600" aria-hidden="true" />
+                <span>{text}</span>
+              </li>
             ))}
           </ul>
         </article>
-        <article className="border-t border-slate-300 pt-7">
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <WalletCards size={18} aria-hidden="true" /> {t("membershipsBadge")}
+
+        <article className="rounded-2xl border border-slate-200/90 bg-white p-7 shadow-sm transition-all hover:shadow-md sm:p-9">
+          <div className="inline-flex items-center gap-2 rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
+            <WalletCards size={15} aria-hidden="true" />
+            <span>{t("membershipsBadge")}</span>
           </div>
-          <h3 className="mt-6 text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
+          <h3 className="mt-5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             {t("membershipsTitle")}
           </h3>
-          <p className="mt-5 text-base leading-8 text-slate-500">
+          <p className="mt-4 text-base leading-relaxed text-slate-600">
             {t("membershipsDesc")}
           </p>
-          <div className="mt-5">
+          <div className="mt-8 border-t border-slate-100 pt-5">
             <StoryLink href="/features#memberships">{t("membershipsLink")}</StoryLink>
           </div>
         </article>
@@ -155,14 +166,15 @@ export function MembershipPayments() {
       <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end lg:gap-16">
         <StoryHeading inverse eyebrow={t("eyebrow")} title={t("title")} />
         <div>
-          <p className="text-base leading-8 text-slate-300">
+          <p className="text-base leading-relaxed text-slate-300">
             {t("description")}
           </p>
-          <div className="mt-5">
+          <div className="mt-6">
             <StoryLink inverse href="/features#fees">{t("exploreLink")}</StoryLink>
           </div>
         </div>
       </div>
+
       <ProductCrop
         inverse
         className="mt-12"
@@ -173,11 +185,12 @@ export function MembershipPayments() {
         alt="Fitivo payments overview with collection totals, dues and payment search filters in an empty-state capture."
         caption={t("caption")}
       />
-      <ul className="mt-8 grid gap-5 border-t border-white/15 pt-7 sm:grid-cols-2 lg:grid-cols-4">
+
+      <ul className="mt-8 grid gap-4 border-t border-white/10 pt-7 sm:grid-cols-2 lg:grid-cols-4">
         {[t("tag1"), t("tag2"), t("tag3"), t("tag4")].map((text) => (
-          <li key={text} className="flex items-center gap-3 text-sm text-slate-200">
-            <Receipt size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-slate-400" />
-            {text}
+          <li key={text} className="flex items-center gap-3 rounded-lg bg-white/5 px-3.5 py-2.5 text-xs font-medium text-slate-200">
+            <Receipt size={16} aria-hidden="true" className="shrink-0 text-indigo-400" />
+            <span>{text}</span>
           </li>
         ))}
       </ul>
@@ -189,22 +202,28 @@ export function AttendanceStory() {
   const t = useTranslations("marketing.attendanceStory");
 
   return (
-    <StorySection id="attendance">
-      <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+    <StorySection id="attendance" className="bg-white">
+      <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
         <div>
           <StoryHeading eyebrow={t("eyebrow")} title={t("title")}>
             {t("description")}
           </StoryHeading>
-          <ol className="mt-7 divide-y divide-slate-200">
+          <ol className="mt-8 space-y-3">
             {[t("step1"), t("step2"), t("step3")].map((text, index) => (
-              <li key={text} className="flex items-center gap-4 py-4 text-sm text-slate-600">
-                <span className="text-xs text-slate-400">0{index + 1}</span>
-                {text}
+              <li
+                key={text}
+                className="flex items-center gap-3.5 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-sm font-medium text-slate-700"
+              >
+                <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
+                  0{index + 1}
+                </span>
+                <span>{text}</span>
               </li>
             ))}
           </ol>
         </div>
-        <div className="min-w-0 rounded-2xl bg-slate-50 px-4 py-8 sm:p-8 lg:py-16">
+
+        <div className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-5 sm:p-8">
           <ProductCrop
             label={t("checkInLabel")}
             src="/home-check-in.webp"
@@ -213,9 +232,9 @@ export function AttendanceStory() {
             alt="Fitivo member check-in search with a field for member name or phone number."
             caption={t("checkInCaption")}
           />
-          <div className="mt-7 flex items-center gap-3 text-sm text-slate-500">
-            <CalendarCheck size={18} aria-hidden="true" />
-            {t("connectedFooter")}
+          <div className="mt-6 flex items-center gap-2.5 text-xs font-semibold text-slate-600">
+            <CalendarCheck size={16} className="text-indigo-600" aria-hidden="true" />
+            <span>{t("connectedFooter")}</span>
           </div>
         </div>
       </div>
@@ -233,30 +252,34 @@ export function OwnerVisibility() {
   ];
 
   return (
-    <StorySection id="reports" className="bg-slate-50">
-      <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-20">
+    <StorySection id="reports" className="border-t border-slate-200/80 bg-slate-50/50">
+      <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
         <div>
           <StoryHeading eyebrow={t("eyebrow")} title={t("title")}>
             {t("description")}
           </StoryHeading>
-          <div className="mt-5">
+          <div className="mt-6">
             <StoryLink href="/features#reports">{t("exploreLink")}</StoryLink>
           </div>
         </div>
-        <dl className="divide-y divide-slate-200">
+
+        <dl className="divide-y divide-slate-200 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm sm:p-8">
           {items.map(([title, text], index) => (
-            <div key={title} className="py-6 first:pt-0">
-              <dt className="flex gap-4 text-lg font-medium text-slate-900">
-                <span className="pt-1 text-xs text-slate-400">0{index + 1}</span>
-                {title}
+            <div key={title} className="py-5 first:pt-0 last:pb-0">
+              <dt className="flex items-center gap-3 text-base font-bold text-slate-900">
+                <span className="flex size-6 items-center justify-center rounded-md bg-indigo-50 text-xs font-bold text-indigo-600">
+                  0{index + 1}
+                </span>
+                <span>{title}</span>
               </dt>
-              <dd className="mt-3 pl-8 rtl:pl-0 rtl:pr-8 text-sm leading-7 text-slate-500">
+              <dd className="mt-2 text-sm leading-relaxed text-slate-600 ltr:pl-9 rtl:pr-9">
                 {text}
               </dd>
             </div>
           ))}
         </dl>
       </div>
+
       <ProductCrop
         className="mt-12"
         label={t("periodsLabel")}

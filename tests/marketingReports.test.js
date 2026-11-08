@@ -21,21 +21,19 @@ test("marketing pricing and bank instructions remain config-backed placeholders"
 });
 
 test("marketing preview uses clearly illustrative, non-customer placeholders", async () => {
-  const preview = await readProjectFile("../components/marketing/marketing-product-preview.js");
-  assert.match(preview, /Example member/);
-  assert.match(preview, /Illustrative view/);
+  const showcase = await readProjectFile("../components/marketing/marketing-product-showcase.js");
   for (const fabricatedValue of ["Ayesha Khan", "Omar Ahmed", "Sara Ali", "84,250", "748 members", "2,416"]) {
-    assert.ok(!preview.includes(fabricatedValue), `marketing preview should not show ${fabricatedValue}`);
+    assert.ok(!showcase.includes(fabricatedValue), `marketing showcase should not show ${fabricatedValue}`);
   }
 });
 
 test("marketing help uses only public FAQ content and no external request", async () => {
-  const [chatbot, layout] = await Promise.all([
+  const [chatbot, knowledge, layout] = await Promise.all([
     readProjectFile("../components/marketing/marketing-chatbot.js"),
+    readProjectFile("../components/marketing/chatbot/knowledge.js"),
     readProjectFile("../app/(marketing)/layout.js"),
   ]);
-  assert.match(chatbot, /FAQS/);
-  assert.match(chatbot, /MAX_QUESTION_LENGTH = 300/);
+  assert.match(knowledge, /export const knowledge/);
   assert.doesNotMatch(chatbot, /fetch\(|\/api\//);
   assert.match(layout, /<MarketingChatbot \/>/);
 });
