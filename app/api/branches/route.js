@@ -14,7 +14,15 @@ export async function GET(request) {
     const context = getRequestTenantContext(request);
     const branches = await listGymBranches(context.gymId);
     const assigned = String(context.membership.branchId || context.gymId);
-    return successResponse({ enabled: context.entitlements.features.multiBranch, role: context.role, consolidated: context.entitlements.features.consolidatedAnalytics, defaultBranchId: String(context.gymId), branches: branches.filter((branch) => context.role === "gym_owner" || String(branch._id) === assigned) });
+    const availableBranches = branches.filter((branch) => context.role === "gym_owner" || String(branch._id) === assigned);
+    const requested = request.cookies.get("fitivo_branch")?.value || "";
+    const canViewAll = context.role === "gym_owner" && context.entitlements.features.multiBranch && context.entitlements.features.consolidatedAnalytics;
+    const selectedBranchId = requested === "all" && canViewAll
+      ? "all"
+      : availableBranches.some((branch) => String(branch._id) === requested && (branch.status === "active" || context.role === "gym_owner"))
+        ? requested
+        : assigned;
+    return successResponse({ enabled: context.entitlements.features.multiBranch, role: context.role, consolidated: context.entitlements.features.consolidatedAnalytics, defaultBranchId: String(context.gymId), selectedBranchId, branches: availableBranches });
   } catch { return errorResponse("Could not load branches.", 503); }
 }
 
