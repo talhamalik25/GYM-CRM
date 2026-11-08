@@ -13,6 +13,37 @@ configured:
 - `tenantBranchIsolation.integration.test.js`
 - `userProfile.integration.test.js`
 
+The tenant/branch suite additionally requires `MONGODB_TEST_DISPOSABLE=YES`
+for both local and remote deployments. Set it only after explicitly designating
+the deployment disposable. `.env.test.local` must use `MONGODB_URI_TEST`;
+`MONGODB_TEST_URI` is not recognized. Never reuse the application URI or credentials.
+
+The suite invokes real route handlers with database-backed sessions. It uses
+stable synthetic fixture IDs inside a randomly named per-run database, with
+owners/admins/trainers for two gyms, East/West/default branches, null-branch
+legacy records, member subscriptions, payments, attendance and trainer profiles.
+Assertions cover exact list contents, foreign reads and writes, forged gym/body
+identity, branch headers and cookies, read-only consolidated selection, plan
+restrictions, invalid memberships, suspended/expired gyms, invitation rejection,
+and permitted role access. Cleanup checks the connected database name before
+dropping only the generated database.
+
+Run the suite with `npm test -- tests/tenantBranchIsolation.integration.test.js`.
+A skipped suite does not prove database isolation. Its nested cases are only
+discovered and counted when a safely configured database is available.
+
+Phase 1.2 review (2026-11-08): the local test configuration uses the unrecognized
+`MONGODB_TEST_URI` name, so the database suite was skipped. Do not merely rename
+it and run tests without independently confirming a separate disposable replica
+set and credentials. The current `main` also differs from commit `7610cd1`:
+`requireApiUser` does not pass the already authenticated user into
+`resolveTenantContext`. Phase 1.2 preserves that current implementation and does
+not restore or alter authentication. The four existing unit failures in
+`apiAuthorization.test.js`, `tenantFoundation.test.js`, and
+`marketingReports.test.js` remain visible; they are outside this integration-test
+change. Draft PRD statements about single-branch scope and fourteen-day trials
+also differ from the existing multi-branch/seven-day implementation.
+
 Use only a dedicated disposable MongoDB instance with a separate host/port and
 separate test credentials from the application database. Payment, registration,
 invitation, profile, tenant-isolation, and entitlement scenarios can use
