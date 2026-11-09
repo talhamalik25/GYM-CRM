@@ -122,6 +122,7 @@ function SidebarContent({
   accountName,
   accountEmail,
   profileHref,
+  showBranchSwitcher = false,
   onNavigate,
   onLogout,
   loggingOut,
@@ -146,6 +147,12 @@ function SidebarContent({
           {roleName}
         </span>
       </div>
+
+      {showBranchSwitcher && (
+        <div className="shrink-0 px-3.5 py-3">
+          <BranchSwitcher />
+        </div>
+      )}
 
       {/* Navigation Groups */}
       <nav aria-label="Main navigation" className="sidebar-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-3.5 py-5 overscroll-contain">
@@ -341,6 +348,7 @@ export default function DashboardShell({
         <div className="h-full w-full min-w-0 flex-1">
           <SidebarContent
             {...sidebarProps}
+            showBranchSwitcher={!isSuperadmin}
             logoutError={logoutError}
             onNavigate={() => setMenuOpen(false)}
           />
@@ -366,12 +374,15 @@ export default function DashboardShell({
 
             {/* Breadcrumb Hierarchy & Title */}
             {pathname === '/dashboard' ? (
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-surface-raised px-2.5 py-1 text-xs font-medium text-ink-muted border border-line/60">
-                  <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                  {roleName} Workspace
-                </span>
-              </div>
+              <>
+                <p className="truncate text-base font-bold tracking-tight text-ink sm:hidden">{pageTitle}</p>
+                <div className="hidden items-center gap-2 sm:flex">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-line/60 bg-surface-raised px-2.5 py-1 text-xs font-medium text-ink-muted">
+                    <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                    {roleName} Workspace
+                  </span>
+                </div>
+              </>
             ) : (
               <div className="min-w-0">
                 <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-ink-subtle">
@@ -388,7 +399,7 @@ export default function DashboardShell({
 
           {/* Topbar Actions */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {!isSuperadmin && <BranchSwitcher />}
+            {!isSuperadmin && <div className="hidden md:block"><BranchSwitcher /></div>}
             <LanguageSwitcher />
             <AccountMenu
               name={accountName}

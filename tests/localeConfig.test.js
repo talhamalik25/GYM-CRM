@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import {
   AVAILABLE_LOCALES,
   COUNTRIES,
+  DEFAULT_COUNTRY_CODE,
   DEFAULT_LOCALE,
   getCountry,
   getCountryDefaultLocale,
   getLocaleDirection,
   isAvailableLocale,
+  resolveCountryChangeLocale,
   resolveEffectiveLocale,
   resolveLocale,
   searchCountries,
@@ -68,6 +70,7 @@ test("only completed resources are exposed and missing locales fall back safely"
   assert.equal(resolveEffectiveLocale({ countryLocale: "ar-SA" }), "ar-SA");
   assert.equal(resolveEffectiveLocale({ countryLocale: "zh-CN" }), DEFAULT_LOCALE);
   assert.equal(getCountryDefaultLocale("CN"), DEFAULT_LOCALE);
+  assert.equal(getCountryDefaultLocale(DEFAULT_COUNTRY_CODE), "ur-PK");
 
   // RTL direction check
   assert.equal(getLocaleDirection("ar-SA"), "rtl");
@@ -85,6 +88,21 @@ test("country selector search matches names, aliases, codes, locales, and langua
   assert.ok(englishCountries.some(({ code }) => code === "US"));
   assert.ok(englishCountries.some(({ code }) => code === "GB"));
   assert.equal(new Set(englishCountries.map(({ code }) => code)).size, englishCountries.length);
+});
+
+test("country changes apply the new default unless the user has an explicit language override", () => {
+  assert.equal(
+    resolveCountryChangeLocale({ currentLocale: "ur-PK", currentCountryCode: "PK", nextCountryCode: "SA" }),
+    "ar-SA"
+  );
+  assert.equal(
+    resolveCountryChangeLocale({ currentLocale: "en-US", currentCountryCode: "PK", nextCountryCode: "SA" }),
+    "en-US"
+  );
+  assert.equal(
+    resolveCountryChangeLocale({ currentLocale: "fr-FR", currentCountryCode: "PK", nextCountryCode: "SA" }),
+    "fr-FR"
+  );
 });
 
 test("locale formatting changes presentation without changing the amount", () => {

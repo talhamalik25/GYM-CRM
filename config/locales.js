@@ -1,4 +1,5 @@
 export const DEFAULT_LOCALE = "en-US";
+export const DEFAULT_COUNTRY_CODE = "PK";
 export const DEFAULT_TIME_ZONE = "Asia/Karachi";
 
 export const LOCALES = [
@@ -87,6 +88,12 @@ export function getCountryDefaultLocale(countryCode) {
   if (!country) return DEFAULT_LOCALE;
   if (isAvailableLocale(country.defaultLocale)) return country.defaultLocale;
   return country.supportedLocales.find(isAvailableLocale) || DEFAULT_LOCALE;
+}
+
+export function resolveCountryChangeLocale({ currentLocale, currentCountryCode, nextCountryCode } = {}) {
+  const currentCountryDefault = getCountryDefaultLocale(currentCountryCode);
+  if (isAvailableLocale(currentLocale) && currentLocale !== currentCountryDefault) return currentLocale;
+  return getCountryDefaultLocale(nextCountryCode);
 }
 
 export function isSupportedCountry(countryCode) {

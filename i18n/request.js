@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 import {
   DEFAULT_LOCALE,
+  DEFAULT_COUNTRY_CODE,
   DEFAULT_TIME_ZONE,
   getCountryDefaultLocale,
   isAvailableLocale,
@@ -29,7 +30,7 @@ export default getRequestConfig(async () => {
   const cookieStore = await cookies();
   const user = await getCurrentUser();
   const cookieLocale = cookieStore.get("fitivo-locale")?.value || "";
-  const countryCode = cookieStore.get("fitivo-country")?.value || "";
+  const countryCode = cookieStore.get("fitivo-country")?.value || DEFAULT_COUNTRY_CODE;
   let userLocale = "";
   let gymLocale = "";
   let timeZone = DEFAULT_TIME_ZONE;

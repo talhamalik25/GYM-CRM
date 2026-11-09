@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
-import { Check, ChevronDown, LoaderCircle, Search, X } from "lucide-react";
+import { Check, ChevronDown, Globe2, LoaderCircle, Search, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
+  AVAILABLE_LOCALES,
   COUNTRIES,
   getCountry,
   getCountryDefaultLocale,
   getLocale,
+  resolveCountryChangeLocale,
   searchCountries,
 } from "../../config/locales.js";
 import { useLocalePreferences } from "./locale-provider.js";
@@ -81,6 +84,7 @@ function CountryOption({ country, index, selected, onSelect, onKeyDown }) {
 }
 
 export default function LanguageSwitcher({ className = "", triggerClassName = "" }) {
+  const tCommon = useTranslations("common");
   const {
     locale: activeLocale,
     countryCode: activeCountryCode,
@@ -96,12 +100,15 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
   const searchInputRef = useRef(null);
+  const panelRef = useRef(null);
   const listRef = useRef(null);
   const closeTimerRef = useRef(null);
+  const languageSelectId = useId();
   const isMobile = useSyncExternalStore(subscribeToViewport, getMobileViewport, getServerViewport);
 
   const currentCountry = getCountry(activeCountryCode) || COUNTRIES[0];
   const currentLanguage = getLocale(activeLocale) || getLocale(currentCountry.defaultLocale);
+  const languageCode = (currentLanguage?.locale.split("-")[0] || "en").toUpperCase();
   const filteredCountries = useMemo(() => searchCountries(query), [query]);
 
   useEffect(() => {
@@ -123,17 +130,35 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
       }
     }
 
-    function closeOnEscape(event) {
-      if (event.key !== "Escape") return;
-      closeSelector();
+    function handleDialogKeys(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeSelector();
+        return;
+      }
+
+      if (!isMobile || event.key !== "Tab") return;
+      const focusableItems = [...(panelRef.current?.querySelectorAll("button:not(:disabled), input:not(:disabled), select:not(:disabled)") || [])]
+        .filter((element) => element.getClientRects().length > 0);
+      if (!focusableItems.length) return;
+      const first = focusableItems[0];
+      const last = focusableItems[focusableItems.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
 
     document.addEventListener("pointerdown", dismissOutside);
-    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", handleDialogKeys);
     return () => {
       document.body.style.overflow = previousBodyOverflow;
       document.removeEventListener("pointerdown", dismissOutside);
-      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("keydown", handleDialogKeys);
     };
   }, [isMobile, open]);
 
@@ -159,16 +184,39 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
       // 1. Save country preference
       setCountry(country.code);
 
-      // 2. Resolve default supported locale for country
-      const targetLocale = getCountryDefaultLocale(country.code);
+      // 2. Apply the country default unless the current language is an explicit override.
+      const targetLocale = resolveCountryChangeLocale({
+        currentLocale: activeLocale,
+        currentCountryCode: currentCountry.code,
+        nextCountryCode: country.code,
+      });
 
-      // 3. Apply the appropriate language throughout Fitivo
+      // 3. Keep an explicit language override when it differs from the current country's default.
       await changeLocale(targetLocale);
 
       // 4. Close dropdown
       closeSelector();
     } catch (selectionError) {
       setError(selectionError.message || "Could not change country and language.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function selectLanguage(nextLocale) {
+    if (saving) return;
+    if (nextLocale === activeLocale) {
+      closeSelector();
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      await changeLocale(nextLocale);
+      closeSelector();
+    } catch (selectionError) {
+      setError(selectionError.message || "Could not change language.");
     } finally {
       setSaving(false);
     }
@@ -202,24 +250,21 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
       <button
         ref={triggerRef}
         type="button"
-        aria-label={`Country: ${currentCountry.countryName}. Language: ${currentLanguage?.nativeName || "English"}. Choose country and language`}
+        aria-label={`${tCommon("chooseCountry")}: ${currentCountry.countryName}. ${tCommon("language")}: ${currentLanguage?.nativeName || "English"}`}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls="fitivo-country-selector"
         onClick={toggleSelector}
-        className={`flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink shadow-2xs transition-colors hover:border-line-strong hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none ${triggerClassName}`}
+        className={`flex min-h-11 w-[4.5rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface px-2 py-1.5 text-xs font-semibold text-ink shadow-2xs transition-colors hover:border-line-strong hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none md:w-auto md:justify-start md:gap-2 md:px-2.5 ${triggerClassName}`}
       >
-        <CountryFlag country={currentCountry} />
-        <span className="min-w-0 truncate">
-          <span>{currentCountry.countryName}</span>
-          <span className="text-ink-subtle/60 mx-1" aria-hidden="true">·</span>
-          <span className="text-ink-muted font-medium">{currentLanguage?.nativeName || "English"}</span>
-        </span>
+        <Globe2 size={16} aria-hidden="true" className="shrink-0 text-ink-muted md:hidden" />
+        <CountryFlag country={currentCountry} className="hidden md:block" />
+        <span className="text-ink-muted">{languageCode}</span>
         <ChevronDown
           size={13}
           strokeWidth={2}
           aria-hidden="true"
-          className={`shrink-0 text-ink-subtle transition-transform duration-200 motion-reduce:transition-none ${
+          className={`hidden shrink-0 text-ink-subtle transition-transform duration-200 motion-reduce:transition-none md:block ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -238,6 +283,7 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
           {/* Unified Dropdown Popover / Mobile Bottom Sheet */}
           <section
             id="fitivo-country-selector"
+            ref={panelRef}
             data-state={closing ? "closing" : "open"}
             role="dialog"
             aria-modal={isMobile ? "true" : undefined}
@@ -250,7 +296,7 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
               <div className="flex min-w-0 items-center gap-2.5">
                 <CountryFlag country={currentCountry} />
                 <h2 id="fitivo-country-selector-title" className="truncate text-sm font-bold text-ink">
-                  Country &amp; Language
+                  {tCommon("country")} · {tCommon("language")}
                 </h2>
               </div>
               <button
@@ -266,7 +312,7 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
             {/* Modern Search Input at Top */}
             <div className="shrink-0 p-3 border-b border-line/60">
               <label className="relative block">
-                <span className="sr-only">Search country or language</span>
+                <span className="sr-only">{tCommon("searchCountryOrLanguage")}</span>
                 <Search
                   size={15}
                   aria-hidden="true"
@@ -277,10 +323,27 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search country or language…"
+                  placeholder={tCommon("searchCountryOrLanguage")}
                   className="h-10 w-full rounded-xl border border-line bg-surface-raised/40 py-2 pl-9 pr-3 text-xs text-ink outline-none transition-colors placeholder:text-ink-subtle focus:border-brand focus:ring-1 focus:ring-brand rtl:pl-3 rtl:pr-9"
                 />
               </label>
+            </div>
+
+            <div className="shrink-0 border-b border-line/60 px-3 py-2.5">
+              <label htmlFor={languageSelectId} className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-ink-subtle">
+                Language
+              </label>
+              <select
+                id={languageSelectId}
+                value={activeLocale}
+                disabled={saving}
+                onChange={(event) => selectLanguage(event.target.value)}
+                className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:cursor-wait disabled:opacity-70"
+              >
+                {AVAILABLE_LOCALES.map(({ locale, nativeName, languageName }) => (
+                  <option key={locale} value={locale}>{nativeName} ({languageName}) · {locale}</option>
+                ))}
+              </select>
             </div>
 
             {saving && (
@@ -295,8 +358,8 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
             <div
               ref={listRef}
               role="group"
-              aria-label="Countries and languages"
-              className="country-selector-list flex-1 overflow-y-auto px-2 py-2 space-y-0.5 overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden max-h-[min(55vh,22rem)] md:max-h-[min(22rem,55vh)]"
+              aria-label={tCommon("country")}
+              className="country-selector-list min-h-0 flex-1 overflow-y-auto px-2 py-2 space-y-0.5 overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden max-h-[min(55vh,22rem)] md:max-h-[min(22rem,55vh)]"
             >
               {filteredCountries.length ? (
                 filteredCountries.map((country, index) => (
@@ -310,9 +373,7 @@ export default function LanguageSwitcher({ className = "", triggerClassName = ""
                   />
                 ))
               ) : (
-                <p className="px-3 py-8 text-center text-xs text-ink-subtle">
-                  No matching country or language found.
-                </p>
+                <p className="px-3 py-8 text-center text-xs text-ink-subtle">{tCommon("noCountriesFound")}</p>
               )}
             </div>
           </section>
